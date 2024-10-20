@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  apprise:
+    image: caronc/apprise:latest
+    container_name: apprise-container
+    ports:
+      - "8000:8000"
+    environment:
+      - APPRISE_CONFIG=/config/apprise_config.yml
+    volumes:
+      - ./config:/config

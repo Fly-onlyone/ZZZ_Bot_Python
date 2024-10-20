@@ -1,5 +1,7 @@
-from playwright.sync_api import Locator
 import time
+
+from playwright.sync_api import Locator
+
 
 class RetryHelper:
     @staticmethod
