@@ -1,17 +1,15 @@
 import cv2
 import numpy as np
-import os
 from playwright.sync_api import Locator
 
 
 class ImageProcessor:
     def __init__(self, button, path):
+        self.capture_button_screenshot(button, path)
         self.button = button
         self.path = path
-        self.capture_button_screenshot(button, path)
 
-    @staticmethod
-    def compare_images(image1_path, image2_path):
+    def compare_images(self, image1_path, image2_path):
         # Read the images
         img1 = cv2.imread(image1_path)
         img2 = cv2.imread(image2_path)
@@ -59,6 +57,5 @@ class ImageProcessor:
             print("Unknown button state")
             return "unknown"
 
-    def capture_button_screenshot(self, button:Locator, image_path):
+    def capture_button_screenshot(self, button: Locator, image_path):
         button.screenshot(path=image_path)
-

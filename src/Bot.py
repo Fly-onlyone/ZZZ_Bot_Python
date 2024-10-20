@@ -1,7 +1,10 @@
 import os
-import json
+
 from playwright.sync_api import sync_playwright
+
 from MissionHelper import count_mission, doing_mission, maintain_mission_data, open_mission_screen, prepare_data
+from src.NotificationHandler import send_mission_data_via_email_html
+
 
 def main():
     storage_path = './authentication data/hoyo.json'
@@ -31,7 +34,7 @@ def main():
         mission_count = count_mission(page)
         doing_mission(mission_count, page, todays_data)
         maintain_mission_data(previous_data, output_file)
-
+        send_mission_data_via_email_html(todays_data)
 
 if __name__ == "__main__":
     main()
