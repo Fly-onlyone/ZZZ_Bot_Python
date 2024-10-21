@@ -11,10 +11,8 @@ def main():
     output_folder = './output'
     output_file = os.path.join(output_folder, 'missions.json')
 
-    # Prepare data for today's missions
     previous_data, todays_data = prepare_data(output_folder, output_file)
 
-    # Launch the browser and start Playwright
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=False)
         context_options = {"storage_state": storage_path} if os.path.exists(storage_path) else {}

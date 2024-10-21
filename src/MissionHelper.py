@@ -1,9 +1,7 @@
 import json
 import os
 from datetime import datetime
-
 from playwright.sync_api import Page, Locator
-
 from RetryHelper import RetryHelper
 from src.ImageProcessor import ImageProcessor
 
@@ -57,7 +55,7 @@ class MissionHelper:
 
         return {'mission_completed': False, 'check_in_result': self.check_in_result}
 
-    def _handle_new_page(self, new_page):
+    def _handle_new_page(self, new_page: Page):
         popup_url = new_page.url
         target_popup_url = 'https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091&hyl_auth_required=true&hyl_presentation_style=fullscreen&utm_campaign=mimo&utm_source=h5&utm_medium=task&utm_id=8'
 
@@ -82,6 +80,8 @@ class MissionHelper:
             else:
                 print('Login failed')
                 self.check_in_result = 'Login Failed'
+
+            new_page.wait_for_timeout(2000)
         else:
             print('Closing unrelated popup...')
             new_page.close()
@@ -133,7 +133,8 @@ def doing_mission(mission_count: int, page: Page, todays_data: dict):
         mission_text = mission_text_locator.inner_text()
 
         # Check if the mission has already been recorded as finished today in todays_data
-        existing_mission = next((mission for mission in todays_data['missions'] if mission['name'] == mission_text), None)
+        existing_mission = next((mission for mission in todays_data['missions'] if mission['name'] == mission_text),
+                                None)
         if existing_mission and existing_mission['state'] == 'Finished':
             print(f'Skipping already finished mission from todays_data: {mission_text}')
             continue
@@ -144,7 +145,7 @@ def doing_mission(mission_count: int, page: Page, todays_data: dict):
         button_state = button_image.detect_button_state()
 
         # If the button state indicates "Finished" (tick), skip performing the mission
-        if button_state == "tick":
+        if button_state == "Finished":
             print(f'Skipping already finished mission (based on button state): {mission_text}')
             mission_state = 'Finished'  # Set mission state as Finished
         else:
@@ -169,7 +170,6 @@ def doing_mission(mission_count: int, page: Page, todays_data: dict):
 
     # Store the final check-in result in todays_data
     todays_data['check_in'] = check_in_result
-
 
 
 def maintain_mission_data(previous_data: list, output_file: str):

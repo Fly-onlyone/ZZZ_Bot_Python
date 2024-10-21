@@ -34,25 +34,29 @@ class ImageProcessor:
         return difference_percentage
 
     def detect_button_state(self):
-        # Path to reference images
         tick_image_path = './sample button/Finished.png'
         arrow_image_path = './sample button/Unfinished.png'
+        reward_image_path = './sample button/Reward.png'
 
-        # Compare with tick image
         tick_diff = self.compare_images(self.path, tick_image_path)
-        print(f"Difference with tick image: {tick_diff}%")
-
-        # Compare with arrow image
         arrow_diff = self.compare_images(self.path, arrow_image_path)
-        print(f"Difference with arrow image: {arrow_diff}%")
+        reward_diff = self.compare_images(self.path, reward_image_path)
 
-        # Determine the closest match
-        if tick_diff < arrow_diff and tick_diff < 5:  # Set a threshold for detection
-            print("Button has a tick ✅")
-            return "Finished"
-        elif arrow_diff < tick_diff and arrow_diff < 5:
-            print("Button has an arrow >>")
-            return "Unfinished"
+        print(f"Difference with Finished (tick) image: {tick_diff}%")
+        print(f"Difference with Unfinished (arrow) image: {arrow_diff}%")
+        print(f"Difference with Reward image: {reward_diff}%")
+
+        diffs = {
+            "Finished": tick_diff,
+            "Unfinished": arrow_diff,
+            "Reward": reward_diff
+        }
+
+        closest_state = min(diffs, key=diffs.get)
+
+        if diffs[closest_state] < 5:  # Set a threshold for detection
+            print(f"Button detected as {closest_state}")
+            return closest_state
         else:
             print("Unknown button state")
             return "unknown"
