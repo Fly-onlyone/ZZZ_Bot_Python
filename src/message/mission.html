@@ -1,0 +1,29 @@
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        h1 { color: #4CAF50; }
+        table { width: 100%; border-collapse: collapse; margin: 25px 0; }
+        th, td { padding: 12px 15px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>Mission Report for {{ day }}</h1>
+    <h2><strong>Check-in Status:</strong> {{ check_in }}</h2>
+    <h2>Mission Status:</h2>
+    <table>
+        <tr>
+            <th>Mission</th>
+            <th>Status</th>
+        </tr>
+        {% for mission in missions %}
+        <tr>
+            <td>{{ mission.name }}</td>
+            <td>{{ mission.state }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
