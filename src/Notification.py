@@ -24,9 +24,14 @@ def send_mission_data_via_email_html(todays_data):
         login_reward_image=f"data:image/png;base64,{encoded_image}"
     )
 
-    apobj = apprise.Apprise()
-    apobj.add('mailto://galevan61:jlqrqxxtaggvnuce@gmail.com')
+    send_mail(mission_summary_html, todays_data)
 
+
+def send_mail(mission_summary_html, todays_data):
+    apobj = apprise.Apprise()
+    gmail_account = 'galevan61'
+    app_password = 'jlqrqxxtaggvnuce'
+    apobj.add('mailto://%s:%s@gmail.com' % (gmail_account, app_password))
     try:
         apobj.notify(
             body=mission_summary_html,
