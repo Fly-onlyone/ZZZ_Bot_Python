@@ -1,5 +1,3 @@
-import time
-
 from playwright.sync_api import Locator
 
 
@@ -7,22 +5,19 @@ class RetryHelper:
     @staticmethod
     def retry_until_screen_appears(screen: Locator, button: Locator, max_retries: int = 10, delay_ms: int = 1000):
         for attempt in range(1, max_retries + 1):
-            try:
-                # Wait for button to become visible and click it
-                button.wait_for(state='visible')
-                button.click()
-                print('Clicked on "Carry out missions to earn".')
+            # Wait for button to become visible and click it
+            button.wait_for(state='visible')
+            button.click(force=True)
+            print('Clicked on button.')
 
-                # Check if the target screen becomes visible
-                if screen.is_visible():
-                    print('Target screen appeared.')
-                    return True
-                print(f'Attempt {attempt}: Target screen not yet visible, retrying...')
-            except Exception as e:
-                print(f'Error: {e}')
+            # Check if the target screen becomes visible
+            if screen.is_visible():
+                print('Target screen appeared.')
+                return True
+            print(f'Attempt {attempt}: Target screen not yet visible, retrying...')
 
             # Wait before retrying
-            time.sleep(delay_ms / 1000)
+            button.page.wait_for_timeout(delay_ms)
 
         print('Max retries reached. Target screen did not appear.')
         return False
@@ -38,7 +33,7 @@ class RetryHelper:
             print(f'Attempt {attempt}: Count is 0, retrying...')
 
             # Wait before retrying
-            time.sleep(delay_ms / 1000)
+            locator.page.wait_for_timeout(delay_ms)
 
         print('Max retries reached. Count is still 0.')
         return count
