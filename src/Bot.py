@@ -1,9 +1,11 @@
 import os
 
 from playwright.sync_api import sync_playwright
+from plyer import notification
 
-from MissionHelper import count_mission, doing_mission, maintain_mission_data, open_mission_screen, prepare_data
-from src.NotificationHandler import send_mission_data_via_email_html
+from Mission import prepare_data
+from src.Mission import open_mission_screen, doing_mission, maintain_mission_data, count_mission
+from src.Notification import send_mission_data_via_email_html
 
 
 def main():
@@ -14,12 +16,13 @@ def main():
     previous_data, todays_data = prepare_data(output_folder, output_file)
 
     with sync_playwright() as p:
-        browser = p.firefox.launch(headless=False)
+        browser = p.firefox.launch(headless=True)
         context_options = {"storage_state": storage_path} if os.path.exists(storage_path) else {}
         context = browser.new_context(**context_options)
         page = context.new_page()
 
-        page.goto('https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?from=zzz&hyl_presentation_style=fullscreen&hyl_auth_required=true&hyl_portrait=true&hyl_hide_status_bar=true&lang=en-us&bbs_theme=dark&bbs_theme_device=1')
+        page.goto(
+            'https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?from=zzz&hyl_presentation_style=fullscreen&hyl_auth_required=true&hyl_portrait=true&hyl_hide_status_bar=true&lang=en-us&bbs_theme=dark&bbs_theme_device=1')
 
         # If storage path doesn't exist, prompt the user to log in manually
         if not os.path.exists(storage_path):
@@ -33,6 +36,9 @@ def main():
         doing_mission(mission_count, page, todays_data)
         maintain_mission_data(previous_data, output_file)
         send_mission_data_via_email_html(todays_data)
+
+        notification.notify(title='ZZZ Bot', message='Task finished!')
+
 
 if __name__ == "__main__":
     main()
