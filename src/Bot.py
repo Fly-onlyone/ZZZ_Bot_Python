@@ -3,12 +3,12 @@ import os
 from playwright.sync_api import sync_playwright
 from plyer import notification
 
-from Mission import prepare_data
-from src.Mission import open_mission_screen, doing_mission, maintain_mission_data, count_mission
+from src.DataHandler import prepare_data
+from src.Mission import run
 from src.Notification import send_mission_data_via_email_html
 
 
-def main():
+def playwright_task():
     storage_path = './authentication data/hoyo.json'
     output_folder = './output'
     output_file = os.path.join(output_folder, 'missions.json')
@@ -31,14 +31,11 @@ def main():
             context.storage_state(path=storage_path)
             print('Login session saved.')
 
-        open_mission_screen(page)
-        mission_count = count_mission(page)
-        doing_mission(mission_count, page, todays_data)
-        maintain_mission_data(previous_data, output_file)
+        run(output_file, page, previous_data, todays_data)
         send_mission_data_via_email_html(todays_data)
 
-        notification.notify(title='ZZZ Bot', message='Task finished!')
+        notification.notify(title='ZZZ Bot', message='Task finished!', app_icon="./Qingyi02.ico")
 
 
 if __name__ == "__main__":
-    main()
+    playwright_task()

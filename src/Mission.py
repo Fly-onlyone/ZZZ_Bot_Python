@@ -1,10 +1,9 @@
-import json
-import os
 from datetime import datetime
 
 from playwright.sync_api import Page, Locator
 
-from RetryHelper import RetryHelper
+import RetryHelper
+from src.DataHandler import maintain_mission_data
 from src.ImageProcessor import ImageProcessor
 
 
@@ -19,7 +18,7 @@ class Mission:
 
     def attach_page_listener(self):
         """Attach the page event listener only once."""
-        self.page.context.on('page', self._handle_new_page)
+        self.page.context.on('page', self.handle_check_in)
 
     def perform_mission(self, mission_button: Locator, max_retries: int = 5):
         retry_count = 0
@@ -53,7 +52,7 @@ class Mission:
 
         return {'mission_completed': False, 'check_in_result': Mission.check_in_result}
 
-    def _handle_new_page(self, new_page: Page):
+    def handle_check_in(self, new_page: Page):
         """Synchronous handling of popup page when it appears."""
         # Check if this popup has already been handled
 
@@ -97,29 +96,6 @@ class Mission:
         else:
             print('Closing unrelated popup...')
             new_page.close()
-
-
-def prepare_data(output_folder: str, output_file: str):
-    # Create output folder if it doesn't exist
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
-    # Load previous mission data
-    previous_data = []
-    if os.path.exists(output_file):
-        with open(output_file, 'r', encoding='utf-8') as file:
-            previous_data = json.load(file)
-
-    # Get today's date in the format dd/mm/yyyy
-    today_str = datetime.now().strftime('%d/%m/%Y')
-
-    # Check if today's data already exists and skip finished missions
-    todays_data = next((item for item in previous_data if item['day'] == today_str), None)
-    if not todays_data:
-        todays_data = {'day': today_str, 'check_in': "Link isn't opened", 'missions': []}
-        previous_data.append(todays_data)
-
-    return previous_data, todays_data
 
 
 def open_mission_screen(page: Page):
@@ -186,12 +162,8 @@ def doing_mission(mission_count: int, page: Page, todays_data: dict):
     todays_data['check_in'] = check_in_result
 
 
-def maintain_mission_data(previous_data: list, output_file: str):
-    # Maintain a maximum of 5 days' worth of data
-    if len(previous_data) > 5:
-        previous_data = previous_data[-5:]  # Keep only the last 5 elements
-
-    # Save the updated data back to the JSON file
-    with open(output_file, 'w', encoding='utf-8') as file:
-        json.dump(previous_data, file, ensure_ascii=False, indent=2)
-    print('Mission data saved.')
+def run(output_file, page, previous_data, todays_data):
+    open_mission_screen(page)
+    mission_count = count_mission(page)
+    doing_mission(mission_count, page, todays_data)
+    maintain_mission_data(previous_data, output_file)
