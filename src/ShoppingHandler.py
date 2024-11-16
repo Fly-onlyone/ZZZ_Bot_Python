@@ -1,6 +1,5 @@
-from datetime import datetime, timedelta
-from playwright.sync_api import Page, Locator
 import re
+from datetime import datetime, timedelta
 
 from src.RetryHelper import RetryHelper
 

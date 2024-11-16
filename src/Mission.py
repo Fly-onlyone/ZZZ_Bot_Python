@@ -54,8 +54,6 @@ class Mission:
 
     def handle_check_in(self, new_page: Page):
         """Synchronous handling of popup page when it appears."""
-        # Check if this popup has already been handled
-
         popup_url = new_page.url
         target_popup_url = 'https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091&hyl_auth_required=true&hyl_presentation_style=fullscreen&utm_campaign=mimo&utm_source=h5&utm_medium=task&utm_id=8'
 
@@ -92,10 +90,9 @@ class Mission:
             else:
                 print('Login failed')
                 Mission.check_in_result = 'Login Failed'
-            new_page.close()
         else:
             print('Closing unrelated popup...')
-            new_page.close()
+        new_page.close()
 
 
 def open_mission_screen(page: Page):

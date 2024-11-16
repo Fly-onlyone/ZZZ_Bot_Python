@@ -31,13 +31,12 @@ def send_mail(mission_summary_html, todays_data):
     apobj = apprise.Apprise()
     gmail_account = 'galevan61'
     app_password = 'jlqrqxxtaggvnuce'
-    apobj.add('mailto://%s:%s@gmail.com' % (gmail_account, app_password))
+    apobj.add(f'mailto://{gmail_account}:{app_password}@gmail.com')
     try:
         apobj.notify(
             body=mission_summary_html,
             title=f"Mission Report for {todays_data['day']}",
             body_format='html',
-
         )
         print("Email sent successfully.")
     except Exception as e:
