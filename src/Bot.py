@@ -3,6 +3,7 @@ import os
 import sys
 import threading
 import time
+import webbrowser
 from datetime import datetime
 
 import schedule
@@ -19,21 +20,21 @@ from pystray import Icon, Menu, MenuItem
 import Mission
 import Notification
 from DataHandler import prepare_data
-import webbrowser
 
 app = FastAPI()
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="src/static"), name="static")
-templates = Jinja2Templates(directory="src/templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
-ICON_PATH = "./Qingyi02.ico"
-STORAGE_PATH = './authentication data/hoyo.json'
-OUTPUT_FOLDER = './bot data'
+ICON_PATH = "./../Qingyi02.ico"
+STORAGE_PATH = './../authentication data/hoyo.json'
+OUTPUT_FOLDER = './../bot data'
 OUTPUT_FILE = os.path.join(OUTPUT_FOLDER, 'missions.json')
+
 LAST_RUN_FILE = os.path.join(OUTPUT_FOLDER, 'last_run.json')
-exit_after_run = False
-open_web_ui = True
+EXIT_AFTER_RUN = False
+OPEN_WEB_UI = True
 SCHEDULE_TIMES = ["08:00", "20:00"]
 WEB_UI_URL = "http://127.0.0.1:8000"
 SETTINGS_FILE = os.path.join(OUTPUT_FOLDER, 'settings.json')
@@ -67,7 +68,7 @@ def playwright_task():
             json.dump({"last_run": datetime.now().isoformat()}, f)
 
     # Exit the app if exit_after_run is set to True
-    if exit_after_run:
+    if EXIT_AFTER_RUN:
         print("Exiting after run as per the setting.")
         sys.exit()
 
@@ -75,28 +76,29 @@ def playwright_task():
 @app.get("/")
 def read_root(request: Request):
     return templates.TemplateResponse("index.html.jinja", {"request": request, "schedule_times": SCHEDULE_TIMES,
-                                                           "exit_after_run": exit_after_run})
+                                                           "exit_after_run": EXIT_AFTER_RUN})
 
 
 def load_settings():
-    global SCHEDULE_TIMES, exit_after_run_value
+    global SCHEDULE_TIMES, EXIT_AFTER_RUN, OPEN_WEB_UI
     if os.path.exists(SETTINGS_FILE):
-        with open(SETTINGS_FILE, 'r') as f:
+        with open(SETTINGS_FILE) as f:
             settings = json.load(f)
             SCHEDULE_TIMES = settings.get("schedule_times", SCHEDULE_TIMES)
-            exit_after_run_value = settings.get("exit_after_run", exit_after_run)
+            EXIT_AFTER_RUN = settings.get("exit_after_run", EXIT_AFTER_RUN)
+            OPEN_WEB_UI = settings.get("open_web_ui", OPEN_WEB_UI)
 
 
 def save_settings():
     with open(SETTINGS_FILE, 'w') as f:
-        json.dump({"schedule_times": SCHEDULE_TIMES, "exit_after_run": exit_after_run_value}, f)
+        json.dump({"schedule_times": SCHEDULE_TIMES, "exit_after_run": EXIT_AFTER_RUN, "open_web_ui": OPEN_WEB_UI}, f)
 
 
 @app.post("/update-settings")
 async def update_settings(schedule_times: str = Form(...), exit_after_run: str = Form("off")):
-    global SCHEDULE_TIMES, exit_after_run_value
+    global SCHEDULE_TIMES, EXIT_AFTER_RUN
     SCHEDULE_TIMES = schedule_times.split(",")
-    exit_after_run_value = exit_after_run == "on"
+    EXIT_AFTER_RUN = exit_after_run == "on"
 
     # Save settings to persist changes
     save_settings()
@@ -108,7 +110,7 @@ async def update_settings(schedule_times: str = Form(...), exit_after_run: str =
 
 def check_missed_runs():
     if os.path.exists(LAST_RUN_FILE):
-        with open(LAST_RUN_FILE, 'r') as f:
+        with open(LAST_RUN_FILE) as f:
             data = json.load(f)
             last_run = datetime.fromisoformat(data["last_run"])
     else:
@@ -118,8 +120,7 @@ def check_missed_runs():
     for scheduled_time in SCHEDULE_TIMES:
         today_scheduled = datetime.combine(now.date(), datetime.strptime(scheduled_time, "%H:%M").time())
 
-        # Check if scheduled time has passed and the bot hasn't run since then
-        if today_scheduled < now and last_run < today_scheduled:
+        if now > today_scheduled > last_run:
             playwright_task()
             break  # Run only once if missed
 
@@ -136,36 +137,48 @@ def run_scheduled_tasks():
         time.sleep(60)
 
 
-def on_tray_exit(icon, item):
+def on_tray_exit(icon):
     icon.stop()
 
 
 def setup_tray_icon():
     icon_image = Image.open(ICON_PATH)
-    icon = Icon("ZZZ Bot", icon_image, menu=Menu(
-        MenuItem("Exit", on_tray_exit),
-        MenuItem("Close after run", lambda icon, item: toggle_exit_after_run()),
-        MenuItem("Toggle Web UI", lambda icon, item: toggle_open_web_ui())
+    tray_icon: Icon = Icon("ZZZ Bot", icon_image, menu=Menu(
+        MenuItem(
+            "Close after run",
+            lambda item: toggle_value("exit_after_run", "Close after run"),
+            lambda item: EXIT_AFTER_RUN
+        ),
+        MenuItem(
+            "Toggle web UI",
+            lambda item: toggle_value("open_web_ui", "Toggle Web UI"),
+            lambda item: OPEN_WEB_UI,
+        ),
+        MenuItem("Open web UI", lambda item: webbrowser.open_new_tab(WEB_UI_URL), visible=False, default=True),
+        MenuItem("Exit", on_tray_exit)
     ))
     threading.Thread(target=run_scheduled_tasks, daemon=True).start()
-    icon.run()
+    tray_icon.run()
 
 
-def toggle_exit_after_run():
-    global exit_after_run
-    exit_after_run = not exit_after_run
-    print(f"Exit after run set to {exit_after_run}")
+def toggle_value(global_var_name, text):
+    # Access the global variable by its name
+    global_vars = globals()
 
+    if global_var_name in global_vars:
+        current_value = global_vars[global_var_name]
+        new_value = not current_value
+        global_vars[global_var_name] = new_value  # Update the global variable
+        print(f"{text} set to {new_value}")
+    else:
+        print(f"Error: Global variable '{global_var_name}' not found.")
 
-def toggle_open_web_ui():
-    global open_web_ui
-    open_web_ui = not open_web_ui
-    print(f"Open Web UI set to {open_web_ui}")
+    save_settings()
 
 
 if __name__ == "__main__":
     load_settings()
-    if open_web_ui:
+    threading.Thread(target=lambda: uvicorn.run(app), daemon=True).start()
+    if OPEN_WEB_UI:
         webbrowser.open_new_tab(WEB_UI_URL)
-        threading.Thread(target=lambda: uvicorn.run(app, host="127.0.0.1", port=8000), daemon=True).start()
     setup_tray_icon()
