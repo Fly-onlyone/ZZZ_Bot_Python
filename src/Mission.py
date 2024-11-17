@@ -1,10 +1,9 @@
-from datetime import datetime
-
 from playwright.sync_api import Page, Locator
 
 import RetryHelper
-from src.DataHandler import maintain_mission_data
-from src.ImageProcessor import ImageProcessor
+from CheckIn import handle_check_in
+from DataHandler import maintain_mission_data
+from ImageProcessor import ImageProcessor
 
 
 class Mission:
@@ -12,13 +11,11 @@ class Mission:
 
     def __init__(self, page: Page, initial_check_in_result: str):
         self.page = page
-        self.check_in_handled = False
         if initial_check_in_result in ['Login Success', 'Login Failed']:
             Mission.check_in_result = initial_check_in_result
 
     def attach_page_listener(self):
-        """Attach the page event listener only once."""
-        self.page.context.on('page', self.handle_check_in)
+        self.page.context.on('page', handle_pop_up)
 
     def perform_mission(self, mission_button: Locator, max_retries: int = 5):
         retry_count = 0
@@ -52,47 +49,18 @@ class Mission:
 
         return {'mission_completed': False, 'check_in_result': Mission.check_in_result}
 
-    def handle_check_in(self, new_page: Page):
-        """Synchronous handling of popup page when it appears."""
-        popup_url = new_page.url
-        target_popup_url = 'https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091&hyl_auth_required=true&hyl_presentation_style=fullscreen&utm_campaign=mimo&utm_source=h5&utm_medium=task&utm_id=8'
 
-        # If the popup matches the target URL, handle the popup
-        if target_popup_url in popup_url:
-            if self.check_in_handled:
-                print("Popup already handled, ignoring additional popups.")
-                new_page.close()
-                return
+def handle_pop_up(new_page: Page):
+    """Synchronous handling of popup page when it appears."""
+    popup_url = new_page.url
+    target_popup_url = 'https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091&hyl_auth_required=true&hyl_presentation_style=fullscreen&utm_campaign=mimo&utm_source=h5&utm_medium=task&utm_id=8'
 
-            self.check_in_handled = True  # Set the flag to prevent re-handling
-            print('Target popup detected, handling sign-in...')
-
-            # Close the popup dialog
-            try:
-                new_page.locator('.components-pc-assets-__dialog_---dialog-close---3G9gO2').click()
-            except Exception as e:
-                print(e)
-
-            # Get current day number
-            current_day = datetime.now().day
-            day_text = f'Day {current_day}'
-
-            # Click on the current day button
-            day_button = new_page.get_by_text(day_text, exact=True)
-            success_message = new_page.locator("div.components-pc-assets-__dialog_---dialog-body---1SieDs").filter(
-                has_text="Check-In Successful!")
-
-            # Retry clicking until the success message appears
-            if RetryHelper.retry_until_screen_appears(success_message, day_button):
-                print('Check-In Successful!')
-                Mission.check_in_result = 'Login Success'
-                success_message.screenshot(path='./screenshot/login_reward.png')
-            else:
-                print('Login failed')
-                Mission.check_in_result = 'Login Failed'
-        else:
-            print('Closing unrelated popup...')
-        new_page.close()
+    # If the popup matches the target URL, handle the popup
+    if target_popup_url in popup_url:
+        handle_check_in(new_page)
+    else:
+        print('Closing unrelated popup...')
+    new_page.close()
 
 
 def open_mission_screen(page: Page):
@@ -125,7 +93,7 @@ def doing_mission(mission_count: int, page: Page, todays_data: dict):
             continue
 
         # Check the button image state
-        button_image_path = f'./mission button/mission {i}.png'
+        button_image_path = f'./../mission button/mission {i}.png'
         button_image = ImageProcessor(mission_button_locator, button_image_path)
         button_state = button_image.detect_button_state()
 

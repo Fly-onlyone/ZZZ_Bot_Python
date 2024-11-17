@@ -34,9 +34,9 @@ class ImageProcessor:
         return difference_percentage
 
     def detect_button_state(self):
-        tick_image_path = './sample button/Finished.png'
-        arrow_image_path = './sample button/Unfinished.png'
-        reward_image_path = './sample button/Reward.png'
+        tick_image_path = './../sample button/Finished.png'
+        arrow_image_path = './../sample button/Unfinished.png'
+        reward_image_path = './../sample button/Reward.png'
 
         tick_diff = self.compare_images(self.path, tick_image_path)
         arrow_diff = self.compare_images(self.path, arrow_image_path)
