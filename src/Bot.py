@@ -1,5 +1,7 @@
 import json
 import os
+import signal
+import subprocess
 import sys
 import threading
 import time
@@ -9,23 +11,18 @@ from datetime import datetime
 import schedule
 import uvicorn
 from PIL import Image
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from playwright.sync_api import sync_playwright
 from plyer import notification
 from pystray import Icon, Menu, MenuItem
+from starlette.middleware.cors import CORSMiddleware
 
 import Mission
 import Notification
 from DataHandler import prepare_data
-
-app = FastAPI()
-
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+import platform
 
 ICON_PATH = "./../Qingyi02.ico"
 STORAGE_PATH = './../authentication data/hoyo.json'
@@ -36,8 +33,17 @@ LAST_RUN_FILE = os.path.join(OUTPUT_FOLDER, 'last_run.json')
 EXIT_AFTER_RUN = False
 OPEN_WEB_UI = True
 SCHEDULE_TIMES = ["08:00", "20:00"]
-WEB_UI_URL = "http://127.0.0.1:8000"
+WEB_UI_URL = "http://127.0.0.1:3000"
 SETTINGS_FILE = os.path.join(OUTPUT_FOLDER, 'settings.json')
+tray_icon = None
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust for specific origins in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def playwright_task():
@@ -73,10 +79,39 @@ def playwright_task():
         sys.exit()
 
 
-@app.get("/")
-def read_root(request: Request):
-    return templates.TemplateResponse("index.html.jinja", {"request": request, "schedule_times": SCHEDULE_TIMES,
-                                                           "exit_after_run": EXIT_AFTER_RUN})
+@app.get("/settings")
+def get_settings():
+    return {
+        "schedule_times": SCHEDULE_TIMES,
+        "exit_after_run": EXIT_AFTER_RUN,
+        "open_web_ui": OPEN_WEB_UI,
+    }
+
+
+@app.post("/settings")
+async def update_settings(request: Request):
+    data = await request.json()
+    global SCHEDULE_TIMES, EXIT_AFTER_RUN, OPEN_WEB_UI
+
+    SCHEDULE_TIMES = data.get("schedule_times", SCHEDULE_TIMES)
+    EXIT_AFTER_RUN = data.get("exit_after_run", EXIT_AFTER_RUN)
+    OPEN_WEB_UI = data.get("open_web_ui", OPEN_WEB_UI)
+
+    save_settings()
+    tray_icon.update_menu()
+    schedule.clear()  # Clear existing schedule
+    schedule_tasks()  # Re-schedule tasks with updated times
+    return JSONResponse({"message": "Settings updated"})
+
+
+@app.get("/check-run-status")
+def check_run_status():
+    if os.path.exists(LAST_RUN_FILE):
+        with open(LAST_RUN_FILE) as f:
+            data = json.load(f)
+            last_run = datetime.fromisoformat(data["last_run"])
+        return {"last_run": last_run}
+    return {"last_run": None}
 
 
 def load_settings():
@@ -91,21 +126,11 @@ def load_settings():
 
 def save_settings():
     with open(SETTINGS_FILE, 'w') as f:
-        json.dump({"schedule_times": SCHEDULE_TIMES, "exit_after_run": EXIT_AFTER_RUN, "open_web_ui": OPEN_WEB_UI}, f)
-
-
-@app.post("/update-settings")
-async def update_settings(schedule_times: str = Form(...), exit_after_run: str = Form("off")):
-    global SCHEDULE_TIMES, EXIT_AFTER_RUN
-    SCHEDULE_TIMES = schedule_times.split(",")
-    EXIT_AFTER_RUN = exit_after_run == "on"
-
-    # Save settings to persist changes
-    save_settings()
-
-    schedule.clear()  # Clear existing schedule
-    schedule_tasks()  # Re-schedule tasks with updated times
-    return RedirectResponse(url="/", status_code=303)
+        json.dump({
+            "schedule_times": SCHEDULE_TIMES,
+            "exit_after_run": EXIT_AFTER_RUN,
+            "open_web_ui": OPEN_WEB_UI
+        }, f)
 
 
 def check_missed_runs():
@@ -137,21 +162,23 @@ def run_scheduled_tasks():
         time.sleep(60)
 
 
-def on_tray_exit(icon):
+def on_tray_exit(icon: Icon):
+    react_server.send_signal(signal.CTRL_C_EVENT)
     icon.stop()
 
 
 def setup_tray_icon():
     icon_image = Image.open(ICON_PATH)
-    tray_icon: Icon = Icon("ZZZ Bot", icon_image, menu=Menu(
+    global tray_icon
+    tray_icon = Icon("ZZZ Bot", icon_image, menu=Menu(
         MenuItem(
             "Close after run",
-            lambda item: toggle_value("exit_after_run", "Close after run"),
+            lambda item: toggle_value("EXIT_AFTER_RUN", "Close after run"),
             lambda item: EXIT_AFTER_RUN
         ),
         MenuItem(
             "Toggle web UI",
-            lambda item: toggle_value("open_web_ui", "Toggle Web UI"),
+            lambda item: toggle_value("OPEN_WEB_UI", "Toggle Web UI"),
             lambda item: OPEN_WEB_UI,
         ),
         MenuItem("Open web UI", lambda item: webbrowser.open_new_tab(WEB_UI_URL), visible=False, default=True),
@@ -162,7 +189,6 @@ def setup_tray_icon():
 
 
 def toggle_value(global_var_name, text):
-    # Access the global variable by its name
     global_vars = globals()
 
     if global_var_name in global_vars:
@@ -178,7 +204,13 @@ def toggle_value(global_var_name, text):
 
 if __name__ == "__main__":
     load_settings()
+    global react_server
+    env = os.environ.copy()
+
+    # Disable browser if OPEN_WEB_UI is False
+    if not OPEN_WEB_UI:
+        env["BROWSER"] = "none"
+
+    react_server = subprocess.Popen(["npm", "start"], cwd="./../frontend", shell=True, env=env)
     threading.Thread(target=lambda: uvicorn.run(app), daemon=True).start()
-    if OPEN_WEB_UI:
-        webbrowser.open_new_tab(WEB_UI_URL)
     setup_tray_icon()
