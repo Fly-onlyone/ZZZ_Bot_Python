@@ -5,15 +5,15 @@ import subprocess
 import sys
 import threading
 import time
-import webbrowser
+from dataclasses import dataclass, asdict, field
 from datetime import datetime
+from typing import List
 
 import schedule
 import uvicorn
 from PIL import Image
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 from playwright.sync_api import sync_playwright
 from plyer import notification
 from pystray import Icon, Menu, MenuItem
@@ -22,9 +22,6 @@ from starlette.middleware.cors import CORSMiddleware
 import Mission
 import Notification
 from DataHandler import prepare_data
-import platform
-from dataclasses import dataclass, asdict, field
-from typing import List
 
 
 # Data Classes
@@ -51,15 +48,10 @@ class AppSettings:
 
 
 # Configuration
-CONFIG = {
-    "ICON_PATH": "./../Qingyi02.ico",
-    "STORAGE_PATH": './../authentication data/hoyo.json',
-    "OUTPUT_FOLDER": './../bot data',
-    "OUTPUT_FILE": './../bot data/missions.json',
-    "LAST_RUN_FILE": './../bot data/last_run.json',
-    "SETTINGS_FILE": './../bot data/settings.json',
-    "WEB_UI_URL": "http://127.0.0.1:3000",
-}
+CONFIG = {"ICON_PATH": "./../Qingyi02.ico", "STORAGE_PATH": './../authentication data/hoyo.json',
+          "OUTPUT_FOLDER": './../bot data', "OUTPUT_FILE": './../bot data/missions.json',
+          "LAST_RUN_FILE": './../bot data/last_run.json', "SETTINGS_FILE": './../bot data/settings.json',
+          "WEB_UI_URL": "http://127.0.0.1:3000", }
 
 # Initialize global state
 settings = AppSettings.load(CONFIG["SETTINGS_FILE"])
@@ -67,13 +59,8 @@ tray_icon = None
 
 # App Initialization
 app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Adjust for specific origins in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, allow_origins=["*"],  # Adjust for specific origins in production
+                   allow_credentials=True, allow_methods=["*"], allow_headers=["*"], )
 
 
 # FastAPI Endpoints
@@ -197,9 +184,7 @@ def setup_tray_icon():
         MenuItem("Toggle Web UI", lambda item: toggle_setting("open_web_ui"),
                  checked=lambda item: settings.open_web_ui),
         MenuItem("Exit After Run", lambda item: toggle_setting("exit_after_run"),
-                 checked=lambda item: settings.exit_after_run),
-        MenuItem("Exit", on_tray_exit),
-    ))
+                 checked=lambda item: settings.exit_after_run), MenuItem("Exit", on_tray_exit), ))
     threading.Thread(target=run_scheduled_tasks, daemon=True).start()
     tray_icon.run()
 
@@ -220,10 +205,6 @@ def on_tray_exit(icon: Icon):
 
 # Main Entry Point
 if __name__ == "__main__":
-    env = os.environ.copy()
-    if not settings.open_web_ui:
-        env["BROWSER"] = "none"
-
-    react_server = subprocess.Popen(["npm", "start"], cwd="./../frontend", shell=True, env=env)
+    react_server = subprocess.Popen(["npm", "run", "dev"], cwd="./../frontend", shell=True)
     threading.Thread(target=lambda: uvicorn.run(app), daemon=True).start()
     setup_tray_icon()
