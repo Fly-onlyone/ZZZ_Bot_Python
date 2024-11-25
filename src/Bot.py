@@ -5,6 +5,7 @@ import subprocess
 import sys
 import threading
 import time
+import webbrowser
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
 from typing import List
@@ -22,48 +23,69 @@ from starlette.middleware.cors import CORSMiddleware
 import Mission
 import Notification
 from DataHandler import prepare_data
+from src.DataHandler import Serializable
 
 
 # Data Classes
 @dataclass
-class AppSettings:
-    """Encapsulates all app settings."""
+class AppSettings(Serializable):
+
     schedule_times: List[str] = field(default_factory=lambda: ["08:00", "20:00"])
     exit_after_run: bool = False
     open_web_ui: bool = True
 
-    def save(self, file_path: str):
-        """Save settings to a JSON file."""
-        with open(file_path, 'w') as f:
-            json.dump(asdict(self), f, indent=4)
 
-    @classmethod
-    def load(cls, file_path: str):
-        """Load settings from a JSON file."""
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as f:
-                data = json.load(f)
-            return cls(**data)
-        return cls()
+@dataclass
+class Account(Serializable):
+    username: str = "***REMOVED***"
+    password: str = ""
+    app_password: str = "***REMOVED***"
 
 
 # Configuration
-CONFIG = {"ICON_PATH": "./../Qingyi02.ico", "STORAGE_PATH": './../authentication data/hoyo.json',
-          "OUTPUT_FOLDER": './../bot data', "OUTPUT_FILE": './../bot data/missions.json',
-          "LAST_RUN_FILE": './../bot data/last_run.json', "SETTINGS_FILE": './../bot data/settings.json',
-          "WEB_UI_URL": "http://127.0.0.1:3000", }
+CONFIG = {
+    "ICON_PATH": "./../Qingyi02.ico",
+    "STORAGE_PATH": "./../authentication data/hoyo.json",
+    "OUTPUT_FOLDER": "./../bot data",
+    "OUTPUT_FILE": "./../bot data/missions.json",
+    "LAST_RUN_FILE": "./../bot data/last_run.json",
+    "SETTINGS_FILE": "./../bot data/settings.json",
+    "ACCOUNT_FILE": "./../bot data/account.json",
+    "WEB_UI_URL": "http://127.0.0.1:3000",
+}
 
 # Initialize global state
 settings = AppSettings.load(CONFIG["SETTINGS_FILE"])
+accounts = Account.load(CONFIG["ACCOUNT_FILE"])
 tray_icon = None
 
 # App Initialization
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"],  # Adjust for specific origins in production
-                   allow_credentials=True, allow_methods=["*"], allow_headers=["*"], )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust for specific origins in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # FastAPI Endpoints
+@app.get("/account")
+def get_account():
+    return asdict(accounts)
+
+
+@app.post("/account")
+async def get_account(request: Request):
+    data = await request.json()
+    for key, value in data.items():
+        if hasattr(accounts, key):
+            setattr(accounts, key, value)
+    accounts.save(CONFIG["ACCOUNT_FILE"])
+    return JSONResponse({"message": "Account updated"})
+
+
 @app.get("/settings")
 def get_settings():
     """Return all current settings as a dictionary."""
@@ -100,14 +122,22 @@ def check_run_status():
 def playwright_task():
     """Core logic for the bot task."""
 
-    previous_data, todays_data = prepare_data(CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"])
+    previous_data, todays_data = prepare_data(
+        CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
+    )
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=True)
-        context_options = {"storage_state": CONFIG["STORAGE_PATH"]} if os.path.exists(CONFIG["STORAGE_PATH"]) else {}
+        context_options = (
+            {"storage_state": CONFIG["STORAGE_PATH"]}
+            if os.path.exists(CONFIG["STORAGE_PATH"])
+            else {}
+        )
         context = browser.new_context(**context_options)
         page = context.new_page()
 
-        page.goto('https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...')
+        page.goto(
+            "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
+        )
 
         # Handle manual login if storage path doesn't exist
         if not os.path.exists(CONFIG["STORAGE_PATH"]):
@@ -129,7 +159,7 @@ def playwright_task():
 
 def save_last_run():
     """Save the timestamp of the last run."""
-    with open(CONFIG["LAST_RUN_FILE"], 'w') as f:
+    with open(CONFIG["LAST_RUN_FILE"], "w") as f:
         json.dump({"last_run": datetime.now().isoformat()}, f)
 
 
@@ -149,7 +179,9 @@ def check_missed_runs():
 
     now = datetime.now()
     for scheduled_time in settings.schedule_times:
-        today_scheduled = datetime.combine(now.date(), datetime.strptime(scheduled_time, "%H:%M").time())
+        today_scheduled = datetime.combine(
+            now.date(), datetime.strptime(scheduled_time, "%H:%M").time()
+        )
         if now > today_scheduled > last_run:
             playwright_task()
             break
@@ -180,11 +212,23 @@ def setup_tray_icon():
     """Set up the system tray icon."""
     icon_image = Image.open(CONFIG["ICON_PATH"])
     global tray_icon
-    tray_icon = Icon("ZZZ Bot", icon_image, menu=Menu(
-        MenuItem("Toggle Web UI", lambda item: toggle_setting("open_web_ui"),
-                 checked=lambda item: settings.open_web_ui),
-        MenuItem("Exit After Run", lambda item: toggle_setting("exit_after_run"),
-                 checked=lambda item: settings.exit_after_run), MenuItem("Exit", on_tray_exit), ))
+    tray_icon = Icon(
+        "ZZZ Bot",
+        icon_image,
+        menu=Menu(
+            MenuItem(
+                "Toggle Web UI",
+                lambda item: toggle_setting("open_web_ui"),
+                checked=lambda item: settings.open_web_ui,
+            ),
+            MenuItem(
+                "Exit After Run",
+                lambda item: toggle_setting("exit_after_run"),
+                checked=lambda item: settings.exit_after_run,
+            ),
+            MenuItem("Exit", on_tray_exit),
+        ),
+    )
     threading.Thread(target=run_scheduled_tasks, daemon=True).start()
     tray_icon.run()
 
@@ -205,6 +249,10 @@ def on_tray_exit(icon: Icon):
 
 # Main Entry Point
 if __name__ == "__main__":
-    react_server = subprocess.Popen(["npm", "run", "dev"], cwd="./../frontend", shell=True)
+    react_server = subprocess.Popen(
+        ["npm", "run", "dev"], cwd="./../frontend", shell=True
+    )
     threading.Thread(target=lambda: uvicorn.run(app), daemon=True).start()
+    if settings.open_web_ui:
+        webbrowser.open_new_tab(CONFIG["WEB_UI_URL"])
     setup_tray_icon()
