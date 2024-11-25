@@ -4,7 +4,6 @@ import "./index.css";
 import PermanentDrawer from "./PermanentDrawer";
 import { createTheme, ThemeProvider, useMediaQuery } from "@mui/material";
 
-
 function App() {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
 
@@ -13,8 +12,70 @@ function App() {
     () =>
       createTheme({
         palette: {
-          mode: prefersDarkMode ? "dark" : "light"
-        }
+          mode: prefersDarkMode ? "dark" : "light",
+        },
+        components: {
+          MuiOutlinedInput: {
+            styleOverrides: {
+              root: {
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "green", // Default border color
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "orange", // Border color on hover
+                },
+              },
+            },
+          },
+          MuiInputLabel: {
+            styleOverrides: {
+              root: {
+                color: "lightgreen", // Label text color
+                "&.Mui-focused": {
+                  color: "orange", // Label color when focused
+                },
+              },
+            },
+          },
+          MuiInputBase: {
+            styleOverrides: {
+              root: {
+                color: "cyan",
+              },
+            },
+          },
+          MuiSvgIcon: {
+            styleOverrides: {
+              root: {
+                color: "cyan",
+              },
+            },
+          },
+          MuiDrawer: {
+            styleOverrides: {
+              root: {
+                "& .MuiDrawer-paper": {
+                  borderRadius: "16px",
+                  borderLeft: "1px solid lightgreen",
+                  borderRight: "1px solid lightgreen",
+                  borderTop: "1px solid lightgreen",
+                  borderBottom: "1px solid lightgreen",
+                },
+              },
+            },
+          },
+          MuiAppBar: {
+            styleOverrides: {
+              root: {
+                borderRadius: "16px",
+                borderLeft: "1px solid lightgreen",
+                borderRight: "1px solid lightgreen",
+                borderTop: "1px solid lightgreen",
+                borderBottom: "1px solid lightgreen",
+              },
+            },
+          },
+        },
       }),
     [prefersDarkMode]
   );
@@ -26,10 +87,10 @@ function App() {
   );
 }
 
-// Render the App component
-ReactDOM.render(
+const root = ReactDOM.createRoot(document.getElementById("root"));
+
+root.render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>,
-  document.getElementById("root")
+  </React.StrictMode>
 );

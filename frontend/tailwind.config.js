@@ -1,7 +1,11 @@
 module.exports = {
-  content: ['index.html','./src/**/*.{js,jsx,ts,tsx,vue,html}'],
-  theme: {
-    extend: {},
+  corePlugins: {
+    preflight: false
   },
-  plugins: [],
-}
+  important: "#root",
+  content: ["index.html", "./src/**/*.{js,jsx,ts,tsx,vue,html}"],
+  theme: {
+    extend: {}
+  },
+  plugins: []
+};

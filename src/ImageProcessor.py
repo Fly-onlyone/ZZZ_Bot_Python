@@ -34,9 +34,9 @@ class ImageProcessor:
         return difference_percentage
 
     def detect_button_state(self):
-        tick_image_path = './../sample button/Finished.png'
-        arrow_image_path = './../sample button/Unfinished.png'
-        reward_image_path = './../sample button/Reward.png'
+        tick_image_path = "./../sample button/Finished.png"
+        arrow_image_path = "./../sample button/Unfinished.png"
+        reward_image_path = "./../sample button/Reward.png"
 
         tick_diff = self.compare_images(self.path, tick_image_path)
         arrow_diff = self.compare_images(self.path, arrow_image_path)
@@ -46,11 +46,7 @@ class ImageProcessor:
         print(f"Difference with Unfinished (arrow) image: {arrow_diff}%")
         print(f"Difference with Reward image: {reward_diff}%")
 
-        diffs = {
-            "Finished": tick_diff,
-            "Unfinished": arrow_diff,
-            "Reward": reward_diff
-        }
+        diffs = {"Finished": tick_diff, "Unfinished": arrow_diff, "Reward": reward_diff}
 
         closest_state = min(diffs, key=diffs.get)
 
