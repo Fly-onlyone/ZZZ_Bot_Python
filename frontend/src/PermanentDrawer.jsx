@@ -16,6 +16,7 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  paperClasses,
   Toolbar,
   Typography,
 } from "@mui/material";
@@ -24,6 +25,9 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import SettingsIcon from "@mui/icons-material/Settings";
 import Qingyi from "./../../Qingyi02.ico";
 import ValueAdapter from "./ValueAdapter";
+import zIndex from "@mui/material/styles/zIndex";
+
+const drawerWidth = 240;
 
 const tabs = [
   { label: "Overview", icon: <DashboardIcon />, path: "/" },
@@ -41,11 +45,13 @@ function DrawerNavigation() {
 
   return (
     <Drawer
+      className="w-60 shrink-0"
       variant="permanent"
-      classes={{
-        paper: "bg-black text-white w-[240px] h-[calc(100vh-4rem)] mt-16",
+      sx={{
+        [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: "border-box" },
       }}
     >
+      <Toolbar />
       <Box className="overflow-auto">
         <List>
           {tabs.map((tab) => (
@@ -79,13 +85,12 @@ function DrawerNavigation() {
 export default function PermanentDrawer() {
   return (
     <BrowserRouter>
-      <Box className="flex h-screen">
-        {/* Full-height layout */}
+      <Box className="flex">
         <CssBaseline />
-        {/* AppBar/Header */}
         <AppBar
           position="fixed"
-          className="w-full bg-black bg-opacity-80 shadow-none"
+          sx={{ zIndex: zIndex.drawer + 1 }}
+          className="w-full bg-black"
         >
           <Toolbar className="relative flex items-center justify-center">
             {/* Icon on the Left */}
@@ -100,15 +105,11 @@ export default function PermanentDrawer() {
             >
               ZZZ Bot
             </Typography>
-          </Toolbar>
+          </Toolbar>{" "}
         </AppBar>
-        {/* Drawer */}
         <DrawerNavigation />
-        {/* Main Content */}
-        <Box
-          component="main"
-          className="ml-[240px] mt-[64px] flex-grow bg-black p-6" // Offset for the header and drawer
-        >
+        <Box component="main" className="flex-grow p-6">
+          <Toolbar />
           <Routes>
             <Route
               path="/"
@@ -117,7 +118,7 @@ export default function PermanentDrawer() {
             <Route path="/account" element={<ValueAdapter />} />
             <Route path="/settings" element={<ValueAdapter />} />
             <Route path="*" element={<Navigate to="/settings" />} />
-          </Routes>
+          </Routes>{" "}
         </Box>
       </Box>
     </BrowserRouter>
