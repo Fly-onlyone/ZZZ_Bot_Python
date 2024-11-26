@@ -4,9 +4,8 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { Alert, IconButton, Snackbar, Switch, TextField } from "@mui/material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
-import SaveIcon from "@mui/icons-material/Save";
-import { BrowserRouter, useLocation } from "react-router-dom";
-import { Visibility, VisibilityOff, ContentCopy } from "@mui/icons-material";
+import { useLocation } from "react-router-dom";
+import { ContentCopy, Visibility, VisibilityOff } from "@mui/icons-material";
 
 export default function ValueAdapter() {
   const [value, setValue] = useState({});
@@ -115,7 +114,7 @@ export default function ValueAdapter() {
                 </LocalizationProvider>
                 <button
                   type="button"
-                  className="rounded-lg bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700"
+                  className="h-12 w-1/12 rounded-lg bg-red-600 px-4 py-2 text-lg font-medium text-white hover:bg-red-700"
                   onClick={() => {
                     const updatedArray = value.filter((_, i) => i !== index);
                     handleChange(key, updatedArray);
@@ -127,7 +126,7 @@ export default function ValueAdapter() {
             ))}
             <button
               type="button"
-              className="mt-4 rounded-lg bg-green-600 px-4 py-2 font-medium text-white hover:bg-green-700"
+              className="mt-4 h-12 w-1/12 rounded-lg bg-green-600 px-4 py-2 text-lg font-medium text-white hover:bg-green-900"
               onClick={() => handleChange(key, [...value, ""])}
             >
               Add Time
@@ -154,12 +153,6 @@ export default function ValueAdapter() {
               value={fieldValue || ""}
               onChange={(e) => handleChange(key, e.target.value)}
               fullWidth
-              variant="outlined"
-              size="small"
-              sx={{
-                bgcolor: "white",
-                borderRadius: "5px",
-              }}
             />
             <IconButton
               onClick={() => togglePasswordVisibility(key)}
@@ -185,7 +178,6 @@ export default function ValueAdapter() {
               value={fieldValue}
               onChange={(e) => handleChange(key, e.target.value)}
               fullWidth
-              size="small"
             />
             <IconButton
               onClick={() => navigator.clipboard.writeText(fieldValue)}
@@ -214,7 +206,7 @@ export default function ValueAdapter() {
       ))}
       <button
         type="submit"
-        className="rounded-lg bg-blue-600 px-5 py-2 text-white"
+        className="h-12 w-2/12 rounded-lg bg-blue-600 px-5 py-2 text-xl text-white hover:bg-blue-900"
       >
         Save
       </button>
