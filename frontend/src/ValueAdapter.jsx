@@ -7,7 +7,10 @@ import dayjs from "dayjs";
 import { useLocation } from "react-router-dom";
 import { ContentCopy, Visibility, VisibilityOff } from "@mui/icons-material";
 
-export default function ValueAdapter() {
+export default function ValueAdapter({
+  customRenderers = {},
+  customIcons = {},
+}) {
   const [value, setValue] = useState({});
   const [alert, setAlert] = useState({
     open: false,
@@ -90,7 +93,16 @@ export default function ValueAdapter() {
   const renderField = (key) => {
     const fieldValue = value[key];
     const isPassword = key.toLowerCase().includes("password");
-
+    if (customRenderers[key]) {
+      return customRenderers[key](fieldValue, (newValue) =>
+        handleChange(key, newValue)
+      );
+    }
+    if (customRenderers[typeof fieldValue]) {
+      return customRenderers[typeof fieldValue](fieldValue, (newValue) =>
+        handleChange(key, newValue)
+      );
+    }
     if (Array.isArray(fieldValue)) {
       return (
         <div key={key} className="mb-6">
@@ -173,6 +185,7 @@ export default function ValueAdapter() {
       return (
         <div key={key} className="flex flex-grow items-center gap-2">
           <TextField
+            className="pr-12"
             id={key}
             value={fieldValue}
             onChange={(e) => handleChange(key, e.target.value)}
@@ -201,15 +214,16 @@ export default function ValueAdapter() {
           }`}
         >
           <label
-            className={`block text-lg font-medium capitalize ${
-              !Array.isArray(value[key]) ? "w-1/4" : ""
+            className={`flex gap-4 text-lg font-medium capitalize ${
+              !Array.isArray(value[key]) ? "w-1/4" : "mb-4"
             }`}
           >
+            {customIcons[key] && (
+              <div className="flex items-center">{customIcons[key]}</div>
+            )}
             {key.replace(/_/g, " ")}:
           </label>
-          <div
-            className={`${!Array.isArray(value[key]) ? "flex flex-grow" : ""}`}
-          >
+          <div className={`${!Array.isArray(value[key]) ? "flex w-3/4" : ""}`}>
             {renderField(key)}
           </div>
         </div>

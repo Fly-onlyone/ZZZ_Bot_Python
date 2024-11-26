@@ -10,8 +10,10 @@ import {
 import {
   AppBar,
   Box,
+  Checkbox,
   CssBaseline,
   Drawer,
+  FormControlLabel,
   List,
   ListItem,
   ListItemIcon,
@@ -23,6 +25,9 @@ import {
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import SettingsIcon from "@mui/icons-material/Settings";
+import PersonIcon from "@mui/icons-material/Person";
+import PasswordIcon from "@mui/icons-material/Password";
+import AppRegistrationIcon from "@mui/icons-material/AppRegistration";
 import Qingyi from "./../../Qingyi02.ico";
 import ValueAdapter from "./ValueAdapter";
 import zIndex from "@mui/material/styles/zIndex";
@@ -115,10 +120,23 @@ export default function PermanentDrawer() {
               path="/"
               element={<h1 className="text-white">Overview Page</h1>}
             />
-            <Route path="/account" element={<ValueAdapter />} />
+            <Route
+              path="/account"
+              element={
+                <ValueAdapter
+                  customIcons={{
+                    username: <PersonIcon className="text-blue-500" />,
+                    password: <PasswordIcon className="text-red-500" />,
+                    app_password: (
+                      <AppRegistrationIcon className="text-red-500" />
+                    ),
+                  }}
+                />
+              }
+            />
             <Route path="/settings" element={<ValueAdapter />} />
             <Route path="*" element={<Navigate to="/settings" />} />
-          </Routes>{" "}
+          </Routes>
         </Box>
       </Box>
     </BrowserRouter>
