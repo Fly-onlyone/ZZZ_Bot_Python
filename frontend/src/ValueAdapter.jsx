@@ -90,6 +90,7 @@ export default function ValueAdapter() {
   const renderField = (key) => {
     const fieldValue = value[key];
     const isPassword = key.toLowerCase().includes("password");
+
     if (Array.isArray(fieldValue)) {
       return (
         <div key={key} className="mb-6">
@@ -141,67 +142,76 @@ export default function ValueAdapter() {
           checked={fieldValue}
           onChange={(e) => handleChange(key, e.target.checked)}
           color="primary"
+          className="ml-auto"
         />
       );
     } else if (isPassword) {
       return (
-        <div key={key} className="mb-6">
-          <div className="flex items-center gap-2">
-            <TextField
-              id={key}
-              type={passwordVisibility[key] ? "text" : "password"}
-              value={fieldValue || ""}
-              onChange={(e) => handleChange(key, e.target.value)}
-              fullWidth
-            />
-            <IconButton
-              onClick={() => togglePasswordVisibility(key)}
-              title={passwordVisibility[key] ? "Hide" : "Show"}
-            >
-              {passwordVisibility[key] ? <VisibilityOff /> : <Visibility />}
-            </IconButton>
-            <IconButton
-              onClick={() => navigator.clipboard.writeText(fieldValue)}
-              title="Copy to clipboard"
-            >
-              <ContentCopy />
-            </IconButton>
-          </div>
+        <div key={key} className="flex flex-grow items-center gap-2">
+          <TextField
+            id={key}
+            type={passwordVisibility[key] ? "text" : "password"}
+            value={fieldValue || ""}
+            onChange={(e) => handleChange(key, e.target.value)}
+            fullWidth
+          />
+          <IconButton
+            onClick={() => togglePasswordVisibility(key)}
+            title={passwordVisibility[key] ? "Hide" : "Show"}
+          >
+            {passwordVisibility[key] ? <VisibilityOff /> : <Visibility />}
+          </IconButton>
+          <IconButton
+            onClick={() => navigator.clipboard.writeText(fieldValue)}
+            title="Copy to clipboard"
+          >
+            <ContentCopy />
+          </IconButton>
         </div>
       );
     } else {
       return (
-        <div key={key} className="mb-6">
-          <div className="flex items-center gap-2">
-            <TextField
-              id={key}
-              value={fieldValue}
-              onChange={(e) => handleChange(key, e.target.value)}
-              fullWidth
-            />
-            <IconButton
-              onClick={() => navigator.clipboard.writeText(fieldValue)}
-              title="Copy to clipboard"
-            >
-              <ContentCopy />
-            </IconButton>
-          </div>
+        <div key={key} className="flex flex-grow items-center gap-2">
+          <TextField
+            id={key}
+            value={fieldValue}
+            onChange={(e) => handleChange(key, e.target.value)}
+            fullWidth
+          />
+          <IconButton
+            onClick={() => navigator.clipboard.writeText(fieldValue)}
+            title="Copy to clipboard"
+          >
+            <ContentCopy />
+          </IconButton>
         </div>
       );
     }
   };
-
   if (loading) return <p>Loading...</p>;
   if (error) return <p className="text-red-500">{error}</p>;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {Object.keys(value).map((key) => (
-        <div key={key} className="mb-6">
-          <label className="block text-lg font-medium capitalize">
+        <div
+          key={key}
+          className={`mb-6 ${
+            !Array.isArray(value[key]) ? "flex items-center gap-4" : ""
+          }`}
+        >
+          <label
+            className={`block text-lg font-medium capitalize ${
+              !Array.isArray(value[key]) ? "w-1/4" : ""
+            }`}
+          >
             {key.replace(/_/g, " ")}:
           </label>
-          {renderField(key)}
+          <div
+            className={`${!Array.isArray(value[key]) ? "flex flex-grow" : ""}`}
+          >
+            {renderField(key)}
+          </div>
         </div>
       ))}
       <button
