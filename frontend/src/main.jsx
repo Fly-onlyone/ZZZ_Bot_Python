@@ -20,6 +20,7 @@ function App() {
               root: {
                 "& .MuiOutlinedInput-notchedOutline": {
                   borderColor: "green", // Default border color
+                  borderWidth: 3,
                 },
                 "&:hover .MuiOutlinedInput-notchedOutline": {
                   borderColor: "orange", // Border color on hover
