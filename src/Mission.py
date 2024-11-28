@@ -86,7 +86,7 @@ def count_mission(page: Page):
 def doing_mission(mission_count: int, page: Page, todays_data: dict):
     zzz_icon = page.locator("div.avatarsItemImg-AiUG1h").nth(1)
     zzz_icon.click()
-    zzz_icon.screenshot(path="./../sample button/ZZZ Avatar.png")
+    # zzz_icon.screenshot(path="./../sample button/ZZZ Avatar.png")
 
     check_in_result = todays_data.get(
         "check_in", "Link isn't opened"

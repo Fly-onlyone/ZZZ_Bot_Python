@@ -14,7 +14,7 @@ def send_mission_data_via_email_html(todays_data):
         print(f"No mission data available for today ({current_date}).")
         return
 
-    with open("./../src/message/mission.html.jinja", "r") as file:
+    with open("message/mission.html.jinja", "r") as file:
         template = Template(file.read())
     with open("./../screenshot/login_reward.png", "rb") as image_file:
         encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
