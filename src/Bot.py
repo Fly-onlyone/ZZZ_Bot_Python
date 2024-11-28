@@ -70,6 +70,12 @@ app.add_middleware(
 )
 
 
+@app.get("/overview/mission")
+def get_mission_report():
+    _, todays_data = prepare_data(CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"])
+    return todays_data
+
+
 # FastAPI Endpoints
 @app.get("/account")
 def get_account():
@@ -196,6 +202,7 @@ def reschedule_tasks():
 
 def run_scheduled_tasks():
     """Run scheduled tasks in a loop."""
+    reschedule_tasks()
     check_missed_runs()
     while True:
         schedule.run_pending()

@@ -31,6 +31,7 @@ import AppRegistrationIcon from "@mui/icons-material/AppRegistration";
 import Qingyi from "./../../Qingyi02.ico";
 import ValueAdapter from "./ValueAdapter";
 import zIndex from "@mui/material/styles/zIndex";
+import Overview from "./Overview";
 
 const drawerWidth = 240;
 
@@ -116,10 +117,7 @@ export default function PermanentDrawer() {
         <Box component="main" className="flex-grow p-6">
           <Toolbar />
           <Routes>
-            <Route
-              path="/"
-              element={<h1 className="text-white">Overview Page</h1>}
-            />
+            <Route path="/" element={<Overview />} />
             <Route
               path="/account"
               element={

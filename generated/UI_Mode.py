@@ -5,11 +5,6 @@ def run(playwright: Playwright) -> None:
     page.goto(
         "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?from=zzz&hyl_presentation_style=fullscreen&hyl_auth_required=true&hyl_portrait=true&hyl_hide_status_bar=true&lang=en-us&bbs_theme=dark&bbs_theme_device=1"
     )
-    page.locator("div").filter(
-        has_text=re.compile(r"^Carry out missions to earn points$")
-    ).first.click()
-    page.get_by_text("Mission CenterFollow the").click()
-    page.locator(".panelBack--wW5qj").click()
-    page.get_by_role("img").nth(1).click()
-    page.get_by_text("Polychrome ×600 day(s)").click()
-    page.get_by_text("Polychrome ×1000 day(s)").click()
+
+    div_gain_code = page.locator("div.gainCodeCopyInput-QcgdvD")
+    div_copy = page.locator("div.gainCodeCopyBtn-Lwk9eR")
