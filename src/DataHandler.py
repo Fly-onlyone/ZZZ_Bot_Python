@@ -31,7 +31,7 @@ class Serializable:
         return cls(**data)
 
 
-def prepare_data(output_folder: str, output_file: str):
+def prepare_mission_data(output_folder: str, output_file: str):
     # Create output folder if it doesn't exist
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -69,3 +69,19 @@ def maintain_mission_data(previous_data: list, output_file: str):
     with open(output_file, "w", encoding="utf-8") as file:
         json.dump(previous_data, file, ensure_ascii=False, indent=2)
     print("Mission data saved.")
+
+
+def load_shopping_data(file_path):
+    """Load shopping data from the specified file path."""
+    if file_path.exists():
+        with open(file_path, "r", encoding="utf-8") as file:
+            return json.load(file)
+    return None
+
+
+def save_shopping_data(file_path, shopping_data):
+    """Save shopping data to the specified file path."""
+    if not file_path.parent.exists():
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(file_path, "w", encoding="utf-8") as file:
+        json.dump(shopping_data, file, indent=4, ensure_ascii=False)

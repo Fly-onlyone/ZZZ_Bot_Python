@@ -17,7 +17,6 @@ export default function ValueAdapter({
     type: "success",
     message: "",
   });
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [passwordVisibility, setPasswordVisibility] = useState({});
   const BACKEND_URL = "http://127.0.0.1:8000";
@@ -25,7 +24,6 @@ export default function ValueAdapter({
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
       try {
         const route = location.pathname.replace("/", "");
         const response = await fetch(`${BACKEND_URL}/${route}`);
@@ -45,8 +43,6 @@ export default function ValueAdapter({
         }
       } catch (err) {
         setError("An error occurred while fetching data.");
-      } finally {
-        setLoading(false);
       }
     };
 

@@ -28,15 +28,18 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import PersonIcon from "@mui/icons-material/Person";
 import PasswordIcon from "@mui/icons-material/Password";
 import AppRegistrationIcon from "@mui/icons-material/AppRegistration";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import Qingyi from "./../../Qingyi02.ico";
 import ValueAdapter from "./ValueAdapter";
 import zIndex from "@mui/material/styles/zIndex";
 import Overview from "./Overview";
+import Shopping from "./Shopping";
 
 const drawerWidth = 240;
 
 const tabs = [
   { label: "Overview", icon: <DashboardIcon />, path: "/" },
+  { label: "Shopping", icon: <ShoppingCartIcon />, path: "/shopping" },
   {
     label: "Account",
     icon: <AccountCircleIcon />,
@@ -132,6 +135,7 @@ export default function PermanentDrawer() {
                 />
               }
             />
+            <Route path="/shopping" element={<Shopping />} />
             <Route path="/settings" element={<ValueAdapter />} />
             <Route path="*" element={<Navigate to="/settings" />} />
           </Routes>
