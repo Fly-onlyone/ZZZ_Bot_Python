@@ -111,7 +111,7 @@ export default function PermanentDrawer() {
             >
               ZZZ Bot
             </Typography>
-          </Toolbar>{" "}
+          </Toolbar>
         </AppBar>
         <DrawerNavigation />
         <Box component="main" className="flex-grow p-6">

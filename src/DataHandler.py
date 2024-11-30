@@ -32,7 +32,7 @@ class Serializable:
 
 
 def prepare_data(output_folder: str, output_file: str):
-    # Create bot data folder if it doesn't exist
+    # Create output folder if it doesn't exist
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 

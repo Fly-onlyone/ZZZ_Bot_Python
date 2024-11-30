@@ -31,7 +31,9 @@ export default function ValueAdapter({
         const response = await fetch(`${BACKEND_URL}/${route}`);
         if (response.ok) {
           const data = await response.json();
+
           setValue(data);
+
           setPasswordVisibility(
             Object.keys(data).reduce((acc, key) => {
               acc[key] = key.toLowerCase().includes("password") ? false : null;
@@ -201,7 +203,6 @@ export default function ValueAdapter({
       );
     }
   };
-  if (loading) return <p>Loading...</p>;
   if (error) return <p className="text-red-500">{error}</p>;
 
   return (

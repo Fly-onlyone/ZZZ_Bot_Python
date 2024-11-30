@@ -23,6 +23,7 @@ from starlette.middleware.cors import CORSMiddleware
 import Mission
 import Notification
 from DataHandler import prepare_data
+from src import ShoppingHandler
 from src.DataHandler import Serializable
 
 
@@ -33,6 +34,7 @@ class AppSettings(Serializable):
     schedule_times: List[str] = field(default_factory=lambda: ["08:00", "20:00"])
     exit_after_run: bool = False
     open_web_ui: bool = True
+    headless_mode: bool = False
 
 
 @dataclass
@@ -46,11 +48,12 @@ class Account(Serializable):
 CONFIG = {
     "ICON_PATH": "./../Qingyi02.ico",
     "STORAGE_PATH": "./../authentication data/hoyo.json",
-    "OUTPUT_FOLDER": "./../bot data",
-    "OUTPUT_FILE": "./../bot data/missions.json",
-    "LAST_RUN_FILE": "./../bot data/last_run.json",
-    "SETTINGS_FILE": "./../bot data/settings.json",
-    "ACCOUNT_FILE": "./../bot data/account.json",
+    "OUTPUT_FOLDER": "./../output",
+    "OUTPUT_FILE": "./../output/missions.json",
+    "LAST_RUN_FILE": "./../output/last_run.json",
+    "SETTINGS_FILE": "./../output/settings.json",
+    "ACCOUNT_FILE": "./../output/account.json",
+    "SHOPPING_FILE": "./../output/shopping.json",
     "WEB_UI_URL": "http://127.0.0.1:3000",
 }
 
@@ -108,7 +111,7 @@ async def update_settings(request: Request):
 
     # Save updated settings and reschedule tasks
     settings.save(CONFIG["SETTINGS_FILE"])
-    reschedule_tasks()
+    schedule_tasks()
     update_tray_menu()
     return JSONResponse({"message": "Settings updated"})
 
@@ -132,7 +135,7 @@ def playwright_task():
         CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
     )
     with sync_playwright() as p:
-        browser = p.firefox.launch(headless=True)
+        browser = p.firefox.launch(headless=settings.headless_mode)
         context_options = (
             {"storage_state": CONFIG["STORAGE_PATH"]}
             if os.path.exists(CONFIG["STORAGE_PATH"])
@@ -154,7 +157,7 @@ def playwright_task():
 
         Mission.run(CONFIG["OUTPUT_FILE"], page, previous_data, todays_data)
         Notification.send_mission_data_via_email_html(todays_data)
-
+        ShoppingHandler.run(page)
         save_last_run()
         notify_user("Task finished!")
 
@@ -193,7 +196,7 @@ def check_missed_runs():
             break
 
 
-def reschedule_tasks():
+def schedule_tasks():
     """Reschedule tasks based on current settings."""
     schedule.clear()
     for scheduled_time in settings.schedule_times:
@@ -202,7 +205,7 @@ def reschedule_tasks():
 
 def run_scheduled_tasks():
     """Run scheduled tasks in a loop."""
-    reschedule_tasks()
+    schedule_tasks()
     check_missed_runs()
     while True:
         schedule.run_pending()
@@ -223,6 +226,7 @@ def setup_tray_icon():
         "ZZZ Bot",
         icon_image,
         menu=Menu(
+            MenuItem("Run Playwright", lambda item: playwright_task()),
             MenuItem(
                 "Toggle Web UI",
                 lambda item: toggle_setting("open_web_ui"),
