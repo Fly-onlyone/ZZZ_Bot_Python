@@ -1,0 +1,78 @@
+{
+    "Point": 225,
+    "Duration": {
+        "Start": "5/11",
+        "End": "17/12"
+    },
+    "Item's list": {
+        "0": {
+            "Name": "Senior Investigator Log ×5",
+            "Price": 100,
+            "Inventory": 3412,
+            "Available": "Yes"
+        },
+        "1": {
+            "Name": "Dennies ×5,000",
+            "Price": 50,
+            "Inventory": 48126,
+            "Available": "Yes"
+        },
+        "2": {
+            "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (Permanent)",
+            "Price": 500,
+            "Inventory": 3999222,
+            "Available": "Yes"
+        },
+        "3": {
+            "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (90-Day)",
+            "Price": 90,
+            "Inventory": 3999930,
+            "Available": "Yes"
+        },
+        "4": {
+            "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (30-Day)",
+            "Price": 40,
+            "Inventory": 3999791,
+            "Available": "Yes"
+        },
+        "5": {
+            "Name": "Polychrome ×10",
+            "Price": 100,
+            "Inventory": 0,
+            "Available": "18:00 04/12/24"
+        },
+        "6": {
+            "Name": "Polychrome ×30",
+            "Price": 200,
+            "Inventory": 0,
+            "Available": "18:00 04/12/24"
+        },
+        "7": {
+            "Name": "Polychrome ×60",
+            "Price": 300,
+            "Inventory": 0,
+            "Available": "18:00 04/12/24"
+        },
+        "8": {
+            "Name": "Polychrome ×100",
+            "Price": 500,
+            "Inventory": 0,
+            "Available": "18:00 04/12/24"
+        },
+        "9": {
+            "Name": "Dennies ×10,000",
+            "Price": 80,
+            "Inventory": 7886,
+            "Available": "Yes"
+        }
+    },
+    "Selected": [
+        "1",
+        "0",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+    ]
+}

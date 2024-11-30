@@ -8,12 +8,13 @@ import time
 import webbrowser
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
+from pathlib import Path
 from typing import List
 
 import schedule
 import uvicorn
 from PIL import Image
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from playwright.sync_api import sync_playwright
 from plyer import notification
@@ -22,9 +23,9 @@ from starlette.middleware.cors import CORSMiddleware
 
 import Mission
 import Notification
-from DataHandler import prepare_data
+from DataHandler import prepare_mission_data
 from src import ShoppingHandler
-from src.DataHandler import Serializable
+from src.DataHandler import Serializable, load_shopping_data
 
 
 # Data Classes
@@ -73,9 +74,37 @@ app.add_middleware(
 )
 
 
+@app.get("/shopping")
+def get_shopping_data():
+    return load_shopping_data(Path(CONFIG["SHOPPING_FILE"]))
+
+
+@app.post("/shopping")
+def update_shopping_data(selected: dict):
+    file_path = Path(CONFIG["SHOPPING_FILE"])
+
+    # Load existing shopping data
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Shopping file not found")
+
+    with open(file_path, "r", encoding="utf-8") as file:
+        shopping_data = json.load(file)
+
+    # Update or add the "Selected" key
+    shopping_data["Selected"] = selected.get("Selected", [])
+
+    # Save the updated shopping data back to the file
+    with open(file_path, "w", encoding="utf-8") as file:
+        json.dump(shopping_data, file, indent=4, ensure_ascii=False)
+
+    return {"message": "Shopping data updated successfully"}
+
+
 @app.get("/overview/mission")
 def get_mission_report():
-    _, todays_data = prepare_data(CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"])
+    _, todays_data = prepare_mission_data(
+        CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
+    )
     return todays_data
 
 
@@ -131,7 +160,7 @@ def check_run_status():
 def playwright_task():
     """Core logic for the bot task."""
 
-    previous_data, todays_data = prepare_data(
+    previous_data, todays_data = prepare_mission_data(
         CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
     )
     with sync_playwright() as p:
@@ -156,6 +185,8 @@ def playwright_task():
             print("Login session saved.")
 
         Mission.run(CONFIG["OUTPUT_FILE"], page, previous_data, todays_data)
+        close_button = page.locator(".panelBack--wW5qj")
+        close_button.click()
         Notification.send_mission_data_via_email_html(todays_data)
         ShoppingHandler.run(page)
         save_last_run()
