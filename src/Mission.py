@@ -1,9 +1,11 @@
+import cv2
 from playwright.sync_api import Page, Locator
 
 import RetryHelper
 from CheckIn import handle_check_in
 from DataHandler import maintain_mission_data
-from ImageProcessor import ImageProcessor
+from ImageProcessor import ImageProcessor, fetch_image_from_locator, compare_images
+from src.ImageProcessor import find_correct_avatar
 
 
 class Mission:
@@ -84,9 +86,8 @@ def count_mission(page: Page):
 
 
 def doing_mission(mission_count: int, page: Page, todays_data: dict):
-    zzz_icon = page.locator("div.avatarsItemImg-AiUG1h").nth(1)
-    zzz_icon.click()
-    # zzz_icon.screenshot(path="./../sample button/ZZZ Avatar.png")
+    zzz_avatar = find_correct_avatar(page)
+    zzz_avatar.click()
 
     check_in_result = todays_data.get(
         "check_in", "Link isn't opened"
