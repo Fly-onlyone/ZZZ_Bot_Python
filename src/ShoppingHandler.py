@@ -1,4 +1,3 @@
-import json
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -8,6 +7,7 @@ from playwright.sync_api import Page
 
 import RetryHelper
 from Bot import CONFIG
+from src.DataHandler import load_shopping_data, save_shopping_data
 from src.ImageProcessor import find_correct_avatar
 
 
@@ -58,6 +58,28 @@ def calculate_return_time(input_time_str):
 
     # Format the return time in the format "hour:min dd/mm/yy"
     return return_time.strftime("%H:%M %d/%m/%y")
+
+
+def is_current_time_in_duration(duration):
+    try:
+        # Parse the start and end dates
+        start_date = datetime.strptime(duration.get("Start", ""), "%d/%m")
+        end_date = datetime.strptime(duration.get("End", ""), "%d/%m")
+
+        # Update with the current year
+        current_year = datetime.now().year
+        start_date = start_date.replace(year=current_year)
+        end_date = end_date.replace(year=current_year)
+
+        # Get current time
+        current_time = datetime.now()
+
+        # Check if current time is within range
+        return start_date <= current_time <= end_date
+    except (ValueError, TypeError) as e:
+        # Handle missing or invalid date format
+        print(f"Invalid duration format: {e}")
+        return False
 
 
 def check_and_process_item(item_locator):
@@ -113,6 +135,26 @@ def run(page: Page):
     zzz_avatar = find_correct_avatar(page)
     zzz_avatar.click()
 
+    file_path = Path(CONFIG["SHOPPING_FILE"])
+    shopping_data = load_shopping_data(file_path)
+
+    if shopping_data:
+        duration = shopping_data.get("Duration", {})
+        if is_current_time_in_duration(duration):
+            print("Current time is within the duration. Updating data.")
+            shopping_data.update(gather_data(page, point))
+        else:
+            print("Current time is outside the duration. Gathering new data.")
+            shopping_data = gather_data(page, point)
+    else:
+        print("No existing data. Gathering new data.")
+        shopping_data = gather_data(page, point)
+
+    # Save updated shopping_data to file
+    save_shopping_data(file_path, shopping_data)
+
+
+def gather_data(page: Page, point: int):
     rows = []
     number_item = RetryHelper.retry_until_non_zero_count(page.locator(".item-6Owrjq"))
     for i in range(number_item):
@@ -120,16 +162,12 @@ def run(page: Page):
         rows.append(row)
 
     dataframe = pandas.DataFrame(rows)
-
     duration_text = page.locator(".bubbleExpire-L4jUSs").inner_text()
+
     shopping_data = {
         "Point": point,
         "Duration": extract_and_convert_duration(duration_text),
         "Item's list": dataframe.to_dict(orient="index"),
     }
 
-    file_path = Path(CONFIG["SHOPPING_FILE"])
-    if not file_path.exists():
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(file_path, "w", encoding="utf-8") as file:
-        json.dump(shopping_data, file, indent=4, ensure_ascii=False)
+    return shopping_data
