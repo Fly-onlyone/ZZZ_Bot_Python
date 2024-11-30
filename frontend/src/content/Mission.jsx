@@ -20,7 +20,7 @@ export default function Mission() {
         console.log("An error occurred while fetching data.");
       }
     };
-    fetchData();
+    fetchData()
   }, []);
   const { day, check_in, missions } = mission;
   if (!missions) {

@@ -1,8 +1,0 @@
-{
-    "schedule_times": [
-        "08:00",
-        "21:00"
-    ],
-    "exit_after_run": false,
-    "open_web_ui": false
-}
