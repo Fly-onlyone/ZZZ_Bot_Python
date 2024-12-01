@@ -1,10 +1,9 @@
-import cv2
 from playwright.sync_api import Page, Locator
 
 import RetryHelper
 from CheckIn import handle_check_in
 from DataHandler import maintain_mission_data
-from ImageProcessor import ImageProcessor, fetch_image_from_locator, compare_images
+from ImageProcessor import ImageProcessor
 from src.ImageProcessor import find_correct_avatar
 
 

@@ -1,3 +1,6 @@
+from playwright.async_api import Playwright
+
+
 def run(playwright: Playwright) -> None:
     browser = playwright.firefox.launch(headless=False)
     context = browser.new_context(storage_state="./authentication data/hoyo.json")

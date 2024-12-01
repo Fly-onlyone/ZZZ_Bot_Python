@@ -1,7 +1,7 @@
 import json
 import os
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TypeVar, Type
 
@@ -85,3 +85,40 @@ def save_shopping_data(file_path, shopping_data):
         file_path.parent.mkdir(parents=True, exist_ok=True)
     with open(file_path, "w", encoding="utf-8") as file:
         json.dump(shopping_data, file, indent=4, ensure_ascii=False)
+
+
+def save_redeem_data(item_name, code_text, current_day, redeem_file_path):
+    # Load existing redeem data
+    if redeem_file_path.exists():
+        with open(redeem_file_path, "r", encoding="utf-8") as file:
+            try:
+                redeem_data = json.load(file)
+            except json.JSONDecodeError:
+                redeem_data = []
+    else:
+        redeem_data = []
+
+    # Filter out entries older than 30 days
+    today = datetime.strptime(current_day, "%H:%M %d/%m/%Y")
+    thirty_days_ago = today - timedelta(days=30)
+
+    filtered_data = [
+        entry
+        for entry in redeem_data
+        if datetime.strptime(entry["Day"], "%H:%M %d/%m/%Y") > thirty_days_ago
+    ]
+
+    # Add new entry
+    new_entry = {
+        "Item Name": item_name,
+        "Code": code_text,
+        "Day": current_day,
+    }
+    filtered_data.append(new_entry)
+
+    # Save updated data back to file
+    redeem_file_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(redeem_file_path, "w", encoding="utf-8") as file:
+        json.dump(filtered_data, file, indent=4, ensure_ascii=False)
+
+    print(f"Redeem data saved to {redeem_file_path}")
