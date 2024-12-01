@@ -10,15 +10,12 @@ import {
 import {
   AppBar,
   Box,
-  Checkbox,
   CssBaseline,
   Drawer,
-  FormControlLabel,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  paperClasses,
   Toolbar,
   Typography,
 } from "@mui/material";

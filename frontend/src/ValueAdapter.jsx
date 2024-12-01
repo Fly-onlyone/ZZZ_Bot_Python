@@ -7,10 +7,7 @@ import dayjs from "dayjs";
 import { useLocation } from "react-router-dom";
 import { ContentCopy, Visibility, VisibilityOff } from "@mui/icons-material";
 
-export default function ValueAdapter({
-  customRenderers = {},
-  customIcons = {},
-}) {
+export default function ValueAdapter({ customIcons = {} }) {
   const [value, setValue] = useState({});
   const [alert, setAlert] = useState({
     open: false,
@@ -91,16 +88,6 @@ export default function ValueAdapter({
   const renderField = (key) => {
     const fieldValue = value[key];
     const isPassword = key.toLowerCase().includes("password");
-    if (customRenderers[key]) {
-      return customRenderers[key](fieldValue, (newValue) =>
-        handleChange(key, newValue)
-      );
-    }
-    if (customRenderers[typeof fieldValue]) {
-      return customRenderers[typeof fieldValue](fieldValue, (newValue) =>
-        handleChange(key, newValue)
-      );
-    }
     if (Array.isArray(fieldValue)) {
       return (
         <div key={key} className="mb-6">
