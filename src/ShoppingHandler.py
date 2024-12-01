@@ -1,63 +1,18 @@
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
-import pandas
 from playwright.sync_api import Page
 
 import RetryHelper
 from Bot import CONFIG
-from src.DataHandler import load_shopping_data, save_shopping_data
+from src.DataHandler import load_shopping_data, save_shopping_data, save_redeem_data
 from src.ImageProcessor import find_correct_avatar
-
-
-def extract_number_from_string(input_string):
-    import re
-
-    # Use regex to find the first sequence of digits in the string
-    match = re.search(r"\d+", input_string)
-    return int(match.group()) if match else None
-
-
-def extract_and_convert_duration(input_string):
-    import re
-
-    # Regex to capture the start and end dates
-    match = re.search(r"Duration:\s*(\d+/\d+)\s*–\s*(\d+/\d+)", input_string)
-    if match:
-        start_date, end_date = match.groups()
-
-        # Convert each date to day/month format
-        start_day, start_month = start_date.split("/")
-        end_day, end_month = end_date.split("/")
-
-        # Return the result in day/month format
-        return {"Start": f"{start_month}/{start_day}", "End": f"{end_month}/{end_day}"}
-    return None  # Return None if the pattern doesn't match
-
-
-def calculate_return_time(input_time_str):
-    # Parse the input string (format: "hour:min:sec")
-    input_time_parts = list(map(int, input_time_str.split(":")))
-
-    # Extract the hours, minutes, and seconds from the input
-    input_hours = input_time_parts[0]
-    input_minutes = input_time_parts[1]
-    input_seconds = input_time_parts[2]
-
-    # Create a timedelta from the input
-    time_delta = timedelta(
-        hours=input_hours, minutes=input_minutes, seconds=input_seconds
-    )
-
-    # Get the current time
-    current_time = datetime.now()
-
-    # Calculate the return time by adding the time delta to the current time
-    return_time = current_time + time_delta
-
-    # Format the return time in the format "hour:min dd/mm/yy"
-    return return_time.strftime("%H:%M %d/%m/%y")
+from src.StringUtil import (
+    extract_number_from_string,
+    extract_and_convert_duration,
+    calculate_return_time,
+)
 
 
 def is_current_time_in_duration(duration):
@@ -153,21 +108,83 @@ def run(page: Page):
     # Save updated shopping_data to file
     save_shopping_data(file_path, shopping_data)
 
+    # Shopping part
+    # run_shopping(page, shopping_data)
+
 
 def gather_data(page: Page, point: int):
-    rows = []
+    rows = {}
     number_item = RetryHelper.retry_until_non_zero_count(page.locator(".item-6Owrjq"))
     for i in range(number_item):
-        row = check_and_process_item(page.locator(".item-6Owrjq").nth(i))
-        rows.append(row)
+        item_locator = page.locator(".item-6Owrjq").nth(i)
+        row = check_and_process_item(item_locator)
 
-    dataframe = pandas.DataFrame(rows)
+        item_name = row["Name"]  # Use the Name field as the key
+        if item_name in rows:
+            print(f"Duplicate item name detected: {item_name}. Skipping.")
+        else:
+            rows[item_name] = row
+
     duration_text = page.locator(".bubbleExpire-L4jUSs").inner_text()
 
     shopping_data = {
         "Point": point,
         "Duration": extract_and_convert_duration(duration_text),
-        "Item's list": dataframe.to_dict(orient="index"),
+        "Item's list": rows,  # Use Name as keys
     }
 
     return shopping_data
+
+
+def run_shopping(page: Page, shopping_data):
+    selected = shopping_data["Selected"]
+
+    # Check if any item is selected
+    if not selected:
+        print("No item selected. Exiting.")
+        return
+
+    # Use the name of the first selected item
+    item_name = selected[0]
+
+    # Find the item in the shopping data
+    item_data = next(
+        (
+            item
+            for item in shopping_data["Item's list"].values()
+            if item["Name"] == item_name
+        ),
+        None,
+    )
+
+    if not item_data:
+        print(f"Item '{item_name}' not found in the shopping data. Exiting.")
+        return
+
+    print(f"Processing item: {item_name}")
+
+    # Locate and interact with the item in the browser
+    item_locator = page.locator(".item-6Owrjq").filter(has_text=item_name)
+    if item_locator.count() == 0:
+        print(f"Item '{item_name}' not found on the page. Exiting.")
+        return
+
+    shopping_button_locator = item_locator.locator(".itemBtn-gTL1Rd")
+    shopping_button_locator.click()
+
+    # Handle the confirm dialog if it appears
+    if page.locator(".confirm-5fGU8Q").is_visible():
+        print("Confirm screen detected.")
+        confirm_ok = page.locator(".confirmOk-vBKGy6")
+        confirm_ok.click()
+
+        # Extract and copy the redeem code
+        code_text = page.locator("div.gainCodeCopyInput-QcgdvD").inner_text()
+        page.locator("div.gainCodeCopyBtn-Lwk9eR").click()
+
+        # Get the current day in the desired format
+        current_day = datetime.now().strftime("%H:%M %d/%m/%Y")
+
+        # Save redeem_data to JSON file
+        redeem_file_path = Path(CONFIG["REDEEM_FILE"])
+        save_redeem_data(item_name, code_text, current_day, redeem_file_path)

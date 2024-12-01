@@ -55,6 +55,7 @@ CONFIG = {
     "SETTINGS_FILE": "./../output/settings.json",
     "ACCOUNT_FILE": "./../output/account.json",
     "SHOPPING_FILE": "./../output/shopping.json",
+    "REDEEM_FILE": "./../output/redeem.json",
     "WEB_UI_URL": "http://127.0.0.1:3000",
 }
 
@@ -188,7 +189,9 @@ def playwright_task():
         close_button = page.locator(".panelBack--wW5qj")
         close_button.click()
         Notification.send_mission_data_via_email_html(todays_data)
+
         ShoppingHandler.run(page)
+
         save_last_run()
         notify_user("Task finished!")
 
