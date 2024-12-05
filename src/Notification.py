@@ -4,7 +4,7 @@ from datetime import datetime
 import apprise
 from jinja2 import Template
 
-from src.Bot import accounts
+from src.GlobalVar import accounts
 
 
 def send_mission_data_via_email_html(todays_data):
