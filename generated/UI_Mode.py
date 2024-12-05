@@ -11,3 +11,4 @@ def run(playwright: Playwright) -> None:
 
     div_gain_code = page.locator("div.gainCodeCopyInput-QcgdvD")
     div_copy = page.locator("div.gainCodeCopyBtn-Lwk9eR")
+    success=page.locator(".dialog-content")

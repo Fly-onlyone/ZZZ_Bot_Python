@@ -20,7 +20,7 @@ def handle_check_in(new_page):
     day_button = new_page.get_by_text(day_text, exact=True)
     success_message = new_page.locator(
         "div.components-pc-assets-__dialog_---dialog-body---1SieDs"
-    ).filter(has_text="Check-In Successful!")
+    )
     # Retry clicking until the success message appears
     if RetryHelper.retry_until_screen_appears(success_message, day_button):
         print("Check-In Successful!")
