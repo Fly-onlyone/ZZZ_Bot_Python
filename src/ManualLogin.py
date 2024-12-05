@@ -1,11 +1,10 @@
-from playwright.async_api import async_playwright
 from playwright.sync_api import sync_playwright
 from plyer import notification
 
 
 def run(url):
     with sync_playwright() as p:
-        from src.Bot import CONFIG
+        from src.GlobalVar import CONFIG
 
         browser = p.firefox.launch(headless=False)
         context = browser.new_context(storage_state=CONFIG["STORAGE_PATH"])

@@ -1,13 +1,13 @@
 {
-    "schedule_times": [
-        "08:00",
-        "20:00"
-    ],
-    "exit_after_run": false,
-    "open_web_ui": false,
-    "headless_mode": true,
-    "run_task": true,
-    "gather_shopping_data": true,
-    "redeem_after_gather_data": false,
-    "buy_all": false
+  "schedule_times": [
+    "08:00",
+    "20:00"
+  ],
+  "exit_after_run": true,
+  "open_web_ui": false,
+  "headless_mode": true,
+  "run_task": true,
+  "gather_shopping_data": true,
+  "redeem_after_gather_data": false,
+  "buy_all": false
 }

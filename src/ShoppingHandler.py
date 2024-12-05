@@ -5,10 +5,9 @@ from pathlib import Path
 from playwright.sync_api import Page
 
 import RetryHelper
-from Bot import CONFIG
-from Bot import settings
+from GlobalVar import CONFIG, settings
 from src import RedeemAutofill
-from src.DataHandler import load_shopping_data, save_shopping_data, save_redeem_data
+from src.DataHandler import load_shopping_data, save_shopping_data
 from src.ImageProcessor import find_correct_avatar
 from src.StringUtil import (
     extract_number_from_string,
@@ -149,49 +148,53 @@ def run_shopping(page: Page, shopping_data):
         print("No item selected. Exiting.")
         return
 
-    # Use the name of the first selected item
-    item_name = selected[0]
+    # Loop through selected items if buy_all is enabled, else process the first item
+    items_to_process = selected if settings.buy_all else [selected[0]]
 
-    # Find the item in the shopping data
-    item_data = next(
-        (
-            item
-            for item in shopping_data["Item's list"].values()
-            if item["Name"] == item_name
-        ),
-        None,
-    )
+    for item_name in items_to_process:
+        # Find the item in the shopping data
+        item_data = next(
+            (
+                item
+                for item in shopping_data["Item's list"].values()
+                if item["Name"] == item_name
+            ),
+            None,
+        )
 
-    if not item_data:
-        print(f"Item '{item_name}' not found in the shopping data. Exiting.")
-        return
+        if not item_data:
+            print(f"Item '{item_name}' not found in the shopping data. Skipping.")
+            continue
 
-    print(f"Processing item: {item_name}")
+        print(f"Processing item: {item_name}")
 
-    # Locate and interact with the item in the browser
-    item_locator = page.locator(".item-6Owrjq").filter(has_text=item_name)
-    if item_locator.count() == 0:
-        print(f"Item '{item_name}' not found on the page. Exiting.")
-        return
+        # Locate and interact with the item in the browser
+        item_locator = page.locator(".item-6Owrjq").filter(has_text=item_name)
+        if item_locator.count() == 0:
+            print(f"Item '{item_name}' not found on the page. Skipping.")
+            continue
 
-    shopping_button_locator = item_locator.locator(".itemBtn-gTL1Rd")
-    if shopping_button_locator.inner_text() == "Exchange":
-        shopping_button_locator.click()
+        shopping_button_locator = item_locator.locator(".itemBtn-gTL1Rd")
+        if shopping_button_locator.inner_text() == "Exchange":
+            shopping_button_locator.click()
 
-        # Handle the confirm dialog if it appears
-        if page.locator(".confirm-5fGU8Q").is_visible():
-            print("Confirm screen detected.")
-            confirm_ok = page.locator(".confirmOk-vBKGy6")
-            confirm_ok.click()
+            # Handle the confirm dialog if it appears
+            if page.locator(".confirm-5fGU8Q").is_visible():
+                print("Confirm screen detected.")
+                confirm_ok = page.locator(".confirmOk-vBKGy6")
+                confirm_ok.click()
 
-            # Extract and copy the redeem code
-            code_text = page.locator("div.gainCodeCopyInput-QcgdvD").inner_text()
-            page.locator("div.gainCodeCopyBtn-Lwk9eR").click()
+                # Extract and copy the redeem code
+                code_text = page.locator("div.gainCodeCopyInput-QcgdvD").inner_text()
+                page.locator("div.gainCodeCopyBtn-Lwk9eR").click()
 
-            # Get the current day in the desired format
-            current_day = datetime.now().strftime("%H:%M %d/%m/%Y")
+                # Get the current day in the desired format
+                current_day = datetime.now().strftime("%H:%M %d/%m/%Y")
 
-            # Save redeem_data to JSON file
-            redeem_file_path = Path(CONFIG["REDEEM_FILE"])
-            save_redeem_data(item_name, code_text, current_day, redeem_file_path)
-            RedeemAutofill.run(page.context, code_text)
+                # Save redeem_data to JSON file
+                redeem_file_path = Path(CONFIG["REDEEM_FILE"])
+                RedeemAutofill.run(
+                    page.context, code_text, item_name, current_day, redeem_file_path
+                )
+        else:
+            print("Can't exchange item")

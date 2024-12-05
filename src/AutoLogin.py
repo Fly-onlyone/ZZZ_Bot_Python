@@ -2,7 +2,7 @@ from playwright.sync_api import Page
 
 
 def run(page: Page):
-    from Bot import accounts
+    from src.GlobalVar import accounts
 
     page.locator("#hyv-account-frame").content_frame.locator(
         'input[name="username"]'
