@@ -1,4 +1,3 @@
-import asyncio
 import json
 import os
 import signal
@@ -7,78 +6,28 @@ import sys
 import threading
 import time
 import webbrowser
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 import schedule
 import uvicorn
 from PIL import Image
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi import BackgroundTasks
 from playwright.sync_api import sync_playwright
 from plyer import notification
 from pystray import Icon, Menu, MenuItem
-from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 import Mission
 import Notification
+import src.GlobalVar
+from DataHandler import load_shopping_data
 from DataHandler import prepare_mission_data
-from src import ShoppingHandler, RedeemAutofill, ManualLogin
-from src.DataHandler import Serializable, load_shopping_data
-
-
-# Data Classes
-@dataclass
-class AppSettings(Serializable):
-
-    schedule_times: List[str] = field(default_factory=lambda: ["08:00", "20:00"])
-    exit_after_run: bool = False
-    open_web_ui: bool = True
-    headless_mode: bool = False
-    run_task: bool = True
-    gather_shopping_data: bool = True
-    redeem_after_gather_data: bool = False
-    buy_all: bool = False
-
-
-@dataclass
-class Account(Serializable):
-    username: str = "***REMOVED***"
-    password: str = ""
-    app_password: str = "***REMOVED***"
-
-
-# Configuration
-CONFIG = {
-    "ICON_PATH": "./../Qingyi02.ico",
-    "SAD_ICON": "./../Qingyi01.ico",
-    "STORAGE_PATH": "./../authentication data/hoyo.json",
-    "OUTPUT_FOLDER": "./../output",
-    "OUTPUT_FILE": "./../output/missions.json",
-    "LAST_RUN_FILE": "./../output/last_run.json",
-    "SETTINGS_FILE": "./../output/settings.json",
-    "ACCOUNT_FILE": "./../output/account.json",
-    "SHOPPING_FILE": "./../output/shopping.json",
-    "REDEEM_FILE": "./../output/redeem.json",
-    "WEB_UI_URL": "http://127.0.0.1:3000",
-}
-
-# Initialize global state
-settings = AppSettings.load(CONFIG["SETTINGS_FILE"])
-accounts = Account.load(CONFIG["ACCOUNT_FILE"])
-tray_icon = None
-
-# App Initialization
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Adjust for specific origins in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from src import ManualLogin
+from src import ShoppingHandler
+from src.GlobalVar import app, accounts, CONFIG, settings
 
 
 @app.get("/shopping")
@@ -268,14 +217,13 @@ def run_scheduled_tasks():
 # Tray Icon Logic
 def update_tray_menu():
     """Update the tray icon menu."""
-    tray_icon.update_menu()
+    src.GlobalVar.tray_icon.update_menu()
 
 
 def setup_tray_icon():
     """Set up the system tray icon."""
     icon_image = Image.open(CONFIG["ICON_PATH"])
-    global tray_icon
-    tray_icon = Icon(
+    src.GlobalVar.tray_icon = Icon(
         "ZZZ Bot",
         icon_image,
         menu=Menu(
@@ -294,7 +242,7 @@ def setup_tray_icon():
         ),
     )
     threading.Thread(target=run_scheduled_tasks, daemon=True).start()
-    tray_icon.run()
+    src.GlobalVar.tray_icon.run()
 
 
 def toggle_setting(setting_name):

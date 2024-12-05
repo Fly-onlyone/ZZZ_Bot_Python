@@ -13,7 +13,6 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import { useLocation } from "react-router-dom";
 import { ContentCopy, Visibility, VisibilityOff } from "@mui/icons-material";
-import TaskIcon from "@mui/icons-material/Task";
 
 export default function ValueAdapter({
   customIcons = {},

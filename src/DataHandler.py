@@ -87,7 +87,7 @@ def save_shopping_data(file_path, shopping_data):
         json.dump(shopping_data, file, indent=4, ensure_ascii=False)
 
 
-def save_redeem_data(item_name, code_text, current_day, redeem_file_path):
+def save_redeem_data(item_name, code_text, current_day, redeem_file_path, state):
     # Load existing redeem data
     if redeem_file_path.exists():
         with open(redeem_file_path, "r", encoding="utf-8") as file:
@@ -113,6 +113,7 @@ def save_redeem_data(item_name, code_text, current_day, redeem_file_path):
         "Item Name": item_name,
         "Code": code_text,
         "Day": current_day,
+        "State": state,  # Success or failure
     }
     filtered_data.append(new_entry)
 
