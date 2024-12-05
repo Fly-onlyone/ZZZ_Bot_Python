@@ -77,6 +77,9 @@ def open_mission_screen(page: Page):
 
 
 def count_mission(page: Page):
+    zzz_avatar = find_correct_avatar(page)
+    zzz_avatar.click()
+
     mission_count = RetryHelper.retry_until_non_zero_count(
         page.locator(".taskItemPcLeft-Aetp6m")
     )
@@ -85,8 +88,6 @@ def count_mission(page: Page):
 
 
 def doing_mission(mission_count: int, page: Page, todays_data: dict):
-    zzz_avatar = find_correct_avatar(page)
-    zzz_avatar.click()
 
     check_in_result = todays_data.get(
         "check_in", "Link isn't opened"

@@ -1,0 +1,22 @@
+from playwright.async_api import async_playwright
+from playwright.sync_api import sync_playwright
+from plyer import notification
+
+
+def run(url):
+    with sync_playwright() as p:
+        from src.Bot import CONFIG
+
+        browser = p.firefox.launch(headless=False)
+        context = browser.new_context(storage_state=CONFIG["STORAGE_PATH"])
+        page = context.new_page()
+        page.goto(url)
+        notification.notify(
+            title="ZZZ Bot", message="Start manual login", app_icon=CONFIG["SAD_ICON"]
+        )
+        page.wait_for_timeout(60000)  # Waits for 1 minute
+        context.storage_state(path=CONFIG["STORAGE_PATH"])
+        notification.notify(
+            title="ZZZ Bot", message="Login session saved", app_icon=CONFIG["ICON_PATH"]
+        )
+        browser.close()

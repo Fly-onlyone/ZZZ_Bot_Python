@@ -6,6 +6,8 @@ from playwright.sync_api import Page
 
 import RetryHelper
 from Bot import CONFIG
+from Bot import settings
+from src import RedeemAutofill
 from src.DataHandler import load_shopping_data, save_shopping_data, save_redeem_data
 from src.ImageProcessor import find_correct_avatar
 from src.StringUtil import (
@@ -109,7 +111,10 @@ def run(page: Page):
     save_shopping_data(file_path, shopping_data)
 
     # Shopping part
-    # run_shopping(page, shopping_data)
+    if settings.redeem_after_gather_data:
+        run_shopping(page, shopping_data)
+    else:
+        print("Redeem canceled due to setting.")
 
 
 def gather_data(page: Page, point: int):
@@ -170,21 +175,23 @@ def run_shopping(page: Page, shopping_data):
         return
 
     shopping_button_locator = item_locator.locator(".itemBtn-gTL1Rd")
-    shopping_button_locator.click()
+    if shopping_button_locator.inner_text() == "Exchange":
+        shopping_button_locator.click()
 
-    # Handle the confirm dialog if it appears
-    if page.locator(".confirm-5fGU8Q").is_visible():
-        print("Confirm screen detected.")
-        confirm_ok = page.locator(".confirmOk-vBKGy6")
-        confirm_ok.click()
+        # Handle the confirm dialog if it appears
+        if page.locator(".confirm-5fGU8Q").is_visible():
+            print("Confirm screen detected.")
+            confirm_ok = page.locator(".confirmOk-vBKGy6")
+            confirm_ok.click()
 
-        # Extract and copy the redeem code
-        code_text = page.locator("div.gainCodeCopyInput-QcgdvD").inner_text()
-        page.locator("div.gainCodeCopyBtn-Lwk9eR").click()
+            # Extract and copy the redeem code
+            code_text = page.locator("div.gainCodeCopyInput-QcgdvD").inner_text()
+            page.locator("div.gainCodeCopyBtn-Lwk9eR").click()
 
-        # Get the current day in the desired format
-        current_day = datetime.now().strftime("%H:%M %d/%m/%Y")
+            # Get the current day in the desired format
+            current_day = datetime.now().strftime("%H:%M %d/%m/%Y")
 
-        # Save redeem_data to JSON file
-        redeem_file_path = Path(CONFIG["REDEEM_FILE"])
-        save_redeem_data(item_name, code_text, current_day, redeem_file_path)
+            # Save redeem_data to JSON file
+            redeem_file_path = Path(CONFIG["REDEEM_FILE"])
+            save_redeem_data(item_name, code_text, current_day, redeem_file_path)
+            RedeemAutofill.run(page.context, code_text)
