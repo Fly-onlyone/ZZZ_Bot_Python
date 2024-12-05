@@ -170,6 +170,7 @@ export default function Shopping() {
           rows={rows}
           columns={columns}
           checkboxSelection
+          disableRowSelectionOnClick
           getRowId={(row) => row.Name} // Use Name as unique identifier
           rowSelectionModel={selectedRows.map((row) => row.Name)} // Pre-select rows by Name
           onRowSelectionModelChange={handleRowSelectionChange} // Update selected rows

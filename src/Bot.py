@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import signal
@@ -14,7 +15,7 @@ from typing import List
 import schedule
 import uvicorn
 from PIL import Image
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from playwright.sync_api import sync_playwright
 from plyer import notification
@@ -24,7 +25,7 @@ from starlette.middleware.cors import CORSMiddleware
 import Mission
 import Notification
 from DataHandler import prepare_mission_data
-from src import ShoppingHandler
+from src import ShoppingHandler, RedeemAutofill, ManualLogin
 from src.DataHandler import Serializable, load_shopping_data
 
 
@@ -36,6 +37,10 @@ class AppSettings(Serializable):
     exit_after_run: bool = False
     open_web_ui: bool = True
     headless_mode: bool = False
+    run_task: bool = True
+    gather_shopping_data: bool = True
+    redeem_after_gather_data: bool = False
+    buy_all: bool = False
 
 
 @dataclass
@@ -48,6 +53,7 @@ class Account(Serializable):
 # Configuration
 CONFIG = {
     "ICON_PATH": "./../Qingyi02.ico",
+    "SAD_ICON": "./../Qingyi01.ico",
     "STORAGE_PATH": "./../authentication data/hoyo.json",
     "OUTPUT_FOLDER": "./../output",
     "OUTPUT_FILE": "./../output/missions.json",
@@ -125,6 +131,13 @@ async def get_account(request: Request):
     return JSONResponse({"message": "Account updated"})
 
 
+@app.post("/manual")
+async def manual_task(request: Request, background_tasks: BackgroundTasks):
+    data = await request.json()
+    background_tasks.add_task(ManualLogin.run, data["url"])
+    return JSONResponse({"message": "Handle login in the background"})
+
+
 @app.get("/settings")
 def get_settings():
     """Return all current settings as a dictionary."""
@@ -172,29 +185,40 @@ def playwright_task():
             else {}
         )
         context = browser.new_context(**context_options)
-        page = context.new_page()
+        mino_page = context.new_page()
 
-        page.goto(
+        mino_page.goto(
             "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
         )
 
         # Handle manual login if storage path doesn't exist
         if not os.path.exists(CONFIG["STORAGE_PATH"]):
             print("Please log in manually...")
-            page.wait_for_timeout(120000)
+            mino_page.wait_for_timeout(120000)
             context.storage_state(path=CONFIG["STORAGE_PATH"])
             print("Login session saved.")
 
-        Mission.run(CONFIG["OUTPUT_FILE"], page, previous_data, todays_data)
-        close_button = page.locator(".panelBack--wW5qj")
-        close_button.click()
-        Notification.send_mission_data_via_email_html(todays_data)
+        if settings.run_task:
+            Mission.run(CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data)
+            close_button = mino_page.locator(".panelBack--wW5qj")
+            close_button.click()
+            Notification.send_mission_data_via_email_html(todays_data)
+        else:
+            print("Task cancelled due to setting.")
 
-        ShoppingHandler.run(page)
+        if settings.gather_shopping_data:
+            ShoppingHandler.run(mino_page)
+        else:
+            print("Gather data cancelled due to setting.")
+
+        # RedeemAutofill.run(context)
 
         save_last_run()
-        notify_user("Task finished!")
+        notification.notify(
+            title="ZZZ Bot", message="Task finished", app_icon=CONFIG["ICON_PATH"]
+        )
 
+        input("Press ENTER to exit...")
         if settings.exit_after_run:
             print("Exiting after run as per the setting.")
             sys.exit()
@@ -204,11 +228,6 @@ def save_last_run():
     """Save the timestamp of the last run."""
     with open(CONFIG["LAST_RUN_FILE"], "w") as f:
         json.dump({"last_run": datetime.now().isoformat()}, f)
-
-
-def notify_user(message):
-    """Send a notification to the user."""
-    notification.notify(title="ZZZ Bot", message=message, app_icon=CONFIG["ICON_PATH"])
 
 
 # Scheduling Logic

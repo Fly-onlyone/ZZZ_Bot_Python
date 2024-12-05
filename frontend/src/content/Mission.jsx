@@ -27,7 +27,7 @@ export default function Mission() {
     return <Alert severity="error">Today task hasn't done yet</Alert>;
   }
   return (
-    <div className="rounded-lg bg-orange-800  p-6 shadow-md">
+    <div className="rounded-lg   p-6 shadow-md">
       <h1 className="mb-4 text-2xl font-bold text-green-600">Day : {day}</h1>
       <h2 className="mb-4 text-lg font-semibold">
         <strong>Check-in Status:</strong> {check_in}

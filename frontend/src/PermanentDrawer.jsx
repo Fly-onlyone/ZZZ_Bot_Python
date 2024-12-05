@@ -31,6 +31,9 @@ import ValueAdapter from "./ValueAdapter";
 import zIndex from "@mui/material/styles/zIndex";
 import Overview from "./Overview";
 import Shopping from "./Shopping";
+import TaskIcon from "@mui/icons-material/Task";
+import InputIcon from "@mui/icons-material/Input";
+import ManualLogin from "./ManualLogin";
 
 const drawerWidth = 240;
 
@@ -42,6 +45,7 @@ const tabs = [
     icon: <AccountCircleIcon />,
     path: "/account",
   },
+  { label: "Manual Login", icon: <InputIcon />, path: "/manual" },
   { label: "Setting", icon: <SettingsIcon />, path: "/settings" },
 ];
 
@@ -133,7 +137,33 @@ export default function PermanentDrawer() {
               }
             />
             <Route path="/shopping" element={<Shopping />} />
-            <Route path="/settings" element={<ValueAdapter />} />
+            <Route path="/manual" element={<ManualLogin />} />
+            <Route
+              path="/settings"
+              element={
+                <ValueAdapter
+                  customSections={{
+                    Task: {
+                      icon: <TaskIcon />,
+                      fields: [
+                        "schedule_times",
+                        "exit_after_run",
+                        "headless_mode",
+                        "run_task",
+                      ],
+                    },
+                    Shopping: {
+                      icon: <ShoppingCartIcon />,
+                      fields: [
+                        "gather_shopping_data",
+                        "redeem_after_gather_data",
+                        "buy_all",
+                      ],
+                    },
+                  }}
+                />
+              }
+            />
             <Route path="*" element={<Navigate to="/settings" />} />
           </Routes>
         </Box>
