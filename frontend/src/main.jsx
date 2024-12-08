@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import "./index.css";
 import PermanentDrawer from "./PermanentDrawer";
 import { createTheme, ThemeProvider, useMediaQuery } from "@mui/material";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 function App() {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
@@ -80,7 +81,6 @@ function App() {
       }),
     [prefersDarkMode]
   );
-
   return (
     <ThemeProvider theme={theme}>
       <PermanentDrawer />

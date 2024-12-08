@@ -13,7 +13,7 @@ def run(url):
         notification.notify(
             title="ZZZ Bot", message="Start manual login", app_icon=CONFIG["SAD_ICON"]
         )
-        page.wait_for_timeout(60000)  # Waits for 1 minute
+        input("Press ENTER to exit...")
         context.storage_state(path=CONFIG["STORAGE_PATH"])
         notification.notify(
             title="ZZZ Bot", message="Login session saved", app_icon=CONFIG["ICON_PATH"]

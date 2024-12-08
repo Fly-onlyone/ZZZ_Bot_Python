@@ -32,6 +32,7 @@ class AppSettings(Serializable):
     gather_shopping_data: bool = True
     redeem_after_gather_data: bool = False
     buy_all: bool = False
+    draw_item: bool = False
 
 
 @dataclass
