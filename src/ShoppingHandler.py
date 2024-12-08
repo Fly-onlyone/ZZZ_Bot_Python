@@ -67,7 +67,7 @@ def check_and_process_item(item_locator):
             item_locator.locator(".itemCnt-7wIR4D").inner_text()
         )
         item_data["Inventory"] = item_inventory
-        item_data["Available"] = "Yes"
+        item_data["Available"] = shopping_button_text
     return item_data
 
 

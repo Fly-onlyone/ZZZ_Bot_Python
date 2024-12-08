@@ -1,17 +1,14 @@
 from datetime import timedelta, datetime
+import re
 
 
 def extract_number_from_string(input_string):
-    import re
-
     # Use regex to find the first sequence of digits in the string
     match = re.search(r"\d+", input_string)
     return int(match.group()) if match else None
 
 
 def extract_and_convert_duration(input_string):
-    import re
-
     # Regex to capture the start and end dates
     match = re.search(r"Duration:\s*(\d+/\d+)\s*–\s*(\d+/\d+)", input_string)
     if match:
@@ -48,3 +45,21 @@ def calculate_return_time(input_time_str):
 
     # Format the return time in the format "hour:min dd/mm/yy"
     return return_time.strftime("%H:%M %d/%m/%y")
+
+
+def extract_price(s):
+    match = re.search(r"\d+", s)
+    return int(match.group()) if match else None
+
+
+def extract_number(s, side="left"):
+    try:
+        left, right = s.split("/")  # Split the string at the slash
+        if side == "left":
+            return int(left)
+        elif side == "right":
+            return int(right)
+        else:
+            raise ValueError("Invalid side parameter. Use 'left' or 'right'.")
+    except (ValueError, IndexError):
+        return None
