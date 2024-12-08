@@ -34,6 +34,7 @@ import Shopping from "./Shopping";
 import TaskIcon from "@mui/icons-material/Task";
 import InputIcon from "@mui/icons-material/Input";
 import ManualLogin from "./ManualLogin";
+import ShuffleOnIcon from "@mui/icons-material/ShuffleOn";
 
 const drawerWidth = 240;
 
@@ -159,6 +160,10 @@ export default function PermanentDrawer() {
                         "redeem_after_gather_data",
                         "buy_all",
                       ],
+                    },
+                    Draw: {
+                      icon: <ShuffleOnIcon />,
+                      fields: ["draw_item"],
                     },
                   }}
                 />

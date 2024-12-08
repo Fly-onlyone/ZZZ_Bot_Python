@@ -9,7 +9,7 @@ import webbrowser
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-
+import DrawHandler
 import schedule
 import uvicorn
 from PIL import Image
@@ -28,6 +28,22 @@ from DataHandler import prepare_mission_data
 from src import ManualLogin
 from src import ShoppingHandler
 from src.GlobalVar import app, accounts, CONFIG, settings
+from src.Win32Icon import Win32Icon
+
+
+@app.get("/routes")
+async def get_routes():
+    # Filter out FastAPI and Starlette internal routes
+    routes = [
+        route.path
+        for route in app.routes
+        if route.path != "/routes"
+        and not route.path.startswith("/docs")
+        and not route.path.startswith("/openapi.json")
+        and not route.path.startswith("/redoc")
+    ]
+    routes = list(dict.fromkeys(routes))
+    return {"routes": routes}
 
 
 @app.get("/shopping")
@@ -142,10 +158,12 @@ def playwright_task():
 
         # Handle manual login if storage path doesn't exist
         if not os.path.exists(CONFIG["STORAGE_PATH"]):
-            print("Please log in manually...")
-            mino_page.wait_for_timeout(120000)
-            context.storage_state(path=CONFIG["STORAGE_PATH"])
-            print("Login session saved.")
+            notification.notify(
+                title="ZZZ Bot",
+                message="Please log in manually",
+                app_icon=CONFIG["SAD_ICON"],
+            )
+            return
 
         if settings.run_task:
             Mission.run(CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data)
@@ -157,17 +175,26 @@ def playwright_task():
 
         if settings.gather_shopping_data:
             ShoppingHandler.run(mino_page)
+            close_button = mino_page.locator(".panelBack--wW5qj")
+            close_button.click()
         else:
             print("Gather data cancelled due to setting.")
 
-        # RedeemAutofill.run(context)
+        if settings.draw_item:
+            DrawHandler.run(mino_page)
+            close_button = mino_page.locator(".panelBack--wW5qj")
+            close_button.click()
+        else:
+            print("Draw data cancelled due to setting.")
 
         save_last_run()
         notification.notify(
             title="ZZZ Bot", message="Task finished", app_icon=CONFIG["ICON_PATH"]
         )
 
+        context.storage_state(path=CONFIG["STORAGE_PATH"])
         input("Press ENTER to exit...")
+        browser.close()
         if settings.exit_after_run:
             print("Exiting after run as per the setting.")
             sys.exit()
@@ -222,6 +249,8 @@ def update_tray_menu():
 
 def setup_tray_icon():
     """Set up the system tray icon."""
+    if sys.platform == "win32":
+        Icon = Win32Icon
     icon_image = Image.open(CONFIG["ICON_PATH"])
     src.GlobalVar.tray_icon = Icon(
         "ZZZ Bot",
@@ -240,6 +269,7 @@ def setup_tray_icon():
             ),
             MenuItem("Exit", on_tray_exit),
         ),
+        on_double_click=lambda icon, _: webbrowser.open_new_tab(CONFIG["WEB_UI_URL"]),
     )
     threading.Thread(target=run_scheduled_tasks, daemon=True).start()
     src.GlobalVar.tray_icon.run()

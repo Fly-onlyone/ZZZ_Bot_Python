@@ -48,20 +48,28 @@ def capture_button_screenshot(button: Locator, image_path):
 
 
 def fetch_image_from_locator(page: Page, locator_selector: Locator):
-    # Get the style attribute of the element
+    # Try to get the `style` attribute
     style = locator_selector.get_attribute("style")
-    if not style:
-        raise ValueError(f"Style attribute not found for locator: {locator_selector}")
+    image_url = None
 
-    # Extract the URL from the style (e.g., background-image: url("image-url"))
-    url_start = style.find('url("') + len('url("')
-    url_end = style.find('")', url_start)
-    image_url = style[url_start:url_end]
+    if style and "background-image" in style:
+        # Extract the URL from the style attribute
+        url_start = style.find('url("') + len('url("')
+        url_end = style.find('")', url_start)
+        image_url = style[url_start:url_end]
+    else:
+        # If `style` doesn't contain background-image, fall back to computed style
+        computed_style = locator_selector.evaluate(
+            "(el) => window.getComputedStyle(el).backgroundImage"
+        )
+        if computed_style and computed_style.startswith("url("):
+            # Extract the URL from the computed style
+            url_start = computed_style.find('url("') + len('url("')
+            url_end = computed_style.find('")', url_start)
+            image_url = computed_style[url_start:url_end]
 
     if not image_url:
-        raise ValueError(
-            f"Image URL not found in style attribute for locator: {locator_selector}"
-        )
+        raise ValueError(f"Image URL not found for locator: {locator_selector}")
 
     # Check if the URL is Base64-encoded
     if image_url.startswith("data:image/"):
@@ -97,7 +105,7 @@ def fetch_image_from_locator(page: Page, locator_selector: Locator):
         return image
 
 
-def find_correct_avatar(page):
+def find_correct_avatar(page: Page):
     avatar_count = RetryHelper.retry_until_non_zero_count(
         page.locator("div.avatarsItemImg-AiUG1h")
     )
@@ -108,12 +116,28 @@ def find_correct_avatar(page):
         avatar_image = fetch_image_from_locator(page, avatar_icon_locator)
         diff = compare_images(avatar_image, cv2.imread(zzz_icon_path))
         print(f"Difference from ZZZ Avatar: {diff}%")
-        if diff < 10:
+        if diff < 5:
             print("This is ZZZ avatar")
             return avatar_icon_locator
         else:
             print("This is NOT ZZZ avatar")
     return None
+
+
+def find_correct_lottery_logo(page: Page):
+    zzz_icon_img = cv2.imread("../sample/ZZZ Avatar.png")
+    for i in range(4):
+        lottery_logo_locator = page.locator("div.lotteryLogo-269XTi")
+        lottery_logo_img = fetch_image_from_locator(page, lottery_logo_locator)
+        diff = compare_images(lottery_logo_img, zzz_icon_img)
+        print(f"Difference from ZZZ Avatar: {diff}%")
+        if diff < 5:
+            print("This is ZZZ avatar")
+            return True
+        else:
+            print("This is NOT ZZZ avatar")
+            page.locator(".lotterySwitch-LdUVnT").click()
+    return False
 
 
 class ImageProcessor:
