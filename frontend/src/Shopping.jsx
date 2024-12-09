@@ -1,48 +1,42 @@
 import React, { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { Alert, Box, Button, Grid2, Snackbar, Typography } from "@mui/material";
+import { useLocation } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { DataLoader } from "./DataLoader";
 
 export default function Shopping() {
-  const [shopping, setShopping] = useState(null); // Shopping data from backend
   const [selectedRows, setSelectedRows] = useState([]); // Store selected row data (Name + Priority)
-  const BACKEND_URL = "http://127.0.0.1:8000";
   const [alert, setAlert] = useState({
     open: false,
     type: "success",
     message: "",
   });
+  const location = useLocation();
+  const route = location.pathname.replace("/", ""); // Extract route name dynamically
+  const { useRouteData, useSaveData } = DataLoader();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`${BACKEND_URL}/shopping`);
-        if (response.ok) {
-          const data = await response.json();
-          setShopping(data);
-
-          // Load selected rows with priorities if present
-          if (data.Selected) {
-            setSelectedRows(
-              data.Selected.map((name, index) => ({
-                Name: name,
-                Priority: index + 1, // Assign priority based on initial order
-              }))
-            );
-          }
-        } else {
-          console.log(`Failed to fetch data: ${response.statusText}`);
-        }
-      } catch {
-        console.log("An error occurred while fetching data.");
-      }
-    };
-    fetchData();
-  }, []);
+  const { data: shopping, error } = useRouteData(route);
+  const mutation = useSaveData(route);
 
   if (!shopping) {
     return <Typography>Loading...</Typography>; // Show a loading message
   }
+  if (error) {
+    return <Typography>Error loading data: {error.message}</Typography>; // Handle fetch error
+  }
 
+  // Initialize selected rows when data is available
+  useEffect(() => {
+    if (shopping?.Selected) {
+      setSelectedRows(
+        shopping.Selected.map((name, index) => ({
+          Name: name,
+          Priority: index + 1,
+        }))
+      );
+    }
+  }, [shopping]);
   // Convert shopping data into rows
   const rows = Object.entries(shopping["Item's list"]).map(([key, item]) => ({
     id: item.Name, // Use Name as the row ID
@@ -124,31 +118,32 @@ export default function Shopping() {
     }
   };
 
-  // Save the selected items (with Priority) to the backend
-  const handleSave = async () => {
-    const sortedRows = [...selectedRows].sort(
-      (a, b) => a.Priority - b.Priority
-    );
-    try {
-      const response = await fetch(`${BACKEND_URL}/shopping`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ Selected: sortedRows.map((row) => row.Name) }),
-      });
-      if (response.ok) {
+  const handleSave = () => {
+    // Transform selectedRows to the required structure
+    const payload = {
+      Selected: selectedRows.map((row) => row.Name), // Extract only the Name field
+    };
+
+    console.log("Payload:", payload); // Log payload for debugging
+
+    mutation.mutate(payload, {
+      onSuccess: () => {
         setAlert({
           open: true,
           type: "success",
-          message: `Data saved successfully!`,
+          message: "Data saved successfully!",
         });
-      } else {
-        console.log(`Failed to save data: ${response.statusText}`);
-      }
-    } catch {
-      console.log("An error occurred while saving data.");
-    }
+      },
+      onError: (error) => {
+        console.error("Save error:", error);
+        setAlert({
+          open: true,
+          type: "error",
+          message: "Error saving data.",
+        });
+      },
+    });
   };
-
   return (
     <Box sx={{ p: 4 }}>
       {/* Header Section */}
