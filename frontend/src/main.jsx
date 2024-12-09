@@ -81,10 +81,13 @@ function App() {
       }),
     [prefersDarkMode]
   );
+  const queryClient = new QueryClient();
   return (
-    <ThemeProvider theme={theme}>
-      <PermanentDrawer />
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <PermanentDrawer />
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 

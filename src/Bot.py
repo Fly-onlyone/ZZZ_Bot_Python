@@ -33,17 +33,15 @@ from src.Win32Icon import Win32Icon
 
 @app.get("/routes")
 async def get_routes():
-    # Filter out FastAPI and Starlette internal routes
+    # Exclude specific internal routes and clean paths
+    exclude_prefixes = {"/docs", "/openapi.json", "/redoc", "/manual"}
     routes = [
-        route.path
+        route.path.lstrip("/")
         for route in app.routes
-        if route.path != "/routes"
-        and not route.path.startswith("/docs")
-        and not route.path.startswith("/openapi.json")
-        and not route.path.startswith("/redoc")
+        if not any(route.path.startswith(prefix) for prefix in exclude_prefixes)
+        and route.path != "/routes"
     ]
-    routes = list(dict.fromkeys(routes))
-    return {"routes": routes}
+    return {"routes": list(dict.fromkeys(routes))}  # Deduplicate and return
 
 
 @app.get("/shopping")
@@ -295,6 +293,7 @@ if __name__ == "__main__":
         ["npm", "run", "dev"], cwd="./../frontend", shell=True
     )
     threading.Thread(target=lambda: uvicorn.run(app), daemon=True).start()
+
     if settings.open_web_ui:
         webbrowser.open_new_tab(CONFIG["WEB_UI_URL"])
     setup_tray_icon()
