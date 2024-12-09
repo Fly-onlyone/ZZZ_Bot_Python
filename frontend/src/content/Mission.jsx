@@ -1,31 +1,18 @@
 import React, { useEffect } from "react";
 import loginResults from "./../../../screenshot/login_reward.png";
 import { Alert } from "@mui/material";
+import { DataLoader } from "../DataLoader";
 
 export default function Mission() {
-  const [mission, setMission] = React.useState({});
-  const BACKEND_URL = "http://127.0.0.1:8000";
+  const { useRouteData } = DataLoader();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`${BACKEND_URL}/overview/mission`);
-        if (response.ok) {
-          const data = await response.json();
-          setMission(data);
-        } else {
-          console.log(`Failed to fetch data: ${response.statusText}`);
-        }
-      } catch {
-        console.log("An error occurred while fetching data.");
-      }
-    };
-    fetchData();
-  }, []);
+  // Use the DataLoader's useRouteData hook
+  const { data: mission, error } = useRouteData("overview/mission");
   const { day, check_in, missions } = mission;
   if (!missions) {
     return <Alert severity="error">Today task hasn't done yet</Alert>;
   }
+
   return (
     <div className="rounded-lg   p-6 shadow-md">
       <h1 className="mb-4 text-2xl font-bold text-green-600">Day : {day}</h1>

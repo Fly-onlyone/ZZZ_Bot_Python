@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   BrowserRouter,
   Navigate,
@@ -35,6 +35,7 @@ import TaskIcon from "@mui/icons-material/Task";
 import InputIcon from "@mui/icons-material/Input";
 import ManualLogin from "./ManualLogin";
 import ShuffleOnIcon from "@mui/icons-material/ShuffleOn";
+import { DataLoader } from "./DataLoader";
 
 const drawerWidth = 240;
 
@@ -94,6 +95,11 @@ function DrawerNavigation() {
 }
 
 export default function PermanentDrawer() {
+  const { prefetchAllRoutes } = DataLoader();
+  useEffect(() => {
+    prefetchAllRoutes(); // Prefetch routes on load
+  }, [prefetchAllRoutes]);
+
   return (
     <BrowserRouter>
       <Box className="flex">

@@ -13,80 +13,55 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import { useLocation } from "react-router-dom";
 import { ContentCopy, Visibility, VisibilityOff } from "@mui/icons-material";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { DataLoader } from "./DataLoader";
 
 export default function ValueAdapter({
   customIcons = {},
   customSections = null,
 }) {
-  const [value, setValue] = useState({});
   const [alert, setAlert] = useState({
     open: false,
     type: "success",
     message: "",
   });
-  const [error, setError] = useState(null);
   const [passwordVisibility, setPasswordVisibility] = useState({});
-  const BACKEND_URL = "http://127.0.0.1:8000";
   const location = useLocation();
+  const route = location.pathname.replace("/", "");
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const route = location.pathname.replace("/", "");
-        const response = await fetch(`${BACKEND_URL}/${route}`);
-        if (response.ok) {
-          const data = await response.json();
-          setValue(data);
-          setPasswordVisibility(
-            Object.keys(data).reduce((acc, key) => {
-              acc[key] = key.toLowerCase().includes("password") ? false : null;
-              return acc;
-            }, {})
-          );
-        } else {
-          setError(`Failed to fetch data: ${response.statusText}`);
-        }
-      } catch (err) {
-        setError("An error occurred while fetching data.");
-      }
-    };
+  const { useRouteData, useSaveData } = DataLoader();
 
-    fetchData();
-  }, [location.pathname]);
+  const { data: value = {}, error } = useRouteData(route);
+  const mutation = useSaveData(route);
 
-  const handleChange = (key, newValue) =>
-    setValue((prev) => ({ ...prev, [key]: newValue }));
+  const queryClient = useQueryClient();
 
-  const handleSubmit = async (e) => {
+  const handleChange = (key, newValue) => {
+    queryClient.setQueryData([route], (prev) => ({
+      ...prev,
+      [key]: newValue,
+    }));
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    try {
-      const route = location.pathname.replace("/", "");
-      const response = await fetch(`${BACKEND_URL}/${route}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(value),
-      });
-      const pageName =
-        String(route).charAt(0).toUpperCase() + String(route).slice(1);
-
-      if (response.ok) {
+    mutation.mutate(value, {
+      onSuccess: () => {
         setAlert({
           open: true,
           type: "success",
-          message: `${pageName} saved successfully!`,
+          message: "Data saved successfully!",
         });
-      } else {
+      },
+      onError: () => {
         setAlert({
           open: true,
           type: "error",
-          message: `Failed to save ${pageName}.`,
+          message: "Failed to save data.",
         });
-      }
-    } catch {
-      setAlert({ open: true, type: "error", message: "Error saving data." });
-    }
+      },
+    });
   };
-
   const togglePasswordVisibility = (key) => {
     setPasswordVisibility((prev) => ({
       ...prev,
