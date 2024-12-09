@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import loginResults from "./../../../screenshot/login_reward.png";
-import { Alert } from "@mui/material";
+import { Alert, Typography } from "@mui/material";
 import { DataLoader } from "../DataLoader";
 
 export default function Mission() {
@@ -8,6 +8,17 @@ export default function Mission() {
 
   // Use the DataLoader's useRouteData hook
   const { data: mission, error } = useRouteData("overview/mission");
+  if (error) {
+    return (
+      <Alert severity="error">
+        Failed to fetch mission data: {error.message}
+      </Alert>
+    );
+  }
+
+  if (!mission) {
+    return <Typography>Loading...</Typography>; // Display loading state
+  }
   const { day, check_in, missions } = mission;
   if (!missions) {
     return <Alert severity="error">Today task hasn't done yet</Alert>;
