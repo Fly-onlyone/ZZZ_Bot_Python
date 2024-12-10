@@ -4,6 +4,8 @@ import "./index.css";
 import PermanentDrawer from "./PermanentDrawer";
 import { createTheme, ThemeProvider, useMediaQuery } from "@mui/material";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 
 function App() {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
@@ -84,9 +86,11 @@ function App() {
   const queryClient = new QueryClient();
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
-        <PermanentDrawer />
-      </ThemeProvider>
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <ThemeProvider theme={theme}>
+          <PermanentDrawer />
+        </ThemeProvider>
+      </LocalizationProvider>
     </QueryClientProvider>
   );
 }

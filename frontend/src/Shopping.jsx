@@ -48,9 +48,18 @@ export default function Shopping() {
   // Define the columns
   const columns = [
     { field: "Name", headerName: "Name", flex: 2 },
-    { field: "Price", headerName: "Price", flex: 1, type: "number" },
+    {
+      field: "Price",
+      headerName: "Price",
+      flex: 1,
+      type: "number",
+    },
     { field: "Inventory", headerName: "Inventory", flex: 1, type: "number" },
-    { field: "Available", headerName: "Available", flex: 1 },
+    {
+      field: "Available",
+      headerName: "Available",
+      flex: 1,
+    },
     {
       field: "Priority",
       headerName: "Priority",
@@ -79,43 +88,52 @@ export default function Shopping() {
     setSelectedRows(updatedRows);
   };
 
-  // Reorder priorities sequentially
-  const reorderPriorities = () => {
-    const reorderedRows = [...selectedRows]
-      .sort((a, b) => a.Priority - b.Priority) // Sort by Priority
-      .map((row, index) => ({ ...row, Priority: index + 1 })); // Reassign sequential priorities
+  const processRowUpdate = (newRow, oldRow) => {
+    const newPriority = Number(newRow.Priority);
 
-    setSelectedRows(reorderedRows);
-  };
+    console.log("Editing row:", oldRow.Name);
+    console.log("New priority:", newPriority);
 
-  // Handle cell editing (stop event)
-  const handleCellEditStop = (params, event) => {
-    if (params.field === "Priority") {
-      const newPriority = Number(event.target.value);
+    if (!isNaN(newPriority) && newPriority > 0) {
+      const editingRowIndex = selectedRows.findIndex(
+        (row) => row.Name === oldRow.Name
+      );
 
-      if (!isNaN(newPriority)) {
-        // Prevent editing if the item is not selected
-        const editingRow = selectedRows.find((row) => row.Name === params.id);
-        if (!editingRow) return;
+      const duplicateRowIndex = selectedRows.findIndex(
+        (row) => row.Priority === newPriority && row.Name !== oldRow.Name
+      );
 
-        // Check for duplicates and handle swapping priorities
-        const duplicateRow = selectedRows.find(
-          (row) => row.Priority === newPriority && row.Name !== params.row.Name
+      console.log("Duplicate row index:", duplicateRowIndex);
+
+      const updatedRows = [...selectedRows];
+
+      if (duplicateRowIndex !== -1) {
+        // Swap priorities with the duplicate row
+        console.log(
+          `Swapping ${updatedRows[editingRowIndex].Name} with ${updatedRows[duplicateRowIndex].Name}`
         );
-
-        const updatedRows = selectedRows.map((row) => {
-          if (row.Name === params.id) {
-            return { ...row, Priority: newPriority };
-          } else if (duplicateRow && row.Name === duplicateRow.Name) {
-            return { ...row, Priority: editingRow.Priority };
-          }
-          return row;
-        });
-
-        setSelectedRows(updatedRows);
-        reorderPriorities();
+        updatedRows[duplicateRowIndex].Priority =
+          updatedRows[editingRowIndex].Priority;
       }
+
+      // Update the editing row's priority
+      updatedRows[editingRowIndex].Priority = newPriority;
+
+      // Reorder priorities
+      const reorderedRows = updatedRows
+        .sort((a, b) => a.Priority - b.Priority)
+        .map((row, index) => ({ ...row, Priority: index + 1 }));
+
+      console.log("Reordered rows:", reorderedRows);
+
+      // Save reordered rows to state
+      setSelectedRows(reorderedRows);
+
+      // Return the updated row for DataGrid
+      return reorderedRows.find((row) => row.Name === newRow.Name);
     }
+
+    return oldRow; // Fallback in case of invalid priority
   };
 
   const handleSave = () => {
@@ -169,7 +187,7 @@ export default function Shopping() {
           getRowId={(row) => row.Name} // Use Name as unique identifier
           rowSelectionModel={selectedRows.map((row) => row.Name)} // Pre-select rows by Name
           onRowSelectionModelChange={handleRowSelectionChange} // Update selected rows
-          onCellEditStop={handleCellEditStop} // Handle Priority updates
+          processRowUpdate={processRowUpdate}
         />
       </div>
 

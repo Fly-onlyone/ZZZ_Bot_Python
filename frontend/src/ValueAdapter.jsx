@@ -219,60 +219,56 @@ export default function ValueAdapter({
   if (error) return <p className="text-red-500">{error}</p>;
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {customSections
-          ? Object.keys(customSections).map((sectionKey, index) =>
-              renderSection(
-                sectionKey,
-                customSections[sectionKey],
-                index,
-                Object.keys(customSections).length
-              )
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {customSections
+        ? Object.keys(customSections).map((sectionKey, index) =>
+            renderSection(
+              sectionKey,
+              customSections[sectionKey],
+              index,
+              Object.keys(customSections).length
             )
-          : Object.keys(value).map((key) => (
-              <div
-                key={key}
-                className={`mb-6 ${
-                  !Array.isArray(value[key]) ? "flex items-center gap-4" : ""
+          )
+        : Object.keys(value).map((key) => (
+            <div
+              key={key}
+              className={`mb-6 ${
+                !Array.isArray(value[key]) ? "flex items-center gap-4" : ""
+              }`}
+            >
+              <label
+                className={`flex gap-4 text-lg font-medium capitalize ${
+                  !Array.isArray(value[key]) ? "w-1/4" : "mb-4"
                 }`}
               >
-                <label
-                  className={`flex gap-4 text-lg font-medium capitalize ${
-                    !Array.isArray(value[key]) ? "w-1/4" : "mb-4"
-                  }`}
-                >
-                  {customIcons[key] && (
-                    <div className="flex items-center">{customIcons[key]}</div>
-                  )}
-                  {key.replace(/_/g, " ")}:
-                </label>
-                <div
-                  className={`${
-                    !Array.isArray(value[key]) ? "flex w-3/4" : ""
-                  }`}
-                >
-                  {renderField(key)}
-                </div>
+                {customIcons[key] && (
+                  <div className="flex items-center">{customIcons[key]}</div>
+                )}
+                {key.replace(/_/g, " ")}:
+              </label>
+              <div
+                className={`${!Array.isArray(value[key]) ? "flex w-3/4" : ""}`}
+              >
+                {renderField(key)}
               </div>
-            ))}
-        <button
-          type="submit"
-          className="h-12 w-2/12 rounded-lg bg-blue-600 px-5 py-2 text-xl text-white hover:bg-blue-900"
-        >
-          Save
-        </button>
-        <Snackbar
-          open={alert.open}
-          autoHideDuration={3000}
-          onClose={() => setAlert({ ...alert, open: false })}
-          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        >
-          <Alert severity={alert.type} variant="outlined">
-            {alert.message}
-          </Alert>
-        </Snackbar>
-      </form>
-    </LocalizationProvider>
+            </div>
+          ))}
+      <button
+        type="submit"
+        className="h-12 w-2/12 rounded-lg bg-blue-600 px-5 py-2 text-xl text-white hover:bg-blue-900"
+      >
+        Save
+      </button>
+      <Snackbar
+        open={alert.open}
+        autoHideDuration={3000}
+        onClose={() => setAlert({ ...alert, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity={alert.type} variant="outlined">
+          {alert.message}
+        </Alert>
+      </Snackbar>
+    </form>
   );
 }
