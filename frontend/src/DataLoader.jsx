@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 
-const STALE_TIME = 1000 * 60 * 10;
+const STALE_TIME = 1000 * 60 * 1;
 
 export const DataLoader = (BACKEND_URL = "http://127.0.0.1:8000") => {
   const queryClient = useQueryClient();
