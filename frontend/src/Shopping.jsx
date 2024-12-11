@@ -4,6 +4,7 @@ import { Alert, Box, Button, Grid2, Snackbar, Typography } from "@mui/material";
 import { useLocation } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { DataLoader } from "./DataLoader";
+import SaveButton from "./SaveButton";
 
 export default function Shopping() {
   const [selectedRows, setSelectedRows] = useState([]); // Store selected row data (Name + Priority)
@@ -19,13 +20,6 @@ export default function Shopping() {
   const { data: shopping, error } = useRouteData(route);
   const mutation = useSaveData(route);
 
-  if (!shopping) {
-    return <Typography>Loading...</Typography>; // Show a loading message
-  }
-  if (error) {
-    return <Typography>Error loading data: {error.message}</Typography>; // Handle fetch error
-  }
-
   // Initialize selected rows when data is available
   useEffect(() => {
     if (shopping?.Selected) {
@@ -37,6 +31,14 @@ export default function Shopping() {
       );
     }
   }, [shopping]);
+
+  if (!shopping) {
+    return <Typography>Loading...</Typography>; // Show a loading message
+  }
+  if (error) {
+    return <Typography>Error loading data: {error.message}</Typography>; // Handle fetch error
+  }
+
   // Convert shopping data into rows
   const rows = Object.entries(shopping["Item's list"]).map(([key, item]) => ({
     id: item.Name, // Use Name as the row ID
@@ -188,28 +190,15 @@ export default function Shopping() {
           rowSelectionModel={selectedRows.map((row) => row.Name)} // Pre-select rows by Name
           onRowSelectionModelChange={handleRowSelectionChange} // Update selected rows
           processRowUpdate={processRowUpdate}
+          isCellEditable={(params) => {
+            // Allow editing only for selected rows
+            return selectedRows.some((row) => row.Name === params.row.Name);
+          }}
         />
       </div>
 
       {/* Save Button */}
-      <Button
-        className="mt-2"
-        variant="contained"
-        color="primary"
-        onClick={handleSave}
-      >
-        Save
-      </Button>
-      <Snackbar
-        open={alert.open}
-        autoHideDuration={3000}
-        onClose={() => setAlert({ ...alert, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert severity={alert.type} variant="outlined">
-          {alert.message}
-        </Alert>
-      </Snackbar>
+      <SaveButton onSave={handleSave} alert={alert} setAlert={setAlert} />
     </Box>
   );
 }
