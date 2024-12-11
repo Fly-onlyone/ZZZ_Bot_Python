@@ -221,39 +221,43 @@ export default function ValueAdapter({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {customSections
-        ? Object.keys(customSections).map((sectionKey, index) =>
-            renderSection(
-              sectionKey,
-              customSections[sectionKey],
-              index,
-              Object.keys(customSections).length
+      <div className="mb-10">
+        {customSections
+          ? Object.keys(customSections).map((sectionKey, index) =>
+              renderSection(
+                sectionKey,
+                customSections[sectionKey],
+                index,
+                Object.keys(customSections).length
+              )
             )
-          )
-        : Object.keys(value).map((key) => (
-            <div
-              key={key}
-              className={`mb-6 ${
-                !Array.isArray(value[key]) ? "flex items-center gap-4" : ""
-              }`}
-            >
-              <label
-                className={`flex gap-4 text-lg font-medium capitalize ${
-                  !Array.isArray(value[key]) ? "w-1/4" : "mb-4"
+          : Object.keys(value).map((key) => (
+              <div
+                key={key}
+                className={`mb-6 ${
+                  !Array.isArray(value[key]) ? "flex items-center gap-4" : ""
                 }`}
               >
-                {customIcons[key] && (
-                  <div className="flex items-center">{customIcons[key]}</div>
-                )}
-                {key.replace(/_/g, " ")}:
-              </label>
-              <div
-                className={`${!Array.isArray(value[key]) ? "flex w-3/4" : ""}`}
-              >
-                {renderField(key)}
+                <label
+                  className={`flex gap-4 text-lg font-medium capitalize ${
+                    !Array.isArray(value[key]) ? "w-1/4" : "mb-4"
+                  }`}
+                >
+                  {customIcons[key] && (
+                    <div className="flex items-center">{customIcons[key]}</div>
+                  )}
+                  {key.replace(/_/g, " ")}:
+                </label>
+                <div
+                  className={`${
+                    !Array.isArray(value[key]) ? "flex w-3/4" : ""
+                  } `}
+                >
+                  {renderField(key)}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+      </div>
       <SaveButton onSave={handleSubmit} alert={alert} setAlert={setAlert} />
     </form>
   );

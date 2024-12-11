@@ -26,7 +26,6 @@ import PersonIcon from "@mui/icons-material/Person";
 import PasswordIcon from "@mui/icons-material/Password";
 import AppRegistrationIcon from "@mui/icons-material/AppRegistration";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import Qingyi from "./../../Qingyi02.ico";
 import ValueAdapter from "./ValueAdapter";
 import zIndex from "@mui/material/styles/zIndex";
 import Overview from "./Overview";
@@ -34,8 +33,9 @@ import Shopping from "./Shopping";
 import TaskIcon from "@mui/icons-material/Task";
 import InputIcon from "@mui/icons-material/Input";
 import ManualLogin from "./ManualLogin";
+import { IconCards, IconLogin2 } from "@tabler/icons-react";
 import ShuffleOnIcon from "@mui/icons-material/ShuffleOn";
-import { DataLoader } from "./DataLoader";
+import { BACKEND_URL, DataLoader } from "./DataLoader";
 
 const drawerWidth = 240;
 
@@ -47,7 +47,11 @@ const tabs = [
     icon: <AccountCircleIcon />,
     path: "/account",
   },
-  { label: "Manual Login", icon: <InputIcon />, path: "/manual" },
+  {
+    label: "Manual Login",
+    icon: <IconLogin2 className="stroke-cyan-500" />,
+    path: "/manual",
+  },
   { label: "Setting", icon: <SettingsIcon />, path: "/settings" },
 ];
 
@@ -99,7 +103,7 @@ export default function PermanentDrawer() {
   useEffect(() => {
     prefetchAllRoutes(); // Prefetch routes on load
   }, [prefetchAllRoutes]);
-
+  const Qingyi02 = `${BACKEND_URL}/icon/Qingyi02.ico`;
   return (
     <BrowserRouter>
       <Box className="flex">
@@ -112,7 +116,7 @@ export default function PermanentDrawer() {
           <Toolbar className="relative flex items-center justify-center">
             {/* Icon on the Left */}
             <div className="absolute left-4 flex items-center">
-              <img src={Qingyi} alt="ZZZ Bot Icon" className="h-12 w-12" />
+              <img src={Qingyi02} alt="ZZZ Bot Icon" className="h-12 w-12" />
             </div>
             <Typography
               variant="h6"
@@ -168,7 +172,7 @@ export default function PermanentDrawer() {
                       ],
                     },
                     Draw: {
-                      icon: <ShuffleOnIcon />,
+                      icon: <IconCards className=" stroke-cyan-500" />,
                       fields: ["draw_item"],
                     },
                   }}
