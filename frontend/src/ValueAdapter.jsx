@@ -15,6 +15,7 @@ import { useLocation } from "react-router-dom";
 import { ContentCopy, Visibility, VisibilityOff } from "@mui/icons-material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DataLoader } from "./DataLoader";
+import SaveButton from "./SaveButton";
 
 export default function ValueAdapter({
   customIcons = {},
@@ -253,22 +254,7 @@ export default function ValueAdapter({
               </div>
             </div>
           ))}
-      <button
-        type="submit"
-        className="h-12 w-2/12 rounded-lg bg-blue-600 px-5 py-2 text-xl text-white hover:bg-blue-900"
-      >
-        Save
-      </button>
-      <Snackbar
-        open={alert.open}
-        autoHideDuration={3000}
-        onClose={() => setAlert({ ...alert, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert severity={alert.type} variant="outlined">
-          {alert.message}
-        </Alert>
-      </Snackbar>
+      <SaveButton onSave={handleSubmit} alert={alert} setAlert={setAlert} />
     </form>
   );
 }
