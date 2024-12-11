@@ -7,7 +7,7 @@ import threading
 import time
 import webbrowser
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import DrawHandler
 import schedule
@@ -19,7 +19,6 @@ from plyer import notification
 from pystray import Icon, Menu, MenuItem
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-
 import Mission
 import Notification
 import src.GlobalVar
@@ -34,7 +33,7 @@ from src.Win32Icon import Win32Icon
 @app.get("/routes")
 async def get_routes():
     # Exclude specific internal routes and clean paths
-    exclude_prefixes = {"/docs", "/openapi.json", "/redoc", "/manual"}
+    exclude_prefixes = {"/docs", "/openapi.json", "/redoc", "/manual", "/icon"}
     routes = [
         route.path.lstrip("/")
         for route in app.routes
@@ -215,7 +214,7 @@ def save_last_run():
     if next_run is None:
         next_run = datetime.combine(
             now.date() + timedelta(days=1),
-            datetime.strptime(settings.schedule_times, "%H:%M").time(),
+            datetime.strptime(settings.schedule_times[0], "%H:%M").time(),
         )
 
     # Save the last and next run times to the file
