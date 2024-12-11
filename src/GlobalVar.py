@@ -3,13 +3,15 @@ from typing import List
 
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
 
 from src.DataHandler import Serializable
 
 CONFIG = {
-    "ICON_PATH": "./../Qingyi02.ico",
-    "SAD_ICON": "./../Qingyi01.ico",
+    "ICON_PATH": "./../icon/Qingyi02.ico",
+    "SAD_ICON": "./../icon/Qingyi01.ico",
     "STORAGE_PATH": "./../authentication data/hoyo.json",
+    "ICON_FOLDER": "./../icon",
     "OUTPUT_FOLDER": "./../output",
     "OUTPUT_FILE": "./../output/missions.json",
     "LAST_RUN_FILE": "./../output/last_run.json",
@@ -54,3 +56,4 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.mount("/icon", StaticFiles(directory=CONFIG["ICON_FOLDER"]), name="icon")

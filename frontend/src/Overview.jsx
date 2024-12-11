@@ -16,7 +16,7 @@ export default function Overview() {
       </div>
       <div className=" rounded-xl border-4 border-solid  border-teal-300 ">
         <Typography
-          className="relative mb-4 flex flex-col items-center justify-center p-4 font-bold text-white"
+          className="relative mb-4 flex flex-col items-center justify-center pt-10 font-bold text-white"
           variant="h5"
         >
           Running status

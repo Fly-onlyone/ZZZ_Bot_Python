@@ -25,7 +25,7 @@ export default function Mission() {
   }
 
   return (
-    <div className="rounded-lg p-20 shadow-md">
+    <div className="rounded-lg px-20 pb-10 shadow-md">
       <h1 className="mb-4 text-2xl font-bold text-green-600">Day : {day}</h1>
       <h2 className="mb-4 text-lg font-semibold">
         <strong>Check-in Status:</strong> {check_in}

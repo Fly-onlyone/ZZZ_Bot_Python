@@ -6,7 +6,7 @@ const SaveButton = ({ onSave, alert, setAlert }) => {
   return (
     <>
       <Button
-        className="mt-2 flex gap-2 bg-blue-500 text-white hover:bg-blue-900"
+        className="mt-5 flex gap-2 bg-blue-500  text-white hover:bg-blue-900"
         variant="contained"
         color="primary"
         onClick={onSave}
