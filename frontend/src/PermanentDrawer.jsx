@@ -31,10 +31,8 @@ import zIndex from "@mui/material/styles/zIndex";
 import Overview from "./Overview";
 import Shopping from "./Shopping";
 import TaskIcon from "@mui/icons-material/Task";
-import InputIcon from "@mui/icons-material/Input";
 import ManualLogin from "./ManualLogin";
 import { IconCards, IconLogin2 } from "@tabler/icons-react";
-import ShuffleOnIcon from "@mui/icons-material/ShuffleOn";
 import { BACKEND_URL, DataLoader } from "./DataLoader";
 
 const drawerWidth = 240;
@@ -49,7 +47,7 @@ const tabs = [
   },
   {
     label: "Manual Login",
-    icon: <IconLogin2 className="stroke-cyan-500" />,
+    icon: <IconLogin2 className="text-cyan-500" />,
     path: "/manual",
   },
   { label: "Setting", icon: <SettingsIcon />, path: "/settings" },
@@ -103,10 +101,13 @@ export default function PermanentDrawer() {
   useEffect(() => {
     prefetchAllRoutes(); // Prefetch routes on load
   }, [prefetchAllRoutes]);
-  const Qingyi02 = `${BACKEND_URL}/icon/Qingyi02.ico`;
+  const Qingyi02 = `${BACKEND_URL}/images/Qingyi02.ico`;
   return (
     <BrowserRouter>
-      <Box className="flex">
+      <Box
+        className="flex bg-fixed"
+        // style={{ backgroundImage: `url(${BACKEND_URL}/images/Ellen.jpg)` }}
+      >
         <CssBaseline />
         <AppBar
           position="fixed"
@@ -172,7 +173,7 @@ export default function PermanentDrawer() {
                       ],
                     },
                     Draw: {
-                      icon: <IconCards className=" stroke-cyan-500" />,
+                      icon: <IconCards className="text-cyan-500" />,
                       fields: ["draw_item"],
                     },
                   }}

@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 const STALE_TIME = 1000 * 60 * 1;
 export const BACKEND_URL = "http://127.0.0.1:8000";

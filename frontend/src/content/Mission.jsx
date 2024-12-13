@@ -1,7 +1,6 @@
-import React, { useEffect } from "react";
-import loginResults from "./../../../screenshot/login_reward.png";
+import React from "react";
 import { Alert, Typography } from "@mui/material";
-import { DataLoader } from "../DataLoader";
+import { BACKEND_URL, DataLoader } from "../DataLoader";
 
 export default function Mission() {
   const { useRouteData } = DataLoader();
@@ -34,7 +33,7 @@ export default function Mission() {
       {check_in === "Login Success" && (
         <div className="my-4 flex justify-center">
           <img
-            src={loginResults}
+            src={`${BACKEND_URL}/screenshot/login_reward.png`}
             alt="Login Reward"
             className="rounded-md shadow-md"
           />

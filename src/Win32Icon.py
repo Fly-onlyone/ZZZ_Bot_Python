@@ -1,4 +1,4 @@
-from pystray import Icon, Menu, MenuItem
+from pystray import Icon
 
 
 class Win32Icon(Icon):
