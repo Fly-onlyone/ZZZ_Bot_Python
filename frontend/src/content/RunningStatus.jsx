@@ -21,7 +21,7 @@ export default function RunningStatus() {
   return (
     <div className="space-x-8 pt-6">
       <div className="flex flex-row items-center justify-center gap-6">
-        <img src={`${BACKEND_URL}/icon/Zhu Yuan02.ico`} />
+        <img src={`${BACKEND_URL}/images/Zhu Yuan02.ico`} />
         <Typography className="mb-2 font-semibold text-orange-500" variant="h6">
           Last run
         </Typography>

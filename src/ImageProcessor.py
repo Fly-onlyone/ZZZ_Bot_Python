@@ -6,7 +6,7 @@ import numpy as np
 import requests
 from playwright.sync_api import Locator, Page
 
-from src import RetryHelper
+import RetryHelper
 
 
 def compare_images(arg1, arg2):

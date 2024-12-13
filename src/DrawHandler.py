@@ -1,10 +1,8 @@
-from matplotlib.lines import drawStyles
-from matplotlib.pyplot import draw_all
-
-from src.ImageProcessor import find_correct_lottery_logo
 from playwright.sync_api import Page
+
 import RetryHelper
-from src.StringUtil import extract_price, extract_number
+from ImageProcessor import find_correct_lottery_logo
+from StringUtil import extract_price, extract_number
 
 
 def run(page: Page):
