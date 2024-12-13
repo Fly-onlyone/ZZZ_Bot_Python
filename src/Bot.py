@@ -1,7 +1,5 @@
 import json
 import os
-import signal
-import subprocess
 import sys
 import threading
 import time
@@ -9,7 +7,8 @@ import webbrowser
 from dataclasses import asdict
 from datetime import datetime, timedelta
 from pathlib import Path
-import DrawHandler
+import subprocess
+
 import schedule
 import uvicorn
 from PIL import Image
@@ -19,6 +18,9 @@ from plyer import notification
 from pystray import Icon, Menu, MenuItem
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from starlette.staticfiles import StaticFiles
+
+import DrawHandler
 import Mission
 import Notification
 import src.GlobalVar
@@ -26,14 +28,21 @@ from DataHandler import load_shopping_data
 from DataHandler import prepare_mission_data
 from src import ManualLogin
 from src import ShoppingHandler
-from src.GlobalVar import app, accounts, CONFIG, settings
+from src.GlobalVar import app, accounts, CONFIG, settings, is_development_mode
 from src.Win32Icon import Win32Icon
 
 
 @app.get("/routes")
 async def get_routes():
     # Exclude specific internal routes and clean paths
-    exclude_prefixes = {"/docs", "/openapi.json", "/redoc", "/manual", "/icon"}
+    exclude_prefixes = {
+        "/docs",
+        "/openapi.json",
+        "/redoc",
+        "/manual",
+        "/images",
+        "/screenshot",
+    }
     routes = [
         route.path.lstrip("/")
         for route in app.routes
@@ -265,12 +274,12 @@ def run_scheduled_tasks():
 
 # Tray Icon Logic
 def update_tray_menu():
-    """Update the tray icon menu."""
+    """Update the tray images menu."""
     src.GlobalVar.tray_icon.update_menu()
 
 
 def setup_tray_icon():
-    """Set up the system tray icon."""
+    """Set up the system tray images."""
     if sys.platform == "win32":
         Icon = Win32Icon
     icon_image = Image.open(CONFIG["ICON_PATH"])
@@ -306,16 +315,24 @@ def toggle_setting(setting_name):
 
 
 def on_tray_exit(icon: Icon):
-    """Handle tray icon exit."""
-    react_server.send_signal(signal.CTRL_C_EVENT)
+    """Handle tray images exit."""
+    if is_development_mode():
+        react_server.send_signal(signal.CTRL_C_EVENT)
     icon.stop()
 
 
 # Main Entry Point
 if __name__ == "__main__":
-    react_server = subprocess.Popen(
-        ["npm", "run", "dev"], cwd="./../frontend", shell=True
-    )
+    if is_development_mode():
+        react_server = subprocess.Popen(
+            ["npm", "run", "dev"], cwd="./../frontend", shell=True
+        )
+    else:
+        app.mount(
+            "/", StaticFiles(directory="./../frontend/dist", html=True), name="ui"
+        )
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "./.playwright-browsers"
+
     threading.Thread(target=lambda: uvicorn.run(app), daemon=True).start()
 
     if settings.open_web_ui:
