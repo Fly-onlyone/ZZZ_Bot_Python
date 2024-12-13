@@ -1,2 +1,4 @@
 product/
+!/product/Bot.spec
 src/.playwright-browsers/
+
