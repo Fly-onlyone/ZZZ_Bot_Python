@@ -4,7 +4,7 @@ from datetime import datetime
 import apprise
 from jinja2 import Template
 
-from src.GlobalVar import accounts
+from src.GlobalVar import accounts, CONFIG
 
 
 def send_mission_data_via_email_html(todays_data):
@@ -14,9 +14,9 @@ def send_mission_data_via_email_html(todays_data):
         print(f"No mission data available for today ({current_date}).")
         return
 
-    with open("message/mission.html.jinja", "r") as file:
+    with open(CONFIG["MISSION_NOTIFICATION"], "r") as file:
         template = Template(file.read())
-    with open("./../screenshot/login_reward.png", "rb") as image_file:
+    with open(CONFIG["SCREENSHOT_FOLDER"] + "/login_reward.png", "rb") as image_file:
         encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
 
     mission_summary_html = template.render(

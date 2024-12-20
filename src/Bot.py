@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -7,7 +8,6 @@ import webbrowser
 from dataclasses import asdict
 from datetime import datetime, timedelta
 from pathlib import Path
-import subprocess
 
 import schedule
 import uvicorn
@@ -26,10 +26,11 @@ import Notification
 import src.GlobalVar
 from DataHandler import load_shopping_data
 from DataHandler import prepare_mission_data
-from src import ManualLogin
+from ManualLogin import run, playState_lock
 from src import ShoppingHandler
 from src.GlobalVar import app, accounts, CONFIG, settings, is_development_mode
 from src.Win32Icon import Win32Icon
+import ManualLogin
 
 
 @app.get("/routes")
@@ -42,6 +43,7 @@ async def get_routes():
         "/manual",
         "/images",
         "/screenshot",
+        "/playstate",
     }
     routes = [
         route.path.lstrip("/")
@@ -105,8 +107,23 @@ async def get_account(request: Request):
 @app.post("/manual")
 async def manual_task(request: Request, background_tasks: BackgroundTasks):
     data = await request.json()
-    background_tasks.add_task(ManualLogin.run, data["url"])
-    return JSONResponse({"message": "Handle login in the background"})
+    url = data.get("url")
+    play_state = data.get("playState")
+
+    with playState_lock:
+        ManualLogin.playState = play_state
+
+    if ManualLogin.playState:
+        background_tasks.add_task(run, url)
+        return {"message": "Task started"}
+    else:
+        return {"message": "Task stopped"}
+
+
+@app.get("/playstate")
+async def get_play_state():
+    with playState_lock:
+        return {"playState": ManualLogin.playState}
 
 
 @app.get("/settings")
@@ -198,7 +215,8 @@ def playwright_task():
         )
 
         context.storage_state(path=CONFIG["STORAGE_PATH"])
-        input("Press ENTER to exit...")
+        if is_development_mode():
+            input("Press ENTER to exit...")
         browser.close()
         if settings.exit_after_run:
             print("Exiting after run as per the setting.")
@@ -323,6 +341,10 @@ def on_tray_exit(icon: Icon):
 
 # Main Entry Point
 if __name__ == "__main__":
+    if os.getenv("SIMULATE_EXE", "0") == "1":
+        sys.frozen = True
+        sys._MEIPASS = os.path.abspath(".")
+        # simulate_from_spec("./../product/Bot.spec")
     if is_development_mode():
         react_server = subprocess.Popen(
             ["npm", "run", "dev"], cwd="./../frontend", shell=True

@@ -7,6 +7,7 @@ import requests
 from playwright.sync_api import Locator, Page
 
 import RetryHelper
+from src.GlobalVar import CONFIG
 
 
 def compare_images(arg1, arg2):
@@ -41,10 +42,6 @@ def compare_images(arg1, arg2):
     difference_percentage = (non_zero_count / total_pixels) * 100
 
     return difference_percentage
-
-
-def capture_button_screenshot(button: Locator, image_path):
-    button.screenshot(path=image_path)
 
 
 def fetch_image_from_locator(page: Page, locator_selector: Locator):
@@ -110,7 +107,7 @@ def find_correct_avatar(page: Page):
         page.locator("div.avatarsItemImg-AiUG1h")
     )
     print(f"Avatar count: {avatar_count}")
-    zzz_icon_path = "../sample/ZZZ Avatar.png"
+    zzz_icon_path = CONFIG["ZZZ_ICON"]
     for i in range(avatar_count):
         avatar_icon_locator = page.locator("div.avatarsItemImg-AiUG1h").nth(i)
         avatar_image = fetch_image_from_locator(page, avatar_icon_locator)
@@ -125,7 +122,7 @@ def find_correct_avatar(page: Page):
 
 
 def find_correct_lottery_logo(page: Page):
-    zzz_icon_img = cv2.imread("../sample/ZZZ Avatar.png")
+    zzz_icon_img = cv2.imread(CONFIG["ZZZ_ICON"])
     for i in range(4):
         lottery_logo_locator = page.locator("div.lotteryLogo-269XTi")
         lottery_logo_img = fetch_image_from_locator(page, lottery_logo_locator)
@@ -141,19 +138,20 @@ def find_correct_lottery_logo(page: Page):
 
 
 class ImageProcessor:
-    def __init__(self, button, path):
-        capture_button_screenshot(button, path)
+    def __init__(self, page, button):
         self.button = button
-        self.path = path
+        self.page = page
 
     def detect_button_state(self):
-        tick_image_path = "../sample/Finished.png"
-        arrow_image_path = "../sample/Unfinished.png"
-        reward_image_path = "../sample/Reward.png"
+        tick_image = cv2.imread(CONFIG["SAMPLE_FOLDER"] + "/Finished.png")
+        arrow_image = cv2.imread(CONFIG["SAMPLE_FOLDER"] + "/Unfinished.png")
+        reward_image = cv2.imread(CONFIG["SAMPLE_FOLDER"] + "/Reward.png")
 
-        tick_diff = compare_images(self.path, tick_image_path)
-        arrow_diff = compare_images(self.path, arrow_image_path)
-        reward_diff = compare_images(self.path, reward_image_path)
+        buttom_img = fetch_image_from_locator(self.page, self.button)
+
+        tick_diff = compare_images(buttom_img, tick_image)
+        arrow_diff = compare_images(buttom_img, arrow_image)
+        reward_diff = compare_images(buttom_img, reward_image)
 
         print(f"Difference with Finished (tick) image: {tick_diff}%")
         print(f"Difference with Unfinished (arrow) image: {arrow_diff}%")

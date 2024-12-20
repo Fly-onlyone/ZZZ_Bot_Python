@@ -1,27 +1,78 @@
+import os
+import sys
 from dataclasses import dataclass, field
 from typing import List
-import sys
-import os
+
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 from src.DataHandler import Serializable
 
-CONFIG = {
-    "ICON_PATH": "./../images/Qingyi02.ico",
-    "SAD_ICON": "./../images/Qingyi01.ico",
-    "STORAGE_PATH": "./../authentication data/hoyo.json",
-    "ICON_FOLDER": "./../images",
-    "OUTPUT_FOLDER": "./../output",
-    "OUTPUT_FILE": "./../output/missions.json",
-    "LAST_RUN_FILE": "./../output/last_run.json",
-    "SETTINGS_FILE": "./../output/settings.json",
-    "ACCOUNT_FILE": "./../output/account.json",
-    "SHOPPING_FILE": "./../output/shopping.json",
-    "REDEEM_FILE": "./../output/redeem.json",
-    "WEB_UI_URL": None,
-}
+
+def is_development_mode():
+    if getattr(sys, "frozen", False):
+        print("Running as an executable")
+        return False
+    else:
+        print("Running in development mode")
+        return True
+
+
+def resource_path(relative_path):
+    """
+    Get the absolute path to a resource. Handles both development and executable modes.
+    """
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.abspath(relative_path)
+
+
+def generate_config(exclude_keys=None):
+    """
+    Generate CONFIG dictionary with resource_path applied conditionally.
+
+    Args:
+        exclude_keys (list): Keys to exclude from applying resource_path.
+
+    Returns:
+        dict: Generated CONFIG dictionary.
+    """
+    if exclude_keys is None:
+        exclude_keys = []
+
+    base_config = {
+        "ICON_PATH": "./../images/Qingyi02.ico",
+        "SAD_ICON": "./../images/Qingyi01.ico",
+        "STORAGE_PATH": "./../authentication data/hoyo.json",
+        "ICON_FOLDER": "./../images",
+        "OUTPUT_FOLDER": "./../output",
+        "SCREENSHOT_FOLDER": "./../screenshot",
+        "SAMPLE_FOLDER": "./../sample",
+        "MISSION_BUTTON_FOLDER": "./../mission button",
+        "MISSION_NOTIFICATION": "message/mission.html.jinja",
+        "ZZZ_ICON": "./../sample/ZZZ Avatar.png",
+        "OUTPUT_FILE": "./../output/missions.json",
+        "LAST_RUN_FILE": "./../output/last_run.json",
+        "SETTINGS_FILE": "./../output/settings.json",
+        "ACCOUNT_FILE": "./../output/account.json",
+        "SHOPPING_FILE": "./../output/shopping.json",
+        "REDEEM_FILE": "./../output/redeem.json",
+        "WEB_UI_URL": None,
+    }
+
+    # Apply resource_path only to keys not in the exclude list
+    return {
+        key: resource_path(value) if key not in exclude_keys and value else value
+        for key, value in base_config.items()
+    }
+
+
+CONFIG = generate_config(["WEB_UI_URL"])
+CONFIG["WEB_UI_URL"] = (
+    "http://127.0.0.1:3000" if is_development_mode() else "http://127.0.0.1:8000"
+)
+print(CONFIG)
 
 
 @dataclass
@@ -58,23 +109,3 @@ app.add_middleware(
 )
 app.mount("/images", StaticFiles(directory=CONFIG["ICON_FOLDER"]), name="images")
 app.mount("/screenshot", StaticFiles(directory="./../screenshot"), name="screenshots")
-
-
-def is_development_mode():
-    if os.getenv("SIMULATE_EXE", "0") == "1":
-        sys.frozen = True
-        sys._MEIPASS = os.path.abspath(".")
-    else:
-        sys.frozen = False
-
-    if getattr(sys, "frozen", False):
-        print("Running as an executable")
-        return False
-    else:
-        print("Running in development mode")
-        return True
-
-
-CONFIG["WEB_UI_URL"] = (
-    "http://127.0.0.1:3000" if is_development_mode() else "http://127.0.0.1:8000"
-)

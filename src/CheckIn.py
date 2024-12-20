@@ -2,6 +2,7 @@ from datetime import datetime
 
 import Mission
 import RetryHelper
+from src.GlobalVar import CONFIG
 
 
 def handle_check_in(new_page):
@@ -25,7 +26,9 @@ def handle_check_in(new_page):
     if RetryHelper.retry_until_screen_appears(success_message, day_button):
         print("Check-In Successful!")
         Mission.Mission.check_in_result = "Login Success"
-        success_message.screenshot(path="./../screenshot/login_reward.png")
+        success_message.screenshot(
+            path=CONFIG["SCREENSHOT_FOLDER"] + "/login_reward.png"
+        )
     else:
         print("Login failed")
         Mission.Mission.check_in_result = "Login Failed"
