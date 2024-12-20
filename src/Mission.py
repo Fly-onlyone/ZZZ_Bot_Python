@@ -4,6 +4,7 @@ import RetryHelper
 from CheckIn import handle_check_in
 from DataHandler import maintain_mission_data
 from ImageProcessor import ImageProcessor
+from src.GlobalVar import CONFIG
 from src.ImageProcessor import find_correct_avatar
 
 
@@ -78,6 +79,8 @@ def open_mission_screen(page: Page):
 
 def count_mission(page: Page):
     zzz_avatar = find_correct_avatar(page)
+    if not zzz_avatar:
+        return 0
     zzz_avatar.click()
 
     mission_count = RetryHelper.retry_until_non_zero_count(
@@ -92,65 +95,74 @@ def doing_mission(mission_count: int, page: Page, todays_data: dict):
     check_in_result = todays_data.get(
         "check_in", "Link isn't opened"
     )  # Get the initial check-in state
-
-    for i in range(1, mission_count + 1):
-        # Locate the mission text and button
-        mission_text_locator = page.locator(
-            f"div:nth-child({i}) > .taskItemPcLeft-Aetp6m > .top-ohhwaM"
+    if mission_count == 0:
+        login_page = page.context.new_page()
+        login_page.goto(
+            "https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091&hyl_auth_required=true&hyl_presentation_style=fullscreen&utm_campaign=mimo&utm_source=h5&utm_medium=task&utm_id=8"
         )
-        mission_button_locator = page.locator(
-            f"div:nth-child({i}) > .taskItemPcRight-3-Kwr1 > .icon2-Y7R3Mu"
-        )
-
-        mission_text = mission_text_locator.inner_text()
-
-        # Check if the mission has already been recorded as finished today in todays_data
-        existing_mission = next(
-            (
-                mission
-                for mission in todays_data["missions"]
-                if mission["name"] == mission_text
-            ),
-            None,
-        )
-        if existing_mission and existing_mission["state"] == "Finished":
-            print(f"Skipping already finished mission from todays_data: {mission_text}")
-            continue
-
-        # Check the button image state
-        button_image_path = f"./../mission button/mission {i}.png"
-        button_image = ImageProcessor(mission_button_locator, button_image_path)
-        button_state = button_image.detect_button_state()
-
-        # If the button state indicates "Finished" (tick), skip performing the mission
-        if button_state == "Finished":
-            print(
-                f"Skipping already finished mission (based on button state): {mission_text}"
+        check_in_result = handle_check_in(login_page)
+    else:
+        for i in range(1, mission_count + 1):
+            # Locate the mission text and button
+            mission_text_locator = page.locator(
+                f"div:nth-child({i}) > .taskItemPcLeft-Aetp6m > .top-ohhwaM"
             )
-            mission_state = "Finished"  # Set mission state as Finished
-        else:
-            print(f"Starting mission: {mission_text}")
-            # Perform the mission if it hasn't been marked as finished
-            mission_helper = Mission(page, initial_check_in_result=check_in_result)
-            if i == 1:
-                mission_helper.attach_page_listener()
-            result = mission_helper.perform_mission(mission_button_locator)
-
-            # Update the check-in result only if it's still in its initial state
-            if check_in_result == "Link isn't opened":
-                check_in_result = result["check_in_result"]  # Set it only once
-                print(f"Check-in result updated: {check_in_result}")
-
-            # Set the mission state based on whether it was completed or not
-            mission_state = "Finished" if result["mission_completed"] else "Unfinished"
-
-        # Update todays_data with the current mission state
-        if existing_mission:
-            existing_mission["state"] = mission_state
-        else:
-            todays_data["missions"].append(
-                {"name": mission_text, "state": mission_state}
+            mission_button_locator = page.locator(
+                f"div:nth-child({i}) > .taskItemPcRight-3-Kwr1 > .icon2-Y7R3Mu"
             )
+
+            mission_text = mission_text_locator.inner_text()
+
+            # Check if the mission has already been recorded as finished today in todays_data
+            existing_mission = next(
+                (
+                    mission
+                    for mission in todays_data["missions"]
+                    if mission["name"] == mission_text
+                ),
+                None,
+            )
+            if existing_mission and existing_mission["state"] == "Finished":
+                print(
+                    f"Skipping already finished mission from todays_data: {mission_text}"
+                )
+                continue
+
+            # Check the button image state
+            button_image = ImageProcessor(page, mission_button_locator)
+            button_state = button_image.detect_button_state()
+
+            # If the button state indicates "Finished" (tick), skip performing the mission
+            if button_state == "Finished":
+                print(
+                    f"Skipping already finished mission (based on button state): {mission_text}"
+                )
+                mission_state = "Finished"  # Set mission state as Finished
+            else:
+                print(f"Starting mission: {mission_text}")
+                # Perform the mission if it hasn't been marked as finished
+                mission_helper = Mission(page, initial_check_in_result=check_in_result)
+                if i == 1:
+                    mission_helper.attach_page_listener()
+                result = mission_helper.perform_mission(mission_button_locator)
+
+                # Update the check-in result only if it's still in its initial state
+                if check_in_result == "Link isn't opened":
+                    check_in_result = result["check_in_result"]  # Set it only once
+                    print(f"Check-in result updated: {check_in_result}")
+
+                # Set the mission state based on whether it was completed or not
+                mission_state = (
+                    "Finished" if result["mission_completed"] else "Unfinished"
+                )
+
+            # Update todays_data with the current mission state
+            if existing_mission:
+                existing_mission["state"] = mission_state
+            else:
+                todays_data["missions"].append(
+                    {"name": mission_text, "state": mission_state}
+                )
 
     # Store the final check-in result in todays_data
     todays_data["check_in"] = check_in_result
