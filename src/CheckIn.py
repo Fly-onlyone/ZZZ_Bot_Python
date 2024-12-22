@@ -2,7 +2,7 @@ from datetime import datetime
 
 import Mission
 import RetryHelper
-from src.GlobalVar import CONFIG
+from GlobalVar import CONFIG
 
 
 def handle_check_in(new_page):

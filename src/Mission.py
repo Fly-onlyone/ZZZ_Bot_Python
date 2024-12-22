@@ -4,8 +4,7 @@ import RetryHelper
 from CheckIn import handle_check_in
 from DataHandler import maintain_mission_data
 from ImageProcessor import ImageProcessor
-from src.GlobalVar import CONFIG
-from src.ImageProcessor import find_correct_avatar
+from ImageProcessor import find_correct_avatar
 
 
 class Mission:
