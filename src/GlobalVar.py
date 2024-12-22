@@ -7,7 +7,11 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
-from src.DataHandler import Serializable
+from DataHandler import Serializable
+
+if os.getenv("SIMULATE_EXE", "0") == "1":
+    sys.frozen = True
+    sys._MEIPASS = os.path.abspath(".")
 
 
 def is_development_mode():
@@ -22,10 +26,14 @@ def is_development_mode():
 def resource_path(relative_path):
     """
     Get the absolute path to a resource. Handles both development and executable modes.
+    Resolves paths like ./../ to absolute paths.
     """
+    normalized_path = os.path.normpath(
+        relative_path
+    )  # Normalize path (removes ./ and ../)
     if hasattr(sys, "_MEIPASS"):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.abspath(relative_path)
+        return os.path.abspath(os.path.join(sys._MEIPASS,normalized_path))
+    return os.path.abspath(normalized_path)  # Resolve absolute path
 
 
 def generate_config(exclude_keys=None):
@@ -42,6 +50,7 @@ def generate_config(exclude_keys=None):
         exclude_keys = []
 
     base_config = {
+        "FRONTEND_BUILD": "./../frontend/dist",
         "ICON_PATH": "./../images/Qingyi02.ico",
         "SAD_ICON": "./../images/Qingyi01.ico",
         "STORAGE_PATH": "./../authentication data/hoyo.json",
@@ -108,4 +117,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.mount("/images", StaticFiles(directory=CONFIG["ICON_FOLDER"]), name="images")
-app.mount("/screenshot", StaticFiles(directory="./../screenshot"), name="screenshots")
+app.mount(
+    "/screenshot",
+    StaticFiles(directory=CONFIG["SCREENSHOT_FOLDER"]),
+    name="screenshots",
+)
