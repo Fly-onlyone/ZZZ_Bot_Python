@@ -7,7 +7,7 @@ import requests
 from playwright.sync_api import Locator, Page
 
 import RetryHelper
-from src.GlobalVar import CONFIG
+from GlobalVar import CONFIG
 
 
 def compare_images(arg1, arg2):

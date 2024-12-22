@@ -1,5 +1,6 @@
 import json
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -12,7 +13,7 @@ from pathlib import Path
 import schedule
 import uvicorn
 from PIL import Image
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, HTTPException
 from playwright.sync_api import sync_playwright
 from plyer import notification
 from pystray import Icon, Menu, MenuItem
@@ -21,16 +22,16 @@ from starlette.responses import JSONResponse
 from starlette.staticfiles import StaticFiles
 
 import DrawHandler
+import GlobalVar
+import ManualLogin
 import Mission
 import Notification
-import src.GlobalVar
+import ShoppingHandler
 from DataHandler import load_shopping_data
 from DataHandler import prepare_mission_data
+from GlobalVar import app, accounts, CONFIG, settings, is_development_mode
 from ManualLogin import run, playState_lock
-from src import ShoppingHandler
-from src.GlobalVar import app, accounts, CONFIG, settings, is_development_mode
-from src.Win32Icon import Win32Icon
-import ManualLogin
+from Win32Icon import Win32Icon
 
 
 @app.get("/routes")
@@ -293,7 +294,7 @@ def run_scheduled_tasks():
 # Tray Icon Logic
 def update_tray_menu():
     """Update the tray images menu."""
-    src.GlobalVar.tray_icon.update_menu()
+    GlobalVar.tray_icon.update_menu()
 
 
 def setup_tray_icon():
@@ -301,7 +302,7 @@ def setup_tray_icon():
     if sys.platform == "win32":
         Icon = Win32Icon
     icon_image = Image.open(CONFIG["ICON_PATH"])
-    src.GlobalVar.tray_icon = Icon(
+    GlobalVar.tray_icon = Icon(
         "ZZZ Bot",
         icon_image,
         menu=Menu(
@@ -321,7 +322,7 @@ def setup_tray_icon():
         on_double_click=lambda icon, _: webbrowser.open_new_tab(CONFIG["WEB_UI_URL"]),
     )
     threading.Thread(target=run_scheduled_tasks, daemon=True).start()
-    src.GlobalVar.tray_icon.run()
+    GlobalVar.tray_icon.run()
 
 
 def toggle_setting(setting_name):
@@ -341,19 +342,16 @@ def on_tray_exit(icon: Icon):
 
 # Main Entry Point
 if __name__ == "__main__":
-    if os.getenv("SIMULATE_EXE", "0") == "1":
-        sys.frozen = True
-        sys._MEIPASS = os.path.abspath(".")
-        # simulate_from_spec("./../product/Bot.spec")
+    # simulate_from_spec("./../product/Bot.spec")
     if is_development_mode():
         react_server = subprocess.Popen(
             ["npm", "run", "dev"], cwd="./../frontend", shell=True
         )
     else:
         app.mount(
-            "/", StaticFiles(directory="./../frontend/dist", html=True), name="ui"
+            "/", StaticFiles(directory=CONFIG["FRONTEND_BUILD"], html=True), name="ui"
         )
-        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "./.playwright-browsers"
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "/playwright-browsers"
 
     threading.Thread(target=lambda: uvicorn.run(app), daemon=True).start()
 

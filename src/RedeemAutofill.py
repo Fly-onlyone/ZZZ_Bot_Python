@@ -1,9 +1,10 @@
 from playwright.sync_api import BrowserContext
 from plyer import notification
 
-from src import RetryHelper, AutoLogin
-from src.DataHandler import save_redeem_data
-from src.GlobalVar import CONFIG
+import AutoLogin
+import RetryHelper
+from DataHandler import save_redeem_data
+from GlobalVar import CONFIG
 
 
 def run(context: BrowserContext, code, item_name, current_day, redeem_file_path):

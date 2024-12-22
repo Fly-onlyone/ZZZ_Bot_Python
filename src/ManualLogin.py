@@ -1,7 +1,9 @@
 import threading
 import time
-from plyer import notification
+
 from playwright.sync_api import sync_playwright
+from plyer import notification
+
 from GlobalVar import CONFIG
 
 playState = False

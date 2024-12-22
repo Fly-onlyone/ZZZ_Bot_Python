@@ -4,12 +4,12 @@ from pathlib import Path
 
 from playwright.sync_api import Page
 
+import RedeemAutofill
 import RetryHelper
+from DataHandler import load_shopping_data, save_shopping_data
 from GlobalVar import CONFIG, settings
-from src import RedeemAutofill
-from src.DataHandler import load_shopping_data, save_shopping_data
-from src.ImageProcessor import find_correct_avatar
-from src.StringUtil import (
+from ImageProcessor import find_correct_avatar
+from StringUtil import (
     extract_number_from_string,
     extract_and_convert_duration,
     calculate_return_time,
