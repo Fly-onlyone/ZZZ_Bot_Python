@@ -13,6 +13,10 @@ if os.getenv("SIMULATE_EXE", "0") == "1":
     sys.frozen = True
     sys._MEIPASS = os.path.abspath(".")
 
+if os.getenv("SIMULATE_EXE", "0") == "1":
+    sys.frozen = True
+    sys._MEIPASS = os.path.abspath(".")
+
 
 def is_development_mode():
     if getattr(sys, "frozen", False):
