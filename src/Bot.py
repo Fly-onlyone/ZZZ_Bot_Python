@@ -1,5 +1,6 @@
 import json
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -12,7 +13,7 @@ from pathlib import Path
 import schedule
 import uvicorn
 from PIL import Image
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, HTTPException
 from playwright.sync_api import sync_playwright
 from plyer import notification
 from pystray import Icon, Menu, MenuItem
@@ -21,6 +22,7 @@ from starlette.responses import JSONResponse
 from starlette.staticfiles import StaticFiles
 
 import DrawHandler
+import ManualLogin
 import Mission
 import Notification
 import src.GlobalVar
@@ -30,7 +32,6 @@ from ManualLogin import run, playState_lock
 from src import ShoppingHandler
 from src.GlobalVar import app, accounts, CONFIG, settings, is_development_mode
 from src.Win32Icon import Win32Icon
-import ManualLogin
 
 
 @app.get("/routes")
@@ -341,19 +342,16 @@ def on_tray_exit(icon: Icon):
 
 # Main Entry Point
 if __name__ == "__main__":
-    if os.getenv("SIMULATE_EXE", "0") == "1":
-        sys.frozen = True
-        sys._MEIPASS = os.path.abspath(".")
-        # simulate_from_spec("./../product/Bot.spec")
+    # simulate_from_spec("./../product/Bot.spec")
     if is_development_mode():
         react_server = subprocess.Popen(
             ["npm", "run", "dev"], cwd="./../frontend", shell=True
         )
     else:
         app.mount(
-            "/", StaticFiles(directory="./../frontend/dist", html=True), name="ui"
+            "/", StaticFiles(directory=CONFIG["FRONTEND_BUILD"], html=True), name="ui"
         )
-        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "./.playwright-browsers"
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "/playwright-browsers"
 
     threading.Thread(target=lambda: uvicorn.run(app), daemon=True).start()
 

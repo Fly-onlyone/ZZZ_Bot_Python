@@ -1,4 +1,4 @@
 product/
-!/product/Bot.spec
-src/.playwright-browsers/
+!/Bot.spec
+src/playwright-browsers/
 
