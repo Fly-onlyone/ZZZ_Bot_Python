@@ -9,6 +9,7 @@
       <excludeFolder url="file://$MODULE_DIR$/.venv/include" />
       <excludeFolder url="file://$MODULE_DIR$/product" />
       <excludeFolder url="file://$MODULE_DIR$/src/playwright-browsers" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv/output" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.12 virtualenv at C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

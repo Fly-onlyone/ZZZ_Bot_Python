@@ -1,5 +1,4 @@
 import os
-import sys
 from dataclasses import dataclass, field
 from typing import List
 
@@ -9,47 +8,36 @@ from starlette.staticfiles import StaticFiles
 
 from DataHandler import Serializable
 
-if os.getenv("SIMULATE_EXE", "0") == "1":
-    sys.frozen = True
-    sys._MEIPASS = os.path.abspath(".")
-
-if os.getenv("SIMULATE_EXE", "0") == "1":
-    sys.frozen = True
-    sys._MEIPASS = os.path.abspath(".")
+is_nuitka = "__compiled__" in globals()
 
 
-def is_development_mode():
-    if getattr(sys, "frozen", False):
-        print("Running as an executable")
-        return False
+def resource_path(relative_path, outside_path=False):
+    normalized_path = clean_leading_dots(relative_path)
+
+    if is_nuitka:
+        if outside_path:
+            final_path = os.path.join(__compiled__.containing_dir, normalized_path)
+        else:
+            final_path = os.path.join(os.path.dirname(__file__), normalized_path)
+
+        return final_path
     else:
-        print("Running in development mode")
-        return True
+        return relative_path
 
 
-def resource_path(relative_path):
+def clean_leading_dots(path):
     """
-    Get the absolute path to a resource. Handles both development and executable modes.
-    Resolves paths like ./../ to absolute paths.
+    Removes all leading './' and '../' from the beginning of the given string path.
     """
-    normalized_path = os.path.normpath(
-        relative_path
-    )  # Normalize path (removes ./ and ../)
-    if hasattr(sys, "_MEIPASS"):
-        return os.path.abspath(os.path.join(sys._MEIPASS,normalized_path))
-    return os.path.abspath(normalized_path)  # Resolve absolute path
+    while path.startswith("./") or path.startswith("../"):
+        if path.startswith("./"):
+            path = path[2:]  # Remove './'
+        elif path.startswith("../"):
+            path = path[3:]  # Remove '../'
+    return path
 
 
-def generate_config(exclude_keys=None):
-    """
-    Generate CONFIG dictionary with resource_path applied conditionally.
-
-    Args:
-        exclude_keys (list): Keys to exclude from applying resource_path.
-
-    Returns:
-        dict: Generated CONFIG dictionary.
-    """
+def generate_config(outside_folder, exclude_keys=None):
     if exclude_keys is None:
         exclude_keys = []
 
@@ -74,16 +62,40 @@ def generate_config(exclude_keys=None):
         "WEB_UI_URL": None,
     }
 
-    # Apply resource_path only to keys not in the exclude list
+    # Resolve absolute paths for outside_folder values
+    outside_folder_paths = {
+        key: os.path.abspath(base_config[key])
+        for key in outside_folder
+        if key in base_config
+    }
+
+    # Apply resource_path conditionally
+    def should_use_outside_folder(path):
+        abs_path = os.path.abspath(path)
+        return any(
+            abs_path.startswith(folder_path)
+            for folder_path in outside_folder_paths.values()
+        )
+
     return {
-        key: resource_path(value) if key not in exclude_keys and value else value
+        key: (
+            (
+                resource_path(value, outside_path=True)
+                if should_use_outside_folder(value)
+                else resource_path(value)
+            )
+            if key not in exclude_keys and value
+            else value
+        )
         for key, value in base_config.items()
     }
 
 
-CONFIG = generate_config(["WEB_UI_URL"])
+CONFIG = generate_config(
+    ["STORAGE_PATH", "OUTPUT_FOLDER", "SCREENSHOT_FOLDER"], ["WEB_UI_URL"]
+)
 CONFIG["WEB_UI_URL"] = (
-    "http://127.0.0.1:3000" if is_development_mode() else "http://127.0.0.1:8000"
+    "http://127.0.0.1:3000" if not is_nuitka else "http://127.0.0.1:8000"
 )
 print(CONFIG)
 
