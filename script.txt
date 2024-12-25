@@ -1,0 +1,12 @@
+.venv\Scripts\activate
+cd product
+nuitka --playwright-include-browser=firefox-1466 --onefile `
+--include-data-dir="./../frontend/dist"="frontend/dist" `
+--include-data-dir="./../images"="images" `
+--include-data-dir="./../sample"="sample" `
+--include-data-dir="./../src/message"="message" `
+--windows-icon-from-ico="./../images/Qingyi02.ico" `
+--product-name="ZZZ Bot" `
+--output-filename="ZZZ Bot" `
+--product-version="1.0" `
+"./../src/Bot.py" 
