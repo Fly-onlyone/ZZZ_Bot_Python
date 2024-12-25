@@ -1,6 +1,6 @@
 {
     "schedule_times": [
-        "00:00",
+        "05:00",
         "20:00"
     ],
     "exit_after_run": false,

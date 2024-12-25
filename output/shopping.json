@@ -1,5 +1,5 @@
 {
-    "Point": 330,
+    "Point": 525,
     "Duration": {
         "Start": "17/12",
         "End": "21/1"
@@ -8,62 +8,62 @@
         "Senior Investigator Log ×5": {
             "Name": "Senior Investigator Log ×5",
             "Price": 100,
-            "Inventory": 2701,
+            "Inventory": 1975,
             "Available": "Exchange"
         },
         "Dennies ×5,000": {
             "Name": "Dennies ×5,000",
             "Price": 50,
-            "Inventory": 15115,
+            "Inventory": 14789,
             "Available": "Exchange"
         },
         "Dennies ×10,000": {
             "Name": "Dennies ×10,000",
             "Price": 80,
-            "Inventory": 3705,
-            "Available": "Exchange"
-        },
-        "Polychrome ×10": {
-            "Name": "Polychrome ×10",
-            "Price": 100,
-            "Inventory": 3463,
-            "Available": "Exchange"
-        },
-        "Polychrome ×30": {
-            "Name": "Polychrome ×30",
-            "Price": 200,
-            "Inventory": 4060,
-            "Available": "Exchange"
-        },
-        "Polychrome ×60": {
-            "Name": "Polychrome ×60",
-            "Price": 300,
-            "Inventory": 2081,
-            "Available": "Exchange"
-        },
-        "Polychrome ×100": {
-            "Name": "Polychrome ×100",
-            "Price": 500,
-            "Inventory": 177,
+            "Inventory": 3183,
             "Available": "Exchange"
         },
         "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (Permanent)": {
             "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (Permanent)",
             "Price": 500,
-            "Inventory": 999998,
+            "Inventory": 999956,
             "Available": "Exchange"
         },
         "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (90-Day)": {
             "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (90-Day)",
             "Price": 90,
-            "Inventory": 999988,
+            "Inventory": 999982,
             "Available": "Exchange"
         },
         "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (30-Day)": {
             "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (30-Day)",
             "Price": 40,
-            "Inventory": 999982,
+            "Inventory": 999965,
             "Available": "Exchange"
+        },
+        "Polychrome ×10": {
+            "Name": "Polychrome ×10",
+            "Price": 100,
+            "Inventory": 0,
+            "Available": "18:00 25/12/24"
+        },
+        "Polychrome ×30": {
+            "Name": "Polychrome ×30",
+            "Price": 200,
+            "Inventory": 0,
+            "Available": "18:00 25/12/24"
+        },
+        "Polychrome ×60": {
+            "Name": "Polychrome ×60",
+            "Price": 300,
+            "Inventory": 0,
+            "Available": "18:00 25/12/24"
+        },
+        "Polychrome ×100": {
+            "Name": "Polychrome ×100",
+            "Price": 500,
+            "Inventory": 0,
+            "Available": "18:00 25/12/24"
         }
     }
 }
