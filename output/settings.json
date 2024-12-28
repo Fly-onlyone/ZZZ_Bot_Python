@@ -9,6 +9,6 @@
     "run_task": true,
     "gather_shopping_data": true,
     "redeem_after_gather_data": false,
-    "buy_all": false,
+    "buy_all": true,
     "draw_item": true
 }

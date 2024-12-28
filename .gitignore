@@ -3,3 +3,5 @@ product/
 src/playwright-browsers/
 
 
+!/product/Bot.spec
+!/product/Spec.py

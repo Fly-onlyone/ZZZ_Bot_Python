@@ -1,4 +1,5 @@
 import os
+import sys
 from dataclasses import dataclass, field
 from typing import List
 
@@ -8,17 +9,35 @@ from starlette.staticfiles import StaticFiles
 
 from DataHandler import Serializable
 
-is_nuitka = "__compiled__" in globals()
+
+def is_exe():
+    if os.getenv("SIMULATE_EXE", "0") == "1":
+        sys.frozen = True
+    if getattr(sys, "frozen", False):
+        print("running in a PyInstaller bundle")
+        return True
+    else:
+        print("running in a normal Python process")
+        return False
+
+
+is_exe = is_exe()
 
 
 def resource_path(relative_path, outside_path=False):
     normalized_path = clean_leading_dots(relative_path)
 
-    if is_nuitka:
+    if is_exe:
+        if os.getenv("SIMULATE_EXE", "0") == "1":
+            return relative_path
         if outside_path:
-            final_path = os.path.join(__compiled__.containing_dir, normalized_path)
+            final_path = os.path.abspath(
+                os.path.join(os.path.dirname(sys.executable), normalized_path)
+            )
         else:
-            final_path = os.path.join(os.path.dirname(__file__), normalized_path)
+            final_path = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), normalized_path)
+            )
 
         return final_path
     else:
@@ -43,6 +62,7 @@ def generate_config(outside_folder, exclude_keys=None):
 
     base_config = {
         "FRONTEND_BUILD": "./../frontend/dist",
+        "BROWSER": "./playwright-browsers",
         "ICON_PATH": "./../images/Qingyi02.ico",
         "SAD_ICON": "./../images/Qingyi01.ico",
         "STORAGE_PATH": "./../authentication data/hoyo.json",
@@ -51,7 +71,7 @@ def generate_config(outside_folder, exclude_keys=None):
         "SCREENSHOT_FOLDER": "./../screenshot",
         "SAMPLE_FOLDER": "./../sample",
         "MISSION_BUTTON_FOLDER": "./../mission button",
-        "MISSION_NOTIFICATION": "message/mission.html.jinja",
+        "MISSION_NOTIFICATION": "./message/mission.html.jinja",
         "ZZZ_ICON": "./../sample/ZZZ Avatar.png",
         "OUTPUT_FILE": "./../output/missions.json",
         "LAST_RUN_FILE": "./../output/last_run.json",
@@ -95,7 +115,7 @@ CONFIG = generate_config(
     ["STORAGE_PATH", "OUTPUT_FOLDER", "SCREENSHOT_FOLDER"], ["WEB_UI_URL"]
 )
 CONFIG["WEB_UI_URL"] = (
-    "http://127.0.0.1:3000" if not is_nuitka else "http://127.0.0.1:8000"
+    "http://127.0.0.1:3000" if not is_exe else "http://127.0.0.1:8000"
 )
 print(CONFIG)
 
