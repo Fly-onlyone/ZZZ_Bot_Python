@@ -29,7 +29,7 @@ import Notification
 import ShoppingHandler
 from DataHandler import load_shopping_data
 from DataHandler import prepare_mission_data
-from GlobalVar import app, accounts, CONFIG, settings, is_nuitka
+from GlobalVar import app, accounts, CONFIG, settings, is_exe
 from ManualLogin import run, playState_lock
 from Win32Icon import Win32Icon
 
@@ -216,7 +216,7 @@ def playwright_task():
         )
 
         context.storage_state(path=CONFIG["STORAGE_PATH"])
-        if not is_nuitka:
+        if not is_exe:
             input("Press ENTER to exit...")
         browser.close()
         if settings.exit_after_run:
@@ -335,15 +335,14 @@ def toggle_setting(setting_name):
 
 def on_tray_exit(icon: Icon):
     """Handle tray images exit."""
-    if not is_nuitka:
+    if not is_exe:
         react_server.send_signal(signal.CTRL_C_EVENT)
     icon.stop()
 
 
 # Main Entry Point
 if __name__ == "__main__":
-    # simulate_from_spec("./../product/Bot.spec")
-    if not is_nuitka:
+    if not is_exe:
         react_server = subprocess.Popen(
             ["npm", "run", "dev"], cwd="./../frontend", shell=True
         )
@@ -351,6 +350,7 @@ if __name__ == "__main__":
         app.mount(
             "/", StaticFiles(directory=CONFIG["FRONTEND_BUILD"], html=True), name="ui"
         )
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = CONFIG["BROWSER"]
 
     threading.Thread(target=lambda: uvicorn.run(app), daemon=True).start()
 
