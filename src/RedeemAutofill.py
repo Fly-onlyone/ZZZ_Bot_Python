@@ -12,7 +12,7 @@ def run(context: BrowserContext, code, item_name, current_day, redeem_file_path)
     redeem_page = context.new_page()
     redeem_page.goto("https://zenless.hoyoverse.com/redemption")
 
-    if not redeem_page.locator(".web-cdkey-user__name").is_visible():
+    if redeem_page.get_by_text("Please Log in to Redeem").is_visible():
         login_screen = redeem_page.locator(".web-cdkey-form")
         server_select_button = redeem_page.locator(".web-cdkey-form__select--toggle")
         if RetryHelper.retry_until_screen_appears(login_screen, server_select_button):

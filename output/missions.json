@@ -1,130 +1,6 @@
 [
   {
-    "day": "24/12/2024",
-    "check_in": "Login Success",
-    "missions": [
-      {
-        "name": "Reach 400 Engagement today",
-        "state": "Finished"
-      },
-      {
-        "name": "Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game",
-        "state": "Finished"
-      },
-      {
-        "name": "Log into Zenless Zone Zero today",
-        "state": "Finished"
-      },
-      {
-        "name": "Complete a Hollow Zero operation once this week",
-        "state": "Finished"
-      },
-      {
-        "name": "Follow the trending topics of the week",
-        "state": "Unfinished"
-      },
-      {
-        "name": "Spend 80 Battery Charge today",
-        "state": "Finished"
-      },
-      {
-        "name": "View this week's trending discussions and leave a fun comment",
-        "state": "Unfinished"
-      },
-      {
-        "name": "Visit the Zenless Zone Zero community today",
-        "state": "Finished"
-      },
-      {
-        "name": "Read this week's high-quality guides",
-        "state": "Finished"
-      },
-      {
-        "name": "Complete Notorious Hunt once this week",
-        "state": "Finished"
-      },
-      {
-        "name": "Use the Zenless Zone Zero Wiki tool once",
-        "state": "Finished"
-      },
-      {
-        "name": "Log into the game for 7 days",
-        "state": "Finished"
-      },
-      {
-        "name": "Log into the game for 14 days",
-        "state": "Finished"
-      },
-      {
-        "name": "Complete the main story Chapter 5",
-        "state": "Finished"
-      }
-    ]
-  },
-  {
-    "day": "25/12/2024",
-    "check_in": "Login Success",
-    "missions": [
-      {
-        "name": "View this week's trending discussions and leave a fun comment",
-        "state": "Unfinished"
-      },
-      {
-        "name": "Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game",
-        "state": "Finished"
-      },
-      {
-        "name": "Log into Zenless Zone Zero today",
-        "state": "Finished"
-      },
-      {
-        "name": "Spend 80 Battery Charge today",
-        "state": "Finished"
-      },
-      {
-        "name": "Follow the trending topics of the week",
-        "state": "Unfinished"
-      },
-      {
-        "name": "Reach 400 Engagement today",
-        "state": "Finished"
-      },
-      {
-        "name": "Visit the Zenless Zone Zero community today",
-        "state": "Finished"
-      },
-      {
-        "name": "Read this week's high-quality guides",
-        "state": "Finished"
-      },
-      {
-        "name": "Use the Zenless Zone Zero Wiki tool once",
-        "state": "Finished"
-      },
-      {
-        "name": "Complete Notorious Hunt once this week",
-        "state": "Finished"
-      },
-      {
-        "name": "Complete a Hollow Zero operation once this week",
-        "state": "Finished"
-      },
-      {
-        "name": "Log into the game for 7 days",
-        "state": "Finished"
-      },
-      {
-        "name": "Log into the game for 14 days",
-        "state": "Finished"
-      },
-      {
-        "name": "Complete the main story Chapter 5",
-        "state": "Finished"
-      }
-    ]
-  },
-  {
-    "day": "26/12/2024",
+    "day": "31/12/2024",
     "check_in": "Link isn't opened",
     "missions": [
       {
@@ -132,7 +8,7 @@
         "state": "Unfinished"
       },
       {
-        "name": "View this week's trending discussions and leave a fun comment",
+        "name": "Complete a Hollow Zero operation once this week",
         "state": "Unfinished"
       },
       {
@@ -140,11 +16,11 @@
         "state": "Finished"
       },
       {
-        "name": "Use the Zenless Zone Zero Wiki tool once",
-        "state": "Finished"
+        "name": "View this week's trending discussions and leave a fun comment",
+        "state": "Unfinished"
       },
       {
-        "name": "Log into Zenless Zone Zero today",
+        "name": "Reach 400 Engagement today",
         "state": "Finished"
       },
       {
@@ -152,11 +28,11 @@
         "state": "Finished"
       },
       {
-        "name": "Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game",
+        "name": "Use Zenless Zone Zero Battle Chronicle once",
         "state": "Finished"
       },
       {
-        "name": "Reach 400 Engagement today",
+        "name": "Log into Zenless Zone Zero today",
         "state": "Finished"
       },
       {
@@ -168,7 +44,7 @@
         "state": "Finished"
       },
       {
-        "name": "Complete a Hollow Zero operation once this week",
+        "name": "Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game",
         "state": "Finished"
       },
       {
@@ -186,14 +62,34 @@
     ]
   },
   {
-    "day": "27/12/2024",
-    "check_in": "Link isn't opened",
+    "day": "01/01/2025",
+    "check_in": "Login Success",
     "missions": [
+      {
+        "name": "Reach 400 Engagement today",
+        "state": "Finished"
+      },
+      {
+        "name": "Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game",
+        "state": "Finished"
+      },
+      {
+        "name": "Log into Zenless Zone Zero today",
+        "state": "Finished"
+      },
+      {
+        "name": "Complete a Hollow Zero operation once this week",
+        "state": "Unfinished"
+      },
       {
         "name": "Follow the trending topics of the week",
         "state": "Unfinished"
       },
       {
+        "name": "Spend 80 Battery Charge today",
+        "state": "Finished"
+      },
+      {
         "name": "View this week's trending discussions and leave a fun comment",
         "state": "Unfinished"
       },
@@ -202,27 +98,7 @@
         "state": "Finished"
       },
       {
-        "name": "Use the Zenless Zone Zero Wiki tool once",
-        "state": "Finished"
-      },
-      {
-        "name": "Log into Zenless Zone Zero today",
-        "state": "Finished"
-      },
-      {
         "name": "Read this week's high-quality guides",
-        "state": "Finished"
-      },
-      {
-        "name": "Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game",
-        "state": "Finished"
-      },
-      {
-        "name": "Reach 400 Engagement today",
-        "state": "Finished"
-      },
-      {
-        "name": "Spend 80 Battery Charge today",
         "state": "Finished"
       },
       {
@@ -230,7 +106,7 @@
         "state": "Finished"
       },
       {
-        "name": "Complete a Hollow Zero operation once this week",
+        "name": "Use Zenless Zone Zero Battle Chronicle once",
         "state": "Finished"
       },
       {
@@ -248,7 +124,69 @@
     ]
   },
   {
-    "day": "28/12/2024",
+    "day": "02/01/2025",
+    "check_in": "Login Success",
+    "missions": [
+      {
+        "name": "Reach 400 Engagement today",
+        "state": "Finished"
+      },
+      {
+        "name": "Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game",
+        "state": "Finished"
+      },
+      {
+        "name": "Log into Zenless Zone Zero today",
+        "state": "Finished"
+      },
+      {
+        "name": "Complete a Hollow Zero operation once this week",
+        "state": "Finished"
+      },
+      {
+        "name": "Follow the trending topics of the week",
+        "state": "Unfinished"
+      },
+      {
+        "name": "Spend 80 Battery Charge today",
+        "state": "Finished"
+      },
+      {
+        "name": "View this week's trending discussions and leave a fun comment",
+        "state": "Unfinished"
+      },
+      {
+        "name": "Visit the Zenless Zone Zero community today",
+        "state": "Finished"
+      },
+      {
+        "name": "Read this week's high-quality guides",
+        "state": "Finished"
+      },
+      {
+        "name": "Complete Notorious Hunt once this week",
+        "state": "Finished"
+      },
+      {
+        "name": "Use Zenless Zone Zero Battle Chronicle once",
+        "state": "Finished"
+      },
+      {
+        "name": "Log into the game for 7 days",
+        "state": "Finished"
+      },
+      {
+        "name": "Log into the game for 14 days",
+        "state": "Finished"
+      },
+      {
+        "name": "Complete the main story Chapter 5",
+        "state": "Finished"
+      }
+    ]
+  },
+  {
+    "day": "04/01/2025",
     "check_in": "Login Success",
     "missions": [
       {
@@ -284,7 +222,69 @@
         "state": "Finished"
       },
       {
-        "name": "Use the Zenless Zone Zero Wiki tool once",
+        "name": "Use Zenless Zone Zero Battle Chronicle once",
+        "state": "Finished"
+      },
+      {
+        "name": "Complete Notorious Hunt once this week",
+        "state": "Finished"
+      },
+      {
+        "name": "Complete a Hollow Zero operation once this week",
+        "state": "Finished"
+      },
+      {
+        "name": "Log into the game for 7 days",
+        "state": "Finished"
+      },
+      {
+        "name": "Log into the game for 14 days",
+        "state": "Finished"
+      },
+      {
+        "name": "Complete the main story Chapter 5",
+        "state": "Finished"
+      }
+    ]
+  },
+  {
+    "day": "05/01/2025",
+    "check_in": "Login Success",
+    "missions": [
+      {
+        "name": "View this week's trending discussions and leave a fun comment",
+        "state": "Unfinished"
+      },
+      {
+        "name": "Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game",
+        "state": "Finished"
+      },
+      {
+        "name": "Log into Zenless Zone Zero today",
+        "state": "Finished"
+      },
+      {
+        "name": "Spend 80 Battery Charge today",
+        "state": "Finished"
+      },
+      {
+        "name": "Follow the trending topics of the week",
+        "state": "Unfinished"
+      },
+      {
+        "name": "Reach 400 Engagement today",
+        "state": "Finished"
+      },
+      {
+        "name": "Visit the Zenless Zone Zero community today",
+        "state": "Finished"
+      },
+      {
+        "name": "Read this week's high-quality guides",
+        "state": "Finished"
+      },
+      {
+        "name": "Use Zenless Zone Zero Battle Chronicle once",
         "state": "Finished"
       },
       {
