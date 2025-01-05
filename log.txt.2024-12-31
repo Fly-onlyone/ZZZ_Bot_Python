@@ -1,0 +1,32 @@
+2025-01-05 17:55:32: running in a PyInstaller bundle
+2025-01-05 17:55:32: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
+2025-01-05 17:55:32: Started server process [30432]
+2025-01-05 17:55:32: Waiting for application startup.
+2025-01-05 17:55:32: Application startup complete.
+2025-01-05 17:55:32: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-01-05 18:02:27: running in a PyInstaller bundle
+2025-01-05 18:02:27: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
+2025-01-05 18:02:28: Started server process [12564]
+2025-01-05 18:02:28: Waiting for application startup.
+2025-01-05 18:02:28: Application startup complete.
+2025-01-05 18:02:28: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-01-05 18:07:04: running in a PyInstaller bundle
+2025-01-05 18:07:04: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
+2025-01-05 18:07:04: Started server process [17768]
+2025-01-05 18:07:04: Waiting for application startup.
+2025-01-05 18:07:04: Application startup complete.
+2025-01-05 18:07:04: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-01-05 18:09:50: running in a PyInstaller bundle
+2025-01-05 18:09:50: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
+2025-01-05 18:09:51: Started server process [33136]
+2025-01-05 18:09:51: Waiting for application startup.
+2025-01-05 18:09:51: Application startup complete.
+2025-01-05 18:09:51: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-01-05 18:09:55: 127.0.0.1:50232 - "GET /routes HTTP/1.1" 200
+2025-01-05 18:09:55: 127.0.0.1:50230 - "GET /overview/mission HTTP/1.1" 200
+2025-01-05 18:09:55: 127.0.0.1:50231 - "GET /check-run-status HTTP/1.1" 200
+2025-01-05 18:09:55: 127.0.0.1:50232 - "GET /account HTTP/1.1" 200
+2025-01-05 18:09:55: 127.0.0.1:50231 - "GET /settings HTTP/1.1" 200
+2025-01-05 18:09:55: 127.0.0.1:50230 - "GET /shopping HTTP/1.1" 200
+2025-01-05 18:09:58: 127.0.0.1:50231 - "GET /check-run-status HTTP/1.1" 200
+2025-01-05 18:09:58: 127.0.0.1:50230 - "GET /overview/mission HTTP/1.1" 200

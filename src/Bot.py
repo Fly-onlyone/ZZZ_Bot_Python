@@ -352,7 +352,9 @@ if __name__ == "__main__":
         )
         os.environ["PLAYWRIGHT_BROWSERS_PATH"] = CONFIG["BROWSER"]
 
-    threading.Thread(target=lambda: uvicorn.run(app), daemon=True).start()
+    threading.Thread(
+        target=lambda: uvicorn.run(app, log_config=None), daemon=True
+    ).start()
 
     if settings.open_web_ui:
         webbrowser.open_new_tab(CONFIG["WEB_UI_URL"])

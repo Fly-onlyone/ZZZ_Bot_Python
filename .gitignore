@@ -2,6 +2,6 @@ product/
 
 src/playwright-browsers/
 
-
-!/product/Bot.spec
-!/product/Spec.py
+!product/*.py
+!product/Bot.spec
+!product/Bot version.txt
