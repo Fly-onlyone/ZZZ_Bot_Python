@@ -80,11 +80,35 @@ def load_shopping_data(file_path):
 
 
 def save_shopping_data(file_path, shopping_data):
-    """Save shopping data to the specified file path."""
+    """
+    Update or add shopping data in the specified file path without deleting existing key-value pairs.
+
+    Parameters:
+        file_path (Path): Path to the JSON file.
+        shopping_data (dict): New shopping data to update or add.
+    """
+    file_path = Path(file_path)
+
+    # Ensure the parent directory exists
     if not file_path.parent.exists():
         file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Load existing data if the file exists
+    if file_path.exists():
+        with open(file_path, "r", encoding="utf-8") as file:
+            try:
+                existing_data = json.load(file)
+            except json.JSONDecodeError:
+                existing_data = {}
+    else:
+        existing_data = {}
+
+    # Update existing data with new shopping data
+    existing_data.update(shopping_data)
+
+    # Save the updated data back to the file
     with open(file_path, "w", encoding="utf-8") as file:
-        json.dump(shopping_data, file, indent=4, ensure_ascii=False)
+        json.dump(existing_data, file, indent=4, ensure_ascii=False)
 
 
 def save_redeem_data(item_name, code_text, current_day, redeem_file_path, state):
