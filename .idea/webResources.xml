@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebResourcesPaths">
+    <contentEntries>
+      <entry url="file://$PROJECT_DIR$">
+        <entryData>
+          <resourceRoots>
+            <path value="file://$PROJECT_DIR$/authentication data" />
+            <path value="file://$PROJECT_DIR$/images" />
+            <path value="file://$PROJECT_DIR$/output" />
+            <path value="file://$PROJECT_DIR$/sample" />
+            <path value="file://$PROJECT_DIR$/screenshot" />
+          </resourceRoots>
+        </entryData>
+      </entry>
+    </contentEntries>
+  </component>
+</project>

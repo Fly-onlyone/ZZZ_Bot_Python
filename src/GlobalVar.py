@@ -8,20 +8,21 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 from DataHandler import Serializable
+from Logger import Logger
+from StringUtil import clean_leading_dots
 
 
 def is_exe():
     if os.getenv("SIMULATE_EXE", "0") == "1":
         sys.frozen = True
     if getattr(sys, "frozen", False):
+        sys.stdout = Logger(resource_path("./../log.txt", outside_path=True))
+        sys.stderr = sys.stdout
         print("running in a PyInstaller bundle")
         return True
     else:
         print("running in a normal Python process")
         return False
-
-
-is_exe = is_exe()
 
 
 def resource_path(relative_path, outside_path=False):
@@ -42,18 +43,6 @@ def resource_path(relative_path, outside_path=False):
         return final_path
     else:
         return relative_path
-
-
-def clean_leading_dots(path):
-    """
-    Removes all leading './' and '../' from the beginning of the given string path.
-    """
-    while path.startswith("./") or path.startswith("../"):
-        if path.startswith("./"):
-            path = path[2:]  # Remove './'
-        elif path.startswith("../"):
-            path = path[3:]  # Remove '../'
-    return path
 
 
 def generate_config(outside_folder, exclude_keys=None):
@@ -111,15 +100,6 @@ def generate_config(outside_folder, exclude_keys=None):
     }
 
 
-CONFIG = generate_config(
-    ["STORAGE_PATH", "OUTPUT_FOLDER", "SCREENSHOT_FOLDER"], ["WEB_UI_URL"]
-)
-CONFIG["WEB_UI_URL"] = (
-    "http://127.0.0.1:3000" if not is_exe else "http://127.0.0.1:8000"
-)
-print(CONFIG)
-
-
 @dataclass
 class AppSettings(Serializable):
 
@@ -139,6 +119,17 @@ class Account(Serializable):
     username: str = "galevan61"
     password: str = ""
     app_password: str = "jlqrqxxtaggvnuce"
+
+
+is_exe = is_exe()
+
+CONFIG = generate_config(
+    ["STORAGE_PATH", "OUTPUT_FOLDER", "SCREENSHOT_FOLDER"], ["WEB_UI_URL"]
+)
+CONFIG["WEB_UI_URL"] = (
+    "http://127.0.0.1:3000" if not is_exe else "http://127.0.0.1:8000"
+)
+print(CONFIG)
 
 
 settings = AppSettings.load(CONFIG["SETTINGS_FILE"])

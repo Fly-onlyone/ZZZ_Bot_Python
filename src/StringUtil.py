@@ -63,3 +63,17 @@ def extract_number(s, side="left"):
             raise ValueError("Invalid side parameter. Use 'left' or 'right'.")
     except (ValueError, IndexError):
         return None
+
+
+def clean_leading_dots(path):
+    """
+    Removes all leading './' and '../' from the beginning of the given string path.
+    """
+    while path.startswith("./") or path.startswith("../"):
+        if path.startswith("./"):
+            path = path[2:]  # Remove './'
+        elif path.startswith("../"):
+            path = path[3:]  # Remove '../'
+    return path
+
+

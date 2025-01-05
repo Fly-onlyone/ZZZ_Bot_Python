@@ -108,6 +108,7 @@ def run(page: Page):
 
     # Save updated shopping_data to file
     save_shopping_data(file_path, shopping_data)
+    shopping_data = load_shopping_data(file_path)
 
     # Shopping part
     if settings.redeem_after_gather_data:

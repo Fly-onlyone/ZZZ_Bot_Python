@@ -1,0 +1,42 @@
+2025-02-08 08:04:28: Error deleting log file ./..\log.txt: [WinError 32] The process cannot access the file because it is being used by another process: './..\\log.txt'
+2025-02-08 08:04:28: running in a PyInstaller bundle
+2025-02-08 08:04:28: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
+2025-02-08 08:04:28: Started server process [8748]
+2025-02-08 08:04:28: Waiting for application startup.
+2025-02-08 08:04:28: Application startup complete.
+2025-02-08 08:04:28: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-02-08 08:04:33: Exception in thread
+2025-02-08 08:04:33: Thread-2 (run_scheduled_tasks)
+2025-02-08 08:04:33: :
+2025-02-08 08:04:33: Traceback (most recent call last):
+2025-02-08 08:04:33: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1073, in _bootstrap_inner
+2025-02-08 08:04:33: self.run()
+2025-02-08 08:04:33: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1010, in run
+2025-02-08 08:04:33: self._target(*self._args, **self._kwargs)
+2025-02-08 08:04:33: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 288, in run_scheduled_tasks
+2025-02-08 08:04:33: check_missed_runs()
+2025-02-08 08:04:33: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 273, in check_missed_runs
+2025-02-08 08:04:33: playwright_task()
+2025-02-08 08:04:33: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 168, in playwright_task
+2025-02-08 08:04:33: with sync_playwright() as p:
+2025-02-08 08:04:33: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\sync_api\_context_manager.py", line 79, in __enter__
+2025-02-08 08:04:33: playwright = self._playwright
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: ^
+2025-02-08 08:04:33: AttributeError
+2025-02-08 08:04:33: :
+2025-02-08 08:04:33: 'PlaywrightContextManager' object has no attribute '_playwright'
