@@ -31,7 +31,6 @@ def send_mission_data_via_email_html(todays_data):
 
 def send_mail(mission_summary_html, todays_data):
     apobj = apprise.Apprise()
-    apobj.add("<SCHEME>://<FQDN>/<TOKEN>")
     apobj.add(f"mailto://{accounts.username}:{accounts.app_password}@gmail.com")
     try:
         apobj.notify(
