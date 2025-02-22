@@ -112,11 +112,16 @@ def save_shopping_data(file_path, shopping_data):
 
 
 def save_redeem_data(item_name, code_text, current_day, redeem_file_path, state):
+    import json
+    from datetime import datetime, timedelta
+
     # Load existing redeem data
     if redeem_file_path.exists():
         with open(redeem_file_path, "r", encoding="utf-8") as file:
             try:
                 redeem_data = json.load(file)
+                if not isinstance(redeem_data, list):
+                    redeem_data = []  # Ensure it's a list
             except json.JSONDecodeError:
                 redeem_data = []
     else:
@@ -129,7 +134,8 @@ def save_redeem_data(item_name, code_text, current_day, redeem_file_path, state)
     filtered_data = [
         entry
         for entry in redeem_data
-        if datetime.strptime(entry["Day"], "%H:%M %d/%m/%Y") > thirty_days_ago
+        if isinstance(entry, dict) and "Day" in entry and
+           datetime.strptime(entry["Day"], "%H:%M %d/%m/%Y") > thirty_days_ago
     ]
 
     # Add new entry
