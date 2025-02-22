@@ -10,13 +10,14 @@ from GlobalVar import CONFIG
 
 def handle_check_in(new_page: Page):
     print("Handling sign-in...")
-
-    # # Close the popup dialog
-    # try:
-    #     close_button = new_page.locator(".components-pc-assets-__dialog_---dialog-close---3G9gO2")
-    #     close_button.click(timeout=5000)
-    # except Exception as e:
-    #     print(e)
+    new_page.wait_for_timeout(5000)
+    # Close the popup dialog
+    try:
+        close_button = new_page.locator(".components-pc-assets-__dialog_---dialog-close---3G9gO2")
+        if close_button.is_visible():
+            close_button.click()
+    except Exception as e:
+        print(e)
 
     # Get current day number
     current_day = datetime.now().day
