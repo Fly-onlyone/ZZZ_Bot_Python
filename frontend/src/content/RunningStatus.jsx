@@ -26,14 +26,14 @@ export default function RunningStatus() {
           Last run
         </Typography>
         <DateTimeField
-          defaultValue={dayjs(last_run, "HH:mm dd/MM/YY")}
+          defaultValue={dayjs(last_run, "HH:mm DD/MM/YY")}
           format={"DD/MM/YYYY - hh:mm A"}
         />
         <Typography className="mb-2 font-semibold text-red-500" variant="h6">
           Next run
         </Typography>
         <DateTimeField
-          defaultValue={dayjs(next_run, "HH:mm dd/MM/YY")}
+          defaultValue={dayjs(next_run, "HH:mm DD/MM/YY")}
           format={"DD/MM/YYYY - hh:mm A"}
         />
       </div>
