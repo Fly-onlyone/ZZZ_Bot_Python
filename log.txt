@@ -40,3 +40,21 @@
 2025-02-08 08:04:33: AttributeError
 2025-02-08 08:04:33: :
 2025-02-08 08:04:33: 'PlaywrightContextManager' object has no attribute '_playwright'
+2025-02-22 18:08:59: Deleted old log file: ./..\log.txt.2024-12-31
+2025-02-22 18:08:59: running in a PyInstaller bundle
+2025-02-22 18:08:59: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
+2025-02-22 18:08:59: Started server process [13136]
+2025-02-22 18:08:59: Waiting for application startup.
+2025-02-22 18:08:59: Application startup complete.
+2025-02-22 18:08:59: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-02-22 18:09:04: 127.0.0.1:59099 - "GET / HTTP/1.1" 200
+2025-02-22 18:09:04: 127.0.0.1:59099 - "GET /assets/index-C0G6_hBB.css HTTP/1.1" 200
+2025-02-22 18:09:04: 127.0.0.1:59100 - "GET /assets/index-C9yIS2aK.js HTTP/1.1" 304
+2025-02-22 18:09:04: 127.0.0.1:59102 - "GET /routes HTTP/1.1" 200
+2025-02-22 18:09:04: 127.0.0.1:59099 - "GET /overview/mission HTTP/1.1" 200
+2025-02-22 18:09:04: 127.0.0.1:59100 - "GET /check-run-status HTTP/1.1" 200
+2025-02-22 18:09:04: 127.0.0.1:59103 - "GET /images/Qingyi02.ico HTTP/1.1" 304
+2025-02-22 18:09:04: 127.0.0.1:59102 - "GET /account HTTP/1.1" 200
+2025-02-22 18:09:04: 127.0.0.1:59100 - "GET /settings HTTP/1.1" 200
+2025-02-22 18:09:04: 127.0.0.1:59099 - "GET /shopping HTTP/1.1" 200
+2025-02-22 18:09:04: 127.0.0.1:59099 - "GET /images/Zhu%20Yuan02.ico HTTP/1.1" 304
