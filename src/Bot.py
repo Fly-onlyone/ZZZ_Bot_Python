@@ -27,9 +27,12 @@ import ManualLogin
 import Mission
 import Notification
 import ShoppingHandler
-from DataHandler import load_shopping_data
-from DataHandler import prepare_mission_data
-from GlobalVar import app, accounts, CONFIG, settings, is_exe
+from DataHandler import (
+    load_shopping_data,
+    prepare_mission_data,
+    load_redeem_data,
+)
+from GlobalVar import app, accounts, CONFIG, settings, is_exe, RedeemItem
 from ManualLogin import run, playState_lock
 from Win32Icon import Win32Icon
 
@@ -81,6 +84,35 @@ def update_shopping_data(selected: dict):
     return {"message": "Shopping data updated successfully"}
 
 
+@app.get("/redeem")
+def get_redeem_data():
+    return load_redeem_data(Path(CONFIG["REDEEM_FILE"]))
+
+
+@app.post("/redeem")
+def update_redeem_data(redeem_data: list[RedeemItem]):
+    file_path = CONFIG["REDEEM_FILE"]
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Redeem file not found")
+
+    try:
+        # Save data without 'id' and ensure UTF-8 encoding
+        with open(file_path, "w", encoding="utf-8") as file:
+            json.dump(
+                [item.model_dump() for item in redeem_data],
+                file,
+                indent=4,
+                ensure_ascii=False,
+            )
+
+        return {"message": "Redeem data updated successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update redeem data: {str(e)}"
+        )
+
+
 @app.get("/overview/mission")
 def get_mission_report():
     _, todays_data = prepare_mission_data(
@@ -89,7 +121,6 @@ def get_mission_report():
     return todays_data
 
 
-# FastAPI Endpoints
 @app.get("/account")
 def get_account():
     return asdict(accounts)

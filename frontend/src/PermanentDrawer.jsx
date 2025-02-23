@@ -34,12 +34,19 @@ import TaskIcon from "@mui/icons-material/Task";
 import ManualLogin from "./ManualLogin";
 import { IconCards, IconLogin2 } from "@tabler/icons-react";
 import { BACKEND_URL, DataLoader } from "./DataLoader";
+import RedeemIcon from "@mui/icons-material/Redeem";
+import Redeem from "./Redeem";
 
 const drawerWidth = 240;
 
 const tabs = [
   { label: "Overview", icon: <DashboardIcon />, path: "/" },
   { label: "Shopping", icon: <ShoppingCartIcon />, path: "/shopping" },
+  {
+    label: "Redeem",
+    icon: <RedeemIcon />,
+    path: "/redeem",
+  },
   {
     label: "Account",
     icon: <AccountCircleIcon />,
@@ -149,6 +156,7 @@ export default function PermanentDrawer() {
               }
             />
             <Route path="/shopping" element={<Shopping />} />
+            <Route path="/redeem" element={<Redeem />} />
             <Route path="/manual" element={<ManualLogin />} />
             <Route
               path="/settings"
