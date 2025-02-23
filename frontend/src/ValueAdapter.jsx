@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { TimePicker } from "@mui/x-date-pickers";
-import { Divider, IconButton, Switch, TextField } from "@mui/material";
+import { Button, Divider, IconButton, Switch, TextField } from "@mui/material";
 import dayjs from "dayjs";
 import { useLocation } from "react-router-dom";
 import { ContentCopy, Visibility, VisibilityOff } from "@mui/icons-material";
@@ -84,25 +84,25 @@ export default function ValueAdapter({
                   handleChange(key, updatedArray);
                 }}
               />
-              <button
-                type="button"
-                className="h-12 w-1/12 rounded-lg bg-red-600 px-4 py-2 text-lg font-medium text-white hover:bg-red-700"
+              <Button
+                variant="contained"
+                color="error"
                 onClick={() => {
                   const updatedArray = fieldValue.filter((_, i) => i !== index);
                   handleChange(key, updatedArray);
                 }}
               >
                 Remove
-              </button>
+              </Button>
             </div>
           ))}
-          <button
-            type="button"
-            className="mt-4 h-12 w-1/12 rounded-lg bg-green-600 px-4 py-2 text-lg font-medium text-white hover:bg-green-900"
+          <Button
+            variant="contained"
+            color="success"
             onClick={() => handleChange(key, [...fieldValue, ""])}
           >
             Add Time
-          </button>
+          </Button>
         </div>
       );
     } else if (typeof fieldValue === "boolean") {

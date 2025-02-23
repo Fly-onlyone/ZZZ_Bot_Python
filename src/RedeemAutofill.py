@@ -38,6 +38,7 @@ def run(context: BrowserContext, code, item_name, current_day, redeem_file_path)
 
     redeem_page.get_by_placeholder("Enter redemption code").fill(code)
     redeem_page.get_by_role("button", name="Redeem").click()
+    redeem_page.wait_for_timeout(5000)
 
     # Check if the success popup appears
     if redeem_page.get_by_text(
