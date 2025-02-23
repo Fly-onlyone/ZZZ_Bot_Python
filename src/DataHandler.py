@@ -112,9 +112,38 @@ def save_shopping_data(file_path, shopping_data):
 
 
 def save_redeem_data(item_name, code_text, current_day, redeem_file_path, state):
-    import json
-    from datetime import datetime, timedelta
+    redeem_data = load_redeem_data(redeem_file_path)
 
+    # Filter out entries older than 30 days
+    today = datetime.strptime(current_day, "%H:%M %d/%m/%Y")
+    thirty_days_ago = today - timedelta(days=30)
+
+    filtered_data = [
+        entry
+        for entry in redeem_data
+        if isinstance(entry, dict)
+        and "Day" in entry
+        and datetime.strptime(entry["Day"], "%H:%M %d/%m/%Y") > thirty_days_ago
+    ]
+
+    # Add new entry
+    new_entry = {
+        "item_name": item_name,
+        "code": code_text,
+        "day": current_day,
+        "state": state,  # Success or failure
+    }
+    filtered_data.append(new_entry)
+
+    # Save updated data back to file
+    redeem_file_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(redeem_file_path, "w", encoding="utf-8") as file:
+        json.dump(filtered_data, file, indent=4, ensure_ascii=False)
+
+    print(f"Redeem data saved to {redeem_file_path}")
+
+
+def load_redeem_data(redeem_file_path):
     # Load existing redeem data
     if redeem_file_path.exists():
         with open(redeem_file_path, "r", encoding="utf-8") as file:
@@ -126,30 +155,4 @@ def save_redeem_data(item_name, code_text, current_day, redeem_file_path, state)
                 redeem_data = []
     else:
         redeem_data = []
-
-    # Filter out entries older than 30 days
-    today = datetime.strptime(current_day, "%H:%M %d/%m/%Y")
-    thirty_days_ago = today - timedelta(days=30)
-
-    filtered_data = [
-        entry
-        for entry in redeem_data
-        if isinstance(entry, dict) and "Day" in entry and
-           datetime.strptime(entry["Day"], "%H:%M %d/%m/%Y") > thirty_days_ago
-    ]
-
-    # Add new entry
-    new_entry = {
-        "Item Name": item_name,
-        "Code": code_text,
-        "Day": current_day,
-        "State": state,  # Success or failure
-    }
-    filtered_data.append(new_entry)
-
-    # Save updated data back to file
-    redeem_file_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(redeem_file_path, "w", encoding="utf-8") as file:
-        json.dump(filtered_data, file, indent=4, ensure_ascii=False)
-
-    print(f"Redeem data saved to {redeem_file_path}")
+    return redeem_data

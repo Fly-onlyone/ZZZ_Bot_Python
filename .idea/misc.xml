@@ -3,6 +3,7 @@
   <component name="Black">
     <option name="enabledOnReformat" value="true" />
     <option name="enabledOnSave" value="true" />
+    <option name="executionMode" value="BINARY" />
     <option name="pathToExecutable" value="C:\Users\PC\anaconda3\Scripts\black.exe" />
     <option name="sdkName" value="Python 3.12 (ZZZ bot - Python)" />
   </component>

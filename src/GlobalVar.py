@@ -10,6 +10,7 @@ from starlette.staticfiles import StaticFiles
 from DataHandler import Serializable
 from Logger import Logger
 from StringUtil import clean_leading_dots
+from pydantic import BaseModel
 
 
 def is_exe():
@@ -119,6 +120,13 @@ class Account(Serializable):
     username: str = "***REMOVED***"
     password: str = ""
     app_password: str = "***REMOVED***"
+
+
+class RedeemItem(BaseModel):
+    item_name: str
+    code: str
+    day: str
+    state: bool
 
 
 is_exe = is_exe()
