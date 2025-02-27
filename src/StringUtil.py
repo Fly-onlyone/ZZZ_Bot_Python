@@ -75,5 +75,3 @@ def clean_leading_dots(path):
         elif path.startswith("../"):
             path = path[3:]  # Remove '../'
     return path
-
-

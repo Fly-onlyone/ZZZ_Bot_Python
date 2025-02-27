@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 
 
@@ -54,13 +54,30 @@ class Logger:
             for filename in os.listdir(log_dir):
                 if filename.startswith(log_prefix):
                     filepath = os.path.join(log_dir, filename)
-                    file_time = datetime.fromtimestamp(os.path.getmtime(filepath))
-                    if now - file_time > timedelta(days=self.retention_days):
-                        try:
+                    try:
+                        file_time = datetime.fromtimestamp(os.path.getctime(filepath))
+                        age_days = (now - file_time).days
+
+                        if age_days > self.retention_days:
+                            # Close any open handlers before deleting
+                            logger = logging.getLogger()
+                            for handler in logger.handlers:
+                                if (
+                                    isinstance(handler, logging.FileHandler)
+                                    and handler.baseFilename == filepath
+                                ):
+                                    logger.removeHandler(handler)
+                                    handler.close()
+
                             os.remove(filepath)
                             logging.info(f"Deleted old log file: {filepath}")
-                        except Exception as e:
-                            logging.error(f"Error deleting log file {filepath}: {e}")
+                        else:
+                            logging.info(
+                                f"Log file '{filepath}' is {age_days} days old and was not deleted."
+                            )
+
+                    except Exception as e:
+                        logging.error(f"Error deleting log file {filepath}: {e}")
 
         cleanup_logs()
 

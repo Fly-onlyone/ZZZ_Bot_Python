@@ -4,13 +4,13 @@ from dataclasses import dataclass, field
 from typing import List
 
 from fastapi import FastAPI
+from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 from DataHandler import Serializable
 from Logger import Logger
 from StringUtil import clean_leading_dots
-from pydantic import BaseModel
 
 
 def is_exe():
