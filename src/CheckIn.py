@@ -1,7 +1,6 @@
 from datetime import datetime
 
-
-from playwright.sync_api import Page,expect
+from playwright.sync_api import Page
 
 import Mission
 import RetryHelper
@@ -11,13 +10,13 @@ from GlobalVar import CONFIG
 def handle_check_in(new_page: Page):
     print("Handling sign-in...")
     new_page.wait_for_timeout(5000)
+
     # Close the popup dialog
-    try:
-        close_button = new_page.locator(".components-pc-assets-__dialog_---dialog-close---3G9gO2")
-        if close_button.is_visible():
-            close_button.click()
-    except Exception as e:
-        print(e)
+    close_button = new_page.locator(
+        ".components-pc-assets-__dialog_---dialog-close---3G9gO2"
+    )
+    if close_button.is_visible():
+        close_button.click()
 
     # Get current day number
     current_day = datetime.now().day

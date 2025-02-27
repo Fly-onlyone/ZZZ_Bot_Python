@@ -1,5 +1,5 @@
 from playwright.sync_api import Page, Locator
-from GlobalVar import is_exe
+
 import RetryHelper
 from CheckIn import handle_check_in
 from DataHandler import maintain_mission_data
@@ -90,7 +90,6 @@ def count_mission(page: Page):
 
 
 def doing_mission(mission_count: int, page: Page, todays_data: dict):
-
     check_in_result = todays_data.get(
         "check_in", "Link isn't opened"
     )  # Get the initial check-in state
@@ -102,8 +101,6 @@ def doing_mission(mission_count: int, page: Page, todays_data: dict):
         check_in_result = handle_check_in(login_page)
     else:
         for i in range(1, mission_count + 1):
-            if is_exe:
-                page.wait_for_timeout(2000)
             # Locate the mission text and button
             mission_text_locator = page.locator(
                 f"div:nth-child({i}) > .taskItemPcLeft-Aetp6m > .top-ohhwaM"
@@ -164,6 +161,10 @@ def doing_mission(mission_count: int, page: Page, todays_data: dict):
                 todays_data["missions"].append(
                     {"name": mission_text, "state": mission_state}
                 )
+    if check_in_result == "Link isn't opened":
+        print("Wait for Check-in activity")
+        page.wait_for_timeout(10000)
+    print(f"Final Check-in result: {check_in_result}")
     # Store the final check-in result in todays_data
     todays_data["check_in"] = check_in_result
 
