@@ -170,7 +170,9 @@ def run_shopping(page: Page, shopping_data):
         print(f"Processing item: {item_name}")
 
         # Locate and interact with the item in the browser
-        item_locator = page.locator(".item-6Owrjq").filter(has=page.get_by_text(item_name,exact=True))
+        item_locator = page.locator(".item-6Owrjq").filter(
+            has=page.get_by_text(item_name, exact=True)
+        )
         if item_locator.count() == 0:
             print(f"Item '{item_name}' not found on the page. Skipping.")
             continue

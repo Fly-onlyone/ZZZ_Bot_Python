@@ -1,77 +1,77 @@
 {
-    "Point": 125,
-    "Duration": {
-        "Start": "21/1",
-        "End": "11/3"
+  "Point": 125,
+  "Duration": {
+    "Start": "21/1",
+    "End": "11/3"
+  },
+  "Item's list": {
+    "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (Permanent)": {
+      "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (Permanent)",
+      "Price": 500,
+      "Inventory": 4997884,
+      "Available": "Exchange"
     },
-    "Item's list": {
-        "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (Permanent)": {
-            "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (Permanent)",
-            "Price": 500,
-            "Inventory": 4997884,
-            "Available": "Exchange"
-        },
-        "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (90-Day)": {
-            "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (90-Day)",
-            "Price": 90,
-            "Inventory": 4999829,
-            "Available": "Exchange"
-        },
-        "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (30-Day)": {
-            "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (30-Day)",
-            "Price": 40,
-            "Inventory": 4999691,
-            "Available": "Exchange"
-        },
-        "Polychrome ×60": {
-            "Name": "Polychrome ×60",
-            "Price": 300,
-            "Inventory": 0,
-            "Available": "18:00 26/02/25"
-        },
-        "Polychrome ×100": {
-            "Name": "Polychrome ×100",
-            "Price": 500,
-            "Inventory": 0,
-            "Available": "18:00 26/02/25"
-        },
-        "Senior Investigator Log ×5": {
-            "Name": "Senior Investigator Log ×5",
-            "Price": 100,
-            "Inventory": 7048,
-            "Available": "Limit Reached"
-        },
-        "Dennies ×5,000": {
-            "Name": "Dennies ×5,000",
-            "Price": 50,
-            "Inventory": 70631,
-            "Available": "Limit Reached"
-        },
-        "Dennies ×10,000": {
-            "Name": "Dennies ×10,000",
-            "Price": 80,
-            "Inventory": 12933,
-            "Available": "Limit Reached"
-        },
-        "Polychrome ×10": {
-            "Name": "Polychrome ×10",
-            "Price": 100,
-            "Inventory": 5731,
-            "Available": "Limit Reached"
-        },
-        "Polychrome ×30": {
-            "Name": "Polychrome ×30",
-            "Price": 200,
-            "Inventory": 2887,
-            "Available": "Limit Reached"
-        }
+    "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (90-Day)": {
+      "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (90-Day)",
+      "Price": 90,
+      "Inventory": 4999829,
+      "Available": "Exchange"
     },
-    "Selected": [
-        "Polychrome ×60",
-        "Polychrome ×30",
-        "Dennies ×10,000",
-        "Dennies ×5,000",
-        "Polychrome ×10",
-        "Senior Investigator Log ×5"
-    ]
+    "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (30-Day)": {
+      "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (30-Day)",
+      "Price": 40,
+      "Inventory": 4999691,
+      "Available": "Exchange"
+    },
+    "Polychrome ×60": {
+      "Name": "Polychrome ×60",
+      "Price": 300,
+      "Inventory": 0,
+      "Available": "18:00 26/02/25"
+    },
+    "Polychrome ×100": {
+      "Name": "Polychrome ×100",
+      "Price": 500,
+      "Inventory": 0,
+      "Available": "18:00 26/02/25"
+    },
+    "Senior Investigator Log ×5": {
+      "Name": "Senior Investigator Log ×5",
+      "Price": 100,
+      "Inventory": 7048,
+      "Available": "Limit Reached"
+    },
+    "Dennies ×5,000": {
+      "Name": "Dennies ×5,000",
+      "Price": 50,
+      "Inventory": 70631,
+      "Available": "Limit Reached"
+    },
+    "Dennies ×10,000": {
+      "Name": "Dennies ×10,000",
+      "Price": 80,
+      "Inventory": 12933,
+      "Available": "Limit Reached"
+    },
+    "Polychrome ×10": {
+      "Name": "Polychrome ×10",
+      "Price": 100,
+      "Inventory": 5731,
+      "Available": "Limit Reached"
+    },
+    "Polychrome ×30": {
+      "Name": "Polychrome ×30",
+      "Price": 200,
+      "Inventory": 2887,
+      "Available": "Limit Reached"
+    }
+  },
+  "Selected": [
+    "Polychrome ×60",
+    "Polychrome ×30",
+    "Dennies ×10,000",
+    "Dennies ×5,000",
+    "Polychrome ×10",
+    "Senior Investigator Log ×5"
+  ]
 }

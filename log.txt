@@ -1,319 +1,275 @@
-2025-02-26 17:22:02: running in a PyInstaller bundle
-2025-02-26 17:22:02: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
-2025-02-26 17:22:02: Started server process [24652]
-2025-02-26 17:22:02: Waiting for application startup.
-2025-02-26 17:22:02: Application startup complete.
-2025-02-26 17:22:02: [Errno 10048] error while attempting to bind on address ('127.0.0.1', 8000): only one usage of each socket address (protocol/network address/port) is normally permitted
-2025-02-26 17:22:02: Waiting for application shutdown.
-2025-02-26 17:22:02: Application shutdown complete.
-2025-02-26 17:22:19: running in a PyInstaller bundle
-2025-02-26 17:22:19: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
-2025-02-26 17:22:19: Started server process [10700]
-2025-02-26 17:22:19: Waiting for application startup.
-2025-02-26 17:22:19: Application startup complete.
-2025-02-26 17:22:19: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-2025-02-26 17:22:22: 127.0.0.1:58802 - "GET / HTTP/1.1" 304
-2025-02-26 17:22:23: 127.0.0.1:58803 - "GET /assets/index-yspoct--.js HTTP/1.1" 304
-2025-02-26 17:22:23: 127.0.0.1:58802 - "GET /assets/index-DZMRNEiB.css HTTP/1.1" 304
-2025-02-26 17:22:23: 127.0.0.1:58803 - "GET /images/Qingyi02.ico HTTP/1.1" 304
-2025-02-26 17:22:23: 127.0.0.1:58803 - "GET /check-run-status HTTP/1.1" 200
-2025-02-26 17:22:23: 127.0.0.1:58802 - "GET /overview/mission HTTP/1.1" 200
-2025-02-26 17:22:23: 127.0.0.1:58807 - "GET /routes HTTP/1.1" 200
-2025-02-26 17:22:23: 127.0.0.1:58803 - "GET /account HTTP/1.1" 200
-2025-02-26 17:22:23: 127.0.0.1:58807 - "GET /shopping HTTP/1.1" 200
-2025-02-26 17:22:23: 127.0.0.1:58802 - "GET /redeem HTTP/1.1" 200
-2025-02-26 17:22:23: 127.0.0.1:58808 - "GET /settings HTTP/1.1" 200
-2025-02-26 17:22:23: 127.0.0.1:58803 - "GET /images/Zhu%20Yuan02.ico HTTP/1.1" 304
-2025-02-26 17:22:25: Task cancelled due to setting.
-2025-02-26 17:22:32: Clicked on button.
-2025-02-26 17:22:32: Attempt 1: Target screen not yet visible, retrying...
-2025-02-26 17:22:33: Clicked on button.
-2025-02-26 17:22:33: Target screen appeared.
-2025-02-26 17:22:33: Non-zero count found: 3 (Attempt 1)
-2025-02-26 17:22:33: Avatar count: 3
-2025-02-26 17:22:33: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
-2025-02-26 17:22:33: Difference from ZZZ Avatar: 73.31625000000001%
-2025-02-26 17:22:33: This is NOT ZZZ avatar
-2025-02-26 17:22:33: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
-2025-02-26 17:22:33: Difference from ZZZ Avatar: 0.0%
-2025-02-26 17:22:33: This is ZZZ avatar
-2025-02-26 17:22:33: Current time is within the duration. Updating data.
-2025-02-26 17:22:33: Attempt 1: Count is 0, retrying...
-2025-02-26 17:22:34: Non-zero count found: 10 (Attempt 2)
-2025-02-26 17:22:35: Return time:
-2025-02-26 17:22:35: 18:00 26/02/25
-2025-02-26 17:22:35: Return time:
-2025-02-26 17:22:35: 18:00 26/02/25
-2025-02-26 17:22:35: Processing item: Polychrome ×60
-2025-02-26 17:22:35: Can't exchange item
-2025-02-26 17:22:35: Processing item: Polychrome ×30
-2025-02-26 17:22:35: Can't exchange item
-2025-02-26 17:22:35: Processing item: Dennies ×10,000
-2025-02-26 17:22:35: Can't exchange item
-2025-02-26 17:22:35: Processing item: Dennies ×5,000
-2025-02-26 17:22:35: Can't exchange item
-2025-02-26 17:22:35: Processing item: Polychrome ×10
-2025-02-26 17:22:35: Can't exchange item
-2025-02-26 17:22:35: Processing item: Senior Investigator Log ×5
-2025-02-26 17:22:35: Can't exchange item
-2025-02-26 17:22:35: Clicked on button.
-2025-02-26 17:22:35: Attempt 1: Target screen not yet visible, retrying...
-2025-02-26 17:22:36: Clicked on button.
-2025-02-26 17:22:36: Target screen appeared.
-2025-02-26 17:22:36: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
-2025-02-26 17:22:36: Difference from ZZZ Avatar: 73.31625000000001%
-2025-02-26 17:22:36: This is NOT ZZZ avatar
-2025-02-26 17:22:36: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
-2025-02-26 17:22:36: Difference from ZZZ Avatar: 0.0%
-2025-02-26 17:22:36: This is ZZZ avatar
-2025-02-26 17:22:36: Max draw you can afford: 6
-2025-02-26 17:22:36: Max draw available: 5
-2025-02-26 17:22:36: Available draw: 5
-2025-02-26 17:22:49: 127.0.0.1:59211 - "GET /routes HTTP/1.1" 200
-2025-02-26 17:22:49: 127.0.0.1:59209 - "GET /overview/mission HTTP/1.1" 200
-2025-02-26 17:22:49: 127.0.0.1:59210 - "GET /check-run-status HTTP/1.1" 200
-2025-02-26 17:22:49: 127.0.0.1:59210 - "GET /account HTTP/1.1" 200
-2025-02-26 17:22:49: 127.0.0.1:59211 - "GET /shopping HTTP/1.1" 200
-2025-02-26 17:22:49: 127.0.0.1:59209 - "GET /redeem HTTP/1.1" 200
-2025-02-26 17:22:49: 127.0.0.1:59212 - "GET /settings HTTP/1.1" 200
-2025-02-26 17:23:07: 127.0.0.1:59268 - "POST /settings HTTP/1.1" 200
-2025-02-26 17:23:07: 127.0.0.1:59268 - "GET /settings HTTP/1.1" 200
-2025-02-26 17:23:21: Clicked on button.
-2025-02-26 17:23:21: Attempt 1: Target screen not yet visible, retrying...
-2025-02-26 17:23:22: Clicked on button.
-2025-02-26 17:23:22: Target screen appeared.
-2025-02-26 17:23:22: Non-zero count found: 3 (Attempt 1)
-2025-02-26 17:23:22: Avatar count: 3
-2025-02-26 17:23:22: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
-2025-02-26 17:23:22: Difference from ZZZ Avatar: 73.31625000000001%
-2025-02-26 17:23:22: This is NOT ZZZ avatar
-2025-02-26 17:23:22: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
-2025-02-26 17:23:23: Difference from ZZZ Avatar: 0.0%
-2025-02-26 17:23:23: This is ZZZ avatar
-2025-02-26 17:23:23: Attempt 1: Count is 0, retrying...
-2025-02-26 17:23:24: Non-zero count found: 6 (Attempt 2)
-2025-02-26 17:23:24: Mission count: 6
-2025-02-26 17:23:24: Difference with Finished (tick) image: 76.55833333333332%
-2025-02-26 17:23:24: Difference with Unfinished (arrow) image: 76.55833333333332%
-2025-02-26 17:23:24: Difference with Reward image: 0.0%
-2025-02-26 17:23:24: Button detected as Reward
-2025-02-26 17:23:24: Starting mission: Log into Zenless Zone Zero today
-2025-02-26 17:23:24: Attempting to do mission...
-2025-02-26 17:23:27: Retry 1...
-2025-02-26 17:23:27: Reward claimed
-2025-02-26 17:23:27: Check-in result updated: Link isn't opened
-2025-02-26 17:23:27: Difference with Finished (tick) image: 67.28333333333333%
-2025-02-26 17:23:27: Difference with Unfinished (arrow) image: 0.0%
-2025-02-26 17:23:27: Difference with Reward image: 76.55833333333332%
-2025-02-26 17:23:27: Button detected as Unfinished
-2025-02-26 17:23:27: Starting mission: View this week's trending discussions and leave a fun comment
-2025-02-26 17:23:27: Attempting to do mission...
-2025-02-26 17:23:28: Closing unrelated popup...
-2025-02-26 17:23:29: Retry 1...
-2025-02-26 17:23:31: Attempting to do mission...
-2025-02-26 17:23:31: Closing unrelated popup...
-2025-02-26 17:23:33: Retry 2...
-2025-02-26 17:23:34: Attempting to do mission...
-2025-02-26 17:23:34: Closing unrelated popup...
-2025-02-26 17:23:36: Retry 3...
-2025-02-26 17:23:37: Attempting to do mission...
-2025-02-26 17:23:41: Closing unrelated popup...
-2025-02-26 17:23:43: Retry 4...
-2025-02-26 17:23:44: Attempting to do mission...
-2025-02-26 17:23:44: Closing unrelated popup...
-2025-02-26 17:23:46: Unable to complete this mission.
-2025-02-26 17:23:46: Check-in result updated: Link isn't opened
-2025-02-26 17:23:46: Difference with Finished (tick) image: 0.0%
-2025-02-26 17:23:46: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-26 17:23:46: Difference with Reward image: 76.55833333333332%
-2025-02-26 17:23:46: Button detected as Finished
-2025-02-26 17:23:46: Skipping already finished mission (based on button state): Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game
-2025-02-26 17:23:46: Difference with Finished (tick) image: 0.0%
-2025-02-26 17:23:46: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-26 17:23:46: Difference with Reward image: 76.55833333333332%
-2025-02-26 17:23:46: Button detected as Finished
-2025-02-26 17:23:46: Skipping already finished mission (based on button state): Read this week's high-quality guides
-2025-02-26 17:23:46: Difference with Finished (tick) image: 0.0%
-2025-02-26 17:23:46: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-26 17:23:46: Difference with Reward image: 76.55833333333332%
-2025-02-26 17:23:46: Button detected as Finished
-2025-02-26 17:23:46: Skipping already finished mission (based on button state): Use the Zenless Zone Zero Wiki tool once
-2025-02-26 17:23:46: Difference with Finished (tick) image: 0.0%
-2025-02-26 17:23:46: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-26 17:23:46: Difference with Reward image: 76.55833333333332%
-2025-02-26 17:23:46: Button detected as Finished
-2025-02-26 17:23:46: Skipping already finished mission (based on button state): Visit the Zenless Zone Zero community today
-2025-02-26 17:23:47: An error occurred when calling message handler
-Traceback (most recent call last):
-  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_win32.py", line 412, in _dispatcher
-    return int(icon._message_handlers.get(
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Win32Icon.py", line 14, in _on_notify
-    super()._on_notify(wparam, lparam)
-  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_win32.py", line 224, in _on_notify
-    descriptors[index - 1](self)
-  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_base.py", line 328, in inner
-    callback(self)
-  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_base.py", line 453, in __call__
-    return self._action(icon, self)
-           ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_base.py", line 554, in wrapper1
-    return action(icon)
-           ^^^^^^^^^^^^
-  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 340, in <lambda>
-    MenuItem("Run Playwright", lambda item: playwright_task()),
-                                            ^^^^^^^^^^^^^^^^^
-  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 223, in playwright_task
-    Mission.run(CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data)
-  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Mission.py", line 174, in run
-    doing_mission(mission_count, page, todays_data)
-  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Mission.py", line 165, in doing_mission
-    if is_exe():
-       ^^^^^^^^
-TypeError: 'bool' object is not callable
-2025-02-26 17:24:22: running in a PyInstaller bundle
-2025-02-26 17:24:22: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
-2025-02-26 17:24:22: Started server process [25172]
-2025-02-26 17:24:22: Waiting for application startup.
-2025-02-26 17:24:22: Application startup complete.
-2025-02-26 17:24:22: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-2025-02-26 17:24:36: Clicked on button.
-2025-02-26 17:24:36: Attempt 1: Target screen not yet visible, retrying...
-2025-02-26 17:24:37: Clicked on button.
-2025-02-26 17:24:37: Target screen appeared.
-2025-02-26 17:24:37: Non-zero count found: 3 (Attempt 1)
-2025-02-26 17:24:37: Avatar count: 3
-2025-02-26 17:24:37: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
-2025-02-26 17:24:37: Difference from ZZZ Avatar: 73.31625000000001%
-2025-02-26 17:24:37: This is NOT ZZZ avatar
-2025-02-26 17:24:37: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
-2025-02-26 17:24:37: Difference from ZZZ Avatar: 0.0%
-2025-02-26 17:24:37: This is ZZZ avatar
-2025-02-26 17:24:38: Attempt 1: Count is 0, retrying...
-2025-02-26 17:24:39: Non-zero count found: 6 (Attempt 2)
-2025-02-26 17:24:39: Mission count: 6
-2025-02-26 17:24:39: Difference with Finished (tick) image: 67.28333333333333%
-2025-02-26 17:24:39: Difference with Unfinished (arrow) image: 0.0%
-2025-02-26 17:24:39: Difference with Reward image: 76.55833333333332%
-2025-02-26 17:24:39: Button detected as Unfinished
-2025-02-26 17:24:39: Starting mission: View this week's trending discussions and leave a fun comment
-2025-02-26 17:24:39: Attempting to do mission...
-2025-02-26 17:24:39: Closing unrelated popup...
-2025-02-26 17:24:41: Retry 1...
-2025-02-26 17:24:42: Attempting to do mission...
-2025-02-26 17:24:42: Closing unrelated popup...
-2025-02-26 17:24:44: Retry 2...
-2025-02-26 17:24:45: Attempting to do mission...
-2025-02-26 17:24:50: Closing unrelated popup...
-2025-02-26 17:24:52: Retry 3...
-2025-02-26 17:24:53: Attempting to do mission...
-2025-02-26 17:24:59: Closing unrelated popup...
-2025-02-26 17:25:01: Retry 4...
-2025-02-26 17:25:03: Attempting to do mission...
-2025-02-26 17:25:03: Closing unrelated popup...
-2025-02-26 17:25:05: Unable to complete this mission.
-2025-02-26 17:25:05: Check-in result updated: Link isn't opened
-2025-02-26 17:25:05: Difference with Finished (tick) image: 0.0%
-2025-02-26 17:25:05: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-26 17:25:05: Difference with Reward image: 76.55833333333332%
-2025-02-26 17:25:05: Button detected as Finished
-2025-02-26 17:25:05: Skipping already finished mission (based on button state): Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game
-2025-02-26 17:25:05: Difference with Finished (tick) image: 0.0%
-2025-02-26 17:25:05: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-26 17:25:05: Difference with Reward image: 76.55833333333332%
-2025-02-26 17:25:05: Button detected as Finished
-2025-02-26 17:25:05: Skipping already finished mission (based on button state): Log into Zenless Zone Zero today
-2025-02-26 17:25:05: Difference with Finished (tick) image: 0.0%
-2025-02-26 17:25:05: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-26 17:25:05: Difference with Reward image: 76.55833333333332%
-2025-02-26 17:25:05: Button detected as Finished
-2025-02-26 17:25:05: Skipping already finished mission (based on button state): Read this week's high-quality guides
-2025-02-26 17:25:05: Difference with Finished (tick) image: 0.0%
-2025-02-26 17:25:05: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-26 17:25:05: Difference with Reward image: 76.55833333333332%
-2025-02-26 17:25:05: Button detected as Finished
-2025-02-26 17:25:05: Skipping already finished mission (based on button state): Use the Zenless Zone Zero Wiki tool once
-2025-02-26 17:25:05: Difference with Finished (tick) image: 0.0%
-2025-02-26 17:25:05: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-26 17:25:05: Difference with Reward image: 76.55833333333332%
-2025-02-26 17:25:05: Button detected as Finished
-2025-02-26 17:25:05: Skipping already finished mission (based on button state): Visit the Zenless Zone Zero community today
-2025-02-26 17:25:07: Mission data saved.
-2025-02-26 17:25:07: Applying Google Mail Defaults
-2025-02-26 17:25:10: Sent Email to ***REMOVED***@gmail.com
-2025-02-26 17:25:10: Email sent successfully.
-2025-02-26 17:25:10: Gather data cancelled due to setting.
-2025-02-26 17:25:10: Clicked on button.
-2025-02-26 17:25:10: Target screen appeared.
-2025-02-26 17:25:10: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
-2025-02-26 17:25:10: Difference from ZZZ Avatar: 73.31625000000001%
-2025-02-26 17:25:10: This is NOT ZZZ avatar
-2025-02-26 17:25:11: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
-2025-02-26 17:25:11: Difference from ZZZ Avatar: 0.0%
-2025-02-26 17:25:11: This is ZZZ avatar
-2025-02-26 17:25:11: Max draw you can afford: 6
-2025-02-26 17:25:11: Max draw available: 5
-2025-02-26 17:25:11: Available draw: 5
-2025-02-26 17:26:31: running in a PyInstaller bundle
-2025-02-26 17:26:31: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
-2025-02-26 17:26:31: Started server process [22620]
-2025-02-26 17:26:31: Waiting for application startup.
-2025-02-26 17:26:31: Application startup complete.
-2025-02-26 17:26:31: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-2025-02-26 17:26:43: Clicked on button.
-2025-02-26 17:26:43: Attempt 1: Target screen not yet visible, retrying...
-2025-02-26 17:26:44: Clicked on button.
-2025-02-26 17:26:44: Target screen appeared.
-2025-02-26 17:26:44: Non-zero count found: 3 (Attempt 1)
-2025-02-26 17:26:44: Avatar count: 3
-2025-02-26 17:26:44: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
-2025-02-26 17:26:44: Difference from ZZZ Avatar: 73.31625000000001%
-2025-02-26 17:26:44: This is NOT ZZZ avatar
-2025-02-26 17:26:44: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
-2025-02-26 17:26:44: Difference from ZZZ Avatar: 0.0%
-2025-02-26 17:26:44: This is ZZZ avatar
-2025-02-26 17:26:45: Attempt 1: Count is 0, retrying...
-2025-02-26 17:26:46: Non-zero count found: 6 (Attempt 2)
-2025-02-26 17:26:46: Mission count: 6
-2025-02-26 17:26:48: Difference with Finished (tick) image: 67.28333333333333%
-2025-02-26 17:26:48: Difference with Unfinished (arrow) image: 0.0%
-2025-02-26 17:26:48: Difference with Reward image: 76.55833333333332%
-2025-02-26 17:26:48: Button detected as Unfinished
-2025-02-26 17:26:48: Starting mission: View this week's trending discussions and leave a fun comment
-2025-02-26 17:26:48: Attempting to do mission...
-2025-02-26 17:26:48: Closing unrelated popup...
-2025-02-26 17:26:50: Retry 1...
-2025-02-26 17:26:51: Attempting to do mission...
-2025-02-26 17:26:51: Closing unrelated popup...
-2025-02-26 17:26:53: Retry 2...
-2025-02-26 17:26:54: Attempting to do mission...
-2025-02-26 17:26:54: Closing unrelated popup...
-2025-02-26 17:26:56: Retry 3...
-2025-02-26 17:26:57: Attempting to do mission...
-2025-02-26 17:26:57: Closing unrelated popup...
-2025-02-26 17:26:59: Retry 4...
-2025-02-26 17:27:00: Attempting to do mission...
-2025-02-26 17:27:00: Closing unrelated popup...
-2025-02-26 17:27:02: Unable to complete this mission.
-2025-02-26 17:27:02: Check-in result updated: Link isn't opened
-2025-02-26 17:27:04: Skipping already finished mission from todays_data: Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game
-2025-02-26 17:27:06: Skipping already finished mission from todays_data: Log into Zenless Zone Zero today
-2025-02-26 17:27:08: Skipping already finished mission from todays_data: Read this week's high-quality guides
-2025-02-26 17:27:10: Skipping already finished mission from todays_data: Use the Zenless Zone Zero Wiki tool once
-2025-02-26 17:27:12: Skipping already finished mission from todays_data: Visit the Zenless Zone Zero community today
-2025-02-26 17:27:12: Mission data saved.
-2025-02-26 17:27:13: Applying Google Mail Defaults
-2025-02-26 17:27:15: Sent Email to ***REMOVED***@gmail.com
-2025-02-26 17:27:16: Email sent successfully.
-2025-02-26 17:27:16: Gather data cancelled due to setting.
-2025-02-26 17:27:16: Clicked on button.
-2025-02-26 17:27:16: Target screen appeared.
-2025-02-26 17:27:16: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
-2025-02-26 17:27:16: Difference from ZZZ Avatar: 73.31625000000001%
-2025-02-26 17:27:16: This is NOT ZZZ avatar
-2025-02-26 17:27:16: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
-2025-02-26 17:27:16: Difference from ZZZ Avatar: 0.0%
-2025-02-26 17:27:16: This is ZZZ avatar
-2025-02-26 17:27:16: Max draw you can afford: 6
-2025-02-26 17:27:16: Max draw available: 5
-2025-02-26 17:27:16: Available draw: 5
+2025-02-27 18:04:41: running in a PyInstaller bundle
+2025-02-27 18:04:41: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
+2025-02-27 18:04:41: Started server process [18128]
+2025-02-27 18:04:41: Waiting for application startup.
+2025-02-27 18:04:41: Application startup complete.
+2025-02-27 18:04:41: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-02-27 18:04:55: Exception in thread
+2025-02-27 18:04:55: Thread-2 (run_scheduled_tasks)
+2025-02-27 18:04:55: :
+2025-02-27 18:04:55: Traceback (most recent call last):
+2025-02-27 18:04:55: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1073, in _bootstrap_inner
+2025-02-27 18:04:55: self.run()
+2025-02-27 18:04:55: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1010, in run
+2025-02-27 18:04:55: self._target(*self._args, **self._kwargs)
+2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 319, in run_scheduled_tasks
+2025-02-27 18:04:55: check_missed_runs()
+2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 304, in check_missed_runs
+2025-02-27 18:04:55: playwright_task()
+2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 209, in playwright_task
+2025-02-27 18:04:55: mino_page.goto(
+2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\sync_api\_generated.py", line 9006, in goto
+2025-02-27 18:04:55: self._sync(
+2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\_impl\_sync_base.py", line 115, in _sync
+2025-02-27 18:04:55: return task.result()
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\_impl\_page.py", line 551, in goto
+2025-02-27 18:04:55: return await self._main_frame.goto(**locals_to_params(locals()))
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\_impl\_frame.py", line 145, in goto
+2025-02-27 18:04:55: await self._channel.send("goto", locals_to_params(locals()))
+2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\_impl\_connection.py", line 61, in send
+2025-02-27 18:04:55: return await self._connection.wrap_api_call(
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:55: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: ^
+2025-02-27 18:04:56: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\_impl\_connection.py", line 528, in wrap_api_call
+2025-02-27 18:04:56: raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+2025-02-27 18:04:56: playwright._impl._errors
+2025-02-27 18:04:56: .
+2025-02-27 18:04:56: TargetClosedError
+2025-02-27 18:04:56: :
+2025-02-27 18:04:56: Page.goto: Target page, context or browser has been closed
+Call log:
+  - navigating to "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...", waiting until "load"
+2025-02-27 18:04:58: 127.0.0.1:61490 - "GET / HTTP/1.1" 304
+2025-02-27 18:04:58: 127.0.0.1:61490 - "GET /assets/index-DZMRNEiB.css HTTP/1.1" 304
+2025-02-27 18:04:58: 127.0.0.1:61493 - "GET /assets/index-yspoct--.js HTTP/1.1" 304
+2025-02-27 18:04:58: 127.0.0.1:61493 - "GET /overview/mission HTTP/1.1" 200
+2025-02-27 18:04:58: 127.0.0.1:61490 - "GET /images/Qingyi02.ico HTTP/1.1" 304
+2025-02-27 18:04:58: 127.0.0.1:61490 - "GET /routes HTTP/1.1" 200
+2025-02-27 18:04:58: 127.0.0.1:61493 - "GET /check-run-status HTTP/1.1" 200
+2025-02-27 18:04:58: 127.0.0.1:61493 - "GET /redeem HTTP/1.1" 200
+2025-02-27 18:04:58: 127.0.0.1:61490 - "GET /shopping HTTP/1.1" 200
+2025-02-27 18:04:58: 127.0.0.1:61497 - "GET /settings HTTP/1.1" 200
+2025-02-27 18:04:58: 127.0.0.1:61496 - "GET /account HTTP/1.1" 200
+2025-02-27 18:04:58: 127.0.0.1:61490 - "GET /images/Zhu%20Yuan02.ico HTTP/1.1" 304
+2025-02-27 18:09:13: running in a PyInstaller bundle
+2025-02-27 18:09:13: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
+2025-02-27 18:09:13: Started server process [28224]
+2025-02-27 18:09:13: Waiting for application startup.
+2025-02-27 18:09:13: Application startup complete.
+2025-02-27 18:09:13: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-02-27 18:09:20: Clicked on button.
+2025-02-27 18:09:20: Attempt 1: Target screen not yet visible, retrying...
+2025-02-27 18:09:22: Clicked on button.
+2025-02-27 18:09:23: Attempt 2: Target screen not yet visible, retrying...
+2025-02-27 18:09:24: Clicked on button.
+2025-02-27 18:09:24: Target screen appeared.
+2025-02-27 18:09:24: Non-zero count found: 3 (Attempt 1)
+2025-02-27 18:09:24: Avatar count: 3
+2025-02-27 18:09:24: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
+2025-02-27 18:09:24: Difference from ZZZ Avatar: 73.31625000000001%
+2025-02-27 18:09:24: This is NOT ZZZ avatar
+2025-02-27 18:09:24: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
+2025-02-27 18:09:24: Difference from ZZZ Avatar: 0.0%
+2025-02-27 18:09:24: This is ZZZ avatar
+2025-02-27 18:09:24: Attempt 1: Count is 0, retrying...
+2025-02-27 18:09:25: Non-zero count found: 6 (Attempt 2)
+2025-02-27 18:09:25: Mission count: 6
+2025-02-27 18:09:26: Difference with Finished (tick) image: 76.55833333333332%
+2025-02-27 18:09:26: Difference with Unfinished (arrow) image: 76.55833333333332%
+2025-02-27 18:09:26: Difference with Reward image: 0.0%
+2025-02-27 18:09:26: Button detected as Reward
+2025-02-27 18:09:26: Starting mission: Log into Zenless Zone Zero today
+2025-02-27 18:09:26: Attempting to do mission...
+2025-02-27 18:09:28: Retry 1...
+2025-02-27 18:09:28: Reward claimed
+2025-02-27 18:09:28: Check-in result updated: Link isn't opened
+2025-02-27 18:09:28: Difference with Finished (tick) image: 67.28333333333333%
+2025-02-27 18:09:28: Difference with Unfinished (arrow) image: 0.0%
+2025-02-27 18:09:28: Difference with Reward image: 76.55833333333332%
+2025-02-27 18:09:28: Button detected as Unfinished
+2025-02-27 18:09:28: Starting mission: View this week's trending discussions and leave a fun comment
+2025-02-27 18:09:28: Attempting to do mission...
+2025-02-27 18:09:29: Closing unrelated popup...
+2025-02-27 18:09:31: Retry 1...
+2025-02-27 18:09:32: Attempting to do mission...
+2025-02-27 18:09:32: Closing unrelated popup...
+2025-02-27 18:09:34: Retry 2...
+2025-02-27 18:09:35: Attempting to do mission...
+2025-02-27 18:09:35: Closing unrelated popup...
+2025-02-27 18:09:37: Retry 3...
+2025-02-27 18:09:38: Attempting to do mission...
+2025-02-27 18:09:38: Closing unrelated popup...
+2025-02-27 18:09:40: Retry 4...
+2025-02-27 18:09:41: Attempting to do mission...
+2025-02-27 18:09:41: Closing unrelated popup...
+2025-02-27 18:09:43: Unable to complete this mission.
+2025-02-27 18:09:43: Check-in result updated: Link isn't opened
+2025-02-27 18:09:43: Difference with Finished (tick) image: 0.0%
+2025-02-27 18:09:43: Difference with Unfinished (arrow) image: 67.28333333333333%
+2025-02-27 18:09:43: Difference with Reward image: 76.55833333333332%
+2025-02-27 18:09:43: Button detected as Finished
+2025-02-27 18:09:43: Skipping already finished mission (based on button state): Read this week's high-quality guides
+2025-02-27 18:09:43: Difference with Finished (tick) image: 0.0%
+2025-02-27 18:09:43: Difference with Unfinished (arrow) image: 67.28333333333333%
+2025-02-27 18:09:43: Difference with Reward image: 76.55833333333332%
+2025-02-27 18:09:43: Button detected as Finished
+2025-02-27 18:09:43: Skipping already finished mission (based on button state): Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game
+2025-02-27 18:09:43: Difference with Finished (tick) image: 0.0%
+2025-02-27 18:09:43: Difference with Unfinished (arrow) image: 67.28333333333333%
+2025-02-27 18:09:43: Difference with Reward image: 76.55833333333332%
+2025-02-27 18:09:43: Button detected as Finished
+2025-02-27 18:09:43: Skipping already finished mission (based on button state): Use the Zenless Zone Zero Wiki tool once
+2025-02-27 18:09:43: Difference with Finished (tick) image: 0.0%
+2025-02-27 18:09:43: Difference with Unfinished (arrow) image: 67.28333333333333%
+2025-02-27 18:09:43: Difference with Reward image: 76.55833333333332%
+2025-02-27 18:09:43: Button detected as Finished
+2025-02-27 18:09:43: Skipping already finished mission (based on button state): Visit the Zenless Zone Zero community today
+2025-02-27 18:09:43: Wait for Check-in activity
+2025-02-27 18:09:50: 127.0.0.1:62304 - "GET /account HTTP/1.1" 200
+2025-02-27 18:09:53: Final Check-in result: Link isn't opened
+2025-02-27 18:09:53: Mission data saved.
+2025-02-27 18:09:54: 127.0.0.1:62318 - "GET /check-run-status HTTP/1.1" 200
+2025-02-27 18:09:54: 127.0.0.1:62304 - "GET /overview/mission HTTP/1.1" 200
+2025-02-27 18:09:59: Applying Google Mail Defaults
+2025-02-27 18:10:02: Sent Email to ***REMOVED***@gmail.com
+2025-02-27 18:10:03: Email sent successfully.
+2025-02-27 18:10:03: Gather data cancelled due to setting.
+2025-02-27 18:10:09: Clicked on button.
+2025-02-27 18:10:09: Attempt 1: Target screen not yet visible, retrying...
+2025-02-27 18:10:10: Clicked on button.
+2025-02-27 18:10:10: Target screen appeared.
+2025-02-27 18:10:10: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
+2025-02-27 18:10:10: Difference from ZZZ Avatar: 73.31625000000001%
+2025-02-27 18:10:10: This is NOT ZZZ avatar
+2025-02-27 18:10:10: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
+2025-02-27 18:10:10: Difference from ZZZ Avatar: 0.0%
+2025-02-27 18:10:10: This is ZZZ avatar
+2025-02-27 18:10:10: Max draw you can afford: 6
+2025-02-27 18:10:10: Max draw available: 4
+2025-02-27 18:10:10: Available draw: 4
+2025-02-27 18:49:14: Error deleting log file ./..\log.txt: [WinError 32] The process cannot access the file because it is being used by another process: './..\\log.txt'
+2025-02-27 18:49:14: running in a PyInstaller bundle
+2025-02-27 18:49:14: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
+2025-02-27 18:49:14: Started server process [5968]
+2025-02-27 18:49:14: Waiting for application startup.
+2025-02-27 18:49:14: Application startup complete.
+2025-02-27 18:49:14: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-02-27 18:54:33: Error deleting log file ./..\log.txt: [WinError 32] The process cannot access the file because it is being used by another process: './..\\log.txt'
+2025-02-27 18:54:33: running in a PyInstaller bundle
+2025-02-27 18:54:33: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
+2025-02-27 18:54:33: Started server process [33452]
+2025-02-27 18:54:33: Waiting for application startup.
+2025-02-27 18:54:33: Application startup complete.
+2025-02-27 18:54:33: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-02-27 18:56:46: Error deleting log file ./..\log.txt: [WinError 32] The process cannot access the file because it is being used by another process: './..\\log.txt'
+2025-02-27 18:56:46: running in a PyInstaller bundle
+2025-02-27 18:56:46: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
+2025-02-27 18:56:47: Started server process [34372]
+2025-02-27 18:56:47: Waiting for application startup.
+2025-02-27 18:56:47: Application startup complete.
+2025-02-27 18:56:47: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)

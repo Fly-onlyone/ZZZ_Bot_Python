@@ -122,8 +122,8 @@ def save_redeem_data(item_name, code_text, current_day, redeem_file_path, state)
         entry
         for entry in redeem_data
         if isinstance(entry, dict)
-        and "Day" in entry
-        and datetime.strptime(entry["Day"], "%H:%M %d/%m/%Y") > thirty_days_ago
+        and "day" in entry
+        and datetime.strptime(entry["day"], "%H:%M %d/%m/%Y") > thirty_days_ago
     ]
 
     # Add new entry
