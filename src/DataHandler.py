@@ -60,7 +60,13 @@ def prepare_mission_data(output_folder: str, output_file: str):
     return previous_data, todays_data
 
 
-def maintain_mission_data(previous_data: list, output_file: str):
+def maintain_mission_data(previous_data: list, output_file: str, todays_data: dict):
+    # Ensure today's data is updated correctly
+    if previous_data and previous_data[-1]["day"] == todays_data["day"]:
+        previous_data[-1] = todays_data  # Update latest day's data
+    else:
+        previous_data.append(todays_data)  # Add new day if not found
+
     # Maintain a maximum of 5 days' worth of data
     if len(previous_data) > 5:
         previous_data = previous_data[-5:]  # Keep only the last 5 elements
@@ -68,7 +74,8 @@ def maintain_mission_data(previous_data: list, output_file: str):
     # Save the updated data back to the JSON file
     with open(output_file, "w", encoding="utf-8") as file:
         json.dump(previous_data, file, ensure_ascii=False, indent=2)
-    print("Mission data saved.")
+
+    print("✅ Mission data saved with updated check-in result.")
 
 
 def load_shopping_data(file_path):

@@ -9,21 +9,16 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 from DataHandler import Serializable
-from Logger import Logger
 from StringUtil import clean_leading_dots
 
 
 def is_exe():
     if os.getenv("SIMULATE_EXE", "0") == "1":
         sys.frozen = True
-    if getattr(sys, "frozen", False):
-        sys.stdout = Logger(resource_path("./../log.txt", outside_path=True))
-        sys.stderr = sys.stdout
-        print("running in a PyInstaller bundle")
-        return True
-    else:
-        print("running in a normal Python process")
-        return False
+    return getattr(sys, "frozen", False)
+
+
+is_exe = is_exe()
 
 
 def resource_path(relative_path, outside_path=False):
@@ -60,6 +55,7 @@ def generate_config(outside_folder, exclude_keys=None):
         "OUTPUT_FOLDER": "./../output",
         "SCREENSHOT_FOLDER": "./../screenshot",
         "SAMPLE_FOLDER": "./../sample",
+        "REWARD_FOLDER": "./../reward image",
         "MISSION_BUTTON_FOLDER": "./../mission button",
         "MISSION_NOTIFICATION": "./message/mission.html.jinja",
         "ZZZ_ICON": "./../sample/ZZZ Avatar.png",
@@ -128,8 +124,6 @@ class RedeemItem(BaseModel):
     day: str
     state: bool
 
-
-is_exe = is_exe()
 
 CONFIG = generate_config(
     ["STORAGE_PATH", "OUTPUT_FOLDER", "SCREENSHOT_FOLDER"], ["WEB_UI_URL"]
