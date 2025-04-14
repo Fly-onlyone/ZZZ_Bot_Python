@@ -1,7 +1,8 @@
 from playwright.sync_api import Page
 
+import RedeemAutofill
 import RetryHelper
-from ImageProcessor import find_correct_lottery_logo
+from ImageProcessor import find_correct_lottery_logo, detect_reward
 from StringUtil import extract_price, extract_number
 
 
@@ -22,3 +23,16 @@ def run(page: Page):
 
             available_draw = min(max_draw_afford, draw_limit)
             print(f"Available draw: {available_draw}")
+
+            draw_button = page.locator(".lotteryBtnCover-xI-MlR")
+            draw_dialog = page.get_by_text("Congratulations, you've")
+            draw_button.click()
+            page.wait_for_timeout(5000)
+
+            if draw_dialog.is_visible():
+                reward_img = page.get_by_role("img")
+                reward_name = detect_reward(page, reward_img)
+                code = page.locator("gainCodeCopyInput-QcgdvD")
+                RedeemAutofill.run(page.context, code, reward_name)
+            close_draw = page.locator(".gainClose-7Q0hz8")
+            close_draw.click()

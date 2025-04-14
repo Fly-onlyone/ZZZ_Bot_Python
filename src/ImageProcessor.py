@@ -1,4 +1,5 @@
 import base64
+import os
 from urllib.parse import urljoin
 
 import cv2
@@ -135,6 +136,30 @@ def find_correct_lottery_logo(page: Page):
             print("This is NOT ZZZ avatar")
             page.locator(".lotterySwitch-LdUVnT").click()
     return False
+
+
+def detect_reward(page: Page, img_locator: Locator):
+    # Fetch the image from the locator
+    target_img = fetch_image_from_locator(page, img_locator)
+
+    # Get list of available reward images
+    reward_images = [
+        f for f in os.listdir(CONFIG["REWARD_FOLDER"]) if f.endswith(".png")
+    ]
+
+    if not reward_images:
+        raise ValueError("No reward images found in the configured reward folder.")
+
+    best_match = "Unknown reward"
+
+    for reward_img_name in reward_images:
+        reward_img_path = os.path.join(CONFIG["REWARD_FOLDER"], reward_img_name)
+        diff = compare_images(target_img, reward_img_path)
+
+        if diff == 0:  # Exact match found
+            return os.path.splitext(reward_img_name)[0]
+
+    return best_match  # Return "Unknown reward" if no exact match
 
 
 class ImageProcessor:

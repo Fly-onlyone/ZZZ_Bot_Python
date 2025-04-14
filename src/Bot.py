@@ -33,6 +33,7 @@ from DataHandler import (
     load_redeem_data,
 )
 from GlobalVar import app, accounts, CONFIG, settings, is_exe, RedeemItem
+from Logger import Logger
 from ManualLogin import run, playState_lock
 from Win32Icon import Win32Icon
 
@@ -247,7 +248,7 @@ def playwright_task():
         )
 
         context.storage_state(path=CONFIG["STORAGE_PATH"])
-        if not is_exe:
+        if not is_exe():
             input("Press ENTER to exit...")
         browser.close()
         if settings.exit_after_run:
@@ -366,27 +367,58 @@ def toggle_setting(setting_name):
 
 def on_tray_exit(icon: Icon):
     """Handle tray images exit."""
-    if not is_exe:
+    if not is_exe():
         react_server.send_signal(signal.CTRL_C_EVENT)
     icon.stop()
 
 
 # Main Entry Point
 if __name__ == "__main__":
-    if not is_exe:
-        react_server = subprocess.Popen(
-            ["npm", "run", "dev"], cwd="./../frontend", shell=True
-        )
+    # === 1 & 2. Setup Log Path and Initialize Logger (only in EXE mode) ===
+    if is_exe:
+        log_path = os.path.join(os.path.dirname(sys.executable), "log.txt")
+        logger = Logger(log_path)
     else:
-        app.mount(
-            "/", StaticFiles(directory=CONFIG["FRONTEND_BUILD"], html=True), name="ui"
-        )
-        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = CONFIG["BROWSER"]
+        print("Running in normal Python process (dev mode)")
 
+    # === 3. Start React Dev Server (non-exe mode) ===
+    if not is_exe:
+        try:
+            print("Starting React dev server...")
+            react_server = subprocess.Popen(
+                ["npm", "run", "dev"], cwd="./../frontend", shell=True
+            )
+        except Exception as e:
+            print(f"Error starting React server: {e}")
+
+    # === 4. Mount Frontend (exe mode) ===
+    else:
+        try:
+            print("Mounting frontend build and setting browser path...")
+            app.mount(
+                "/",
+                StaticFiles(directory=CONFIG["FRONTEND_BUILD"], html=True),
+                name="ui",
+            )
+            os.environ["PLAYWRIGHT_BROWSERS_PATH"] = CONFIG["BROWSER"]
+        except Exception as e:
+            print(f"Error mounting frontend: {e}")
+
+    # === 5. Start FastAPI Server ===
+    print("Starting FastAPI server...")
     threading.Thread(
-        target=lambda: uvicorn.run(app, log_config=None), daemon=True
+        target=lambda: uvicorn.run(app, log_config=None),
+        daemon=True,
     ).start()
 
+    # === 6. Open Web UI ===
     if settings.open_web_ui:
+        print("Opening web UI...")
         webbrowser.open_new_tab(CONFIG["WEB_UI_URL"])
-    setup_tray_icon()
+
+    # === 7. Setup Tray Icon ===
+    try:
+        print("Setting up tray icon...")
+        setup_tray_icon()
+    except Exception as e:
+        print(f"Error setting up tray icon: {e}")
