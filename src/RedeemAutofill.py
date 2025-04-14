@@ -1,3 +1,6 @@
+from datetime import datetime
+from pathlib import Path
+
 from playwright.sync_api import BrowserContext
 from plyer import notification
 
@@ -7,8 +10,9 @@ from DataHandler import save_redeem_data
 from GlobalVar import CONFIG, settings
 
 
-def run(context: BrowserContext, code, item_name, current_day, redeem_file_path):
-
+def run(context: BrowserContext, code, item_name):
+    current_day = datetime.now().strftime("%H:%M %d/%m/%Y")
+    redeem_file_path = Path(CONFIG["REDEEM_FILE"])
     redeem_page = context.new_page()
     redeem_page.goto("https://zenless.hoyoverse.com/redemption")
     redeem_page.wait_for_timeout(5000)
@@ -46,9 +50,18 @@ def run(context: BrowserContext, code, item_name, current_day, redeem_file_path)
         "Successfully redeemed. Please claim rewards from in-game mail."
     ).is_visible():
         redeem_state = True
+        notification.notify(
+            title="ZZZ Bot",
+            message=f"Redeemed {item_name} successfully.",
+            app_icon=CONFIG["ICON_PATH"],
+        )
     else:
         redeem_state = False
-
+        notification.notify(
+            title="ZZZ Bot",
+            message=f"Redeemed {item_name} failed.",
+            app_icon=CONFIG["SAD_ICON"],
+        )
     context.storage_state(path=CONFIG["STORAGE_PATH"])
 
     # Save redeem data with state

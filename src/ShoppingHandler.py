@@ -191,13 +191,6 @@ def run_shopping(page: Page, shopping_data):
                 code_text = page.locator("div.gainCodeCopyInput-QcgdvD").inner_text()
                 page.locator("div.gainCodeCopyBtn-Lwk9eR").click()
 
-                # Get the current day in the desired format
-                current_day = datetime.now().strftime("%H:%M %d/%m/%Y")
-
-                # Save redeem_data to JSON file
-                redeem_file_path = Path(CONFIG["REDEEM_FILE"])
-                RedeemAutofill.run(
-                    page.context, code_text, item_name, current_day, redeem_file_path
-                )
+                RedeemAutofill.run(page.context, code_text, item_name)
         else:
             print("Can't exchange item")

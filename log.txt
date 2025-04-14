@@ -1,275 +1,311 @@
-2025-02-27 18:04:41: running in a PyInstaller bundle
-2025-02-27 18:04:41: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
-2025-02-27 18:04:41: Started server process [18128]
-2025-02-27 18:04:41: Waiting for application startup.
-2025-02-27 18:04:41: Application startup complete.
-2025-02-27 18:04:41: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-2025-02-27 18:04:55: Exception in thread
-2025-02-27 18:04:55: Thread-2 (run_scheduled_tasks)
-2025-02-27 18:04:55: :
-2025-02-27 18:04:55: Traceback (most recent call last):
-2025-02-27 18:04:55: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1073, in _bootstrap_inner
-2025-02-27 18:04:55: self.run()
-2025-02-27 18:04:55: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1010, in run
-2025-02-27 18:04:55: self._target(*self._args, **self._kwargs)
-2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 319, in run_scheduled_tasks
-2025-02-27 18:04:55: check_missed_runs()
-2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 304, in check_missed_runs
-2025-02-27 18:04:55: playwright_task()
-2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 209, in playwright_task
-2025-02-27 18:04:55: mino_page.goto(
-2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\sync_api\_generated.py", line 9006, in goto
-2025-02-27 18:04:55: self._sync(
-2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\_impl\_sync_base.py", line 115, in _sync
-2025-02-27 18:04:55: return task.result()
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\_impl\_page.py", line 551, in goto
-2025-02-27 18:04:55: return await self._main_frame.goto(**locals_to_params(locals()))
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\_impl\_frame.py", line 145, in goto
-2025-02-27 18:04:55: await self._channel.send("goto", locals_to_params(locals()))
-2025-02-27 18:04:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\_impl\_connection.py", line 61, in send
-2025-02-27 18:04:55: return await self._connection.wrap_api_call(
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:55: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: ^
-2025-02-27 18:04:56: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\playwright\_impl\_connection.py", line 528, in wrap_api_call
-2025-02-27 18:04:56: raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-2025-02-27 18:04:56: playwright._impl._errors
-2025-02-27 18:04:56: .
-2025-02-27 18:04:56: TargetClosedError
-2025-02-27 18:04:56: :
-2025-02-27 18:04:56: Page.goto: Target page, context or browser has been closed
-Call log:
-  - navigating to "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...", waiting until "load"
-2025-02-27 18:04:58: 127.0.0.1:61490 - "GET / HTTP/1.1" 304
-2025-02-27 18:04:58: 127.0.0.1:61490 - "GET /assets/index-DZMRNEiB.css HTTP/1.1" 304
-2025-02-27 18:04:58: 127.0.0.1:61493 - "GET /assets/index-yspoct--.js HTTP/1.1" 304
-2025-02-27 18:04:58: 127.0.0.1:61493 - "GET /overview/mission HTTP/1.1" 200
-2025-02-27 18:04:58: 127.0.0.1:61490 - "GET /images/Qingyi02.ico HTTP/1.1" 304
-2025-02-27 18:04:58: 127.0.0.1:61490 - "GET /routes HTTP/1.1" 200
-2025-02-27 18:04:58: 127.0.0.1:61493 - "GET /check-run-status HTTP/1.1" 200
-2025-02-27 18:04:58: 127.0.0.1:61493 - "GET /redeem HTTP/1.1" 200
-2025-02-27 18:04:58: 127.0.0.1:61490 - "GET /shopping HTTP/1.1" 200
-2025-02-27 18:04:58: 127.0.0.1:61497 - "GET /settings HTTP/1.1" 200
-2025-02-27 18:04:58: 127.0.0.1:61496 - "GET /account HTTP/1.1" 200
-2025-02-27 18:04:58: 127.0.0.1:61490 - "GET /images/Zhu%20Yuan02.ico HTTP/1.1" 304
-2025-02-27 18:09:13: running in a PyInstaller bundle
-2025-02-27 18:09:13: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
-2025-02-27 18:09:13: Started server process [28224]
-2025-02-27 18:09:13: Waiting for application startup.
-2025-02-27 18:09:13: Application startup complete.
-2025-02-27 18:09:13: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-2025-02-27 18:09:20: Clicked on button.
-2025-02-27 18:09:20: Attempt 1: Target screen not yet visible, retrying...
-2025-02-27 18:09:22: Clicked on button.
-2025-02-27 18:09:23: Attempt 2: Target screen not yet visible, retrying...
-2025-02-27 18:09:24: Clicked on button.
-2025-02-27 18:09:24: Target screen appeared.
-2025-02-27 18:09:24: Non-zero count found: 3 (Attempt 1)
-2025-02-27 18:09:24: Avatar count: 3
-2025-02-27 18:09:24: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
-2025-02-27 18:09:24: Difference from ZZZ Avatar: 73.31625000000001%
-2025-02-27 18:09:24: This is NOT ZZZ avatar
-2025-02-27 18:09:24: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
-2025-02-27 18:09:24: Difference from ZZZ Avatar: 0.0%
-2025-02-27 18:09:24: This is ZZZ avatar
-2025-02-27 18:09:24: Attempt 1: Count is 0, retrying...
-2025-02-27 18:09:25: Non-zero count found: 6 (Attempt 2)
-2025-02-27 18:09:25: Mission count: 6
-2025-02-27 18:09:26: Difference with Finished (tick) image: 76.55833333333332%
-2025-02-27 18:09:26: Difference with Unfinished (arrow) image: 76.55833333333332%
-2025-02-27 18:09:26: Difference with Reward image: 0.0%
-2025-02-27 18:09:26: Button detected as Reward
-2025-02-27 18:09:26: Starting mission: Log into Zenless Zone Zero today
-2025-02-27 18:09:26: Attempting to do mission...
-2025-02-27 18:09:28: Retry 1...
-2025-02-27 18:09:28: Reward claimed
-2025-02-27 18:09:28: Check-in result updated: Link isn't opened
-2025-02-27 18:09:28: Difference with Finished (tick) image: 67.28333333333333%
-2025-02-27 18:09:28: Difference with Unfinished (arrow) image: 0.0%
-2025-02-27 18:09:28: Difference with Reward image: 76.55833333333332%
-2025-02-27 18:09:28: Button detected as Unfinished
-2025-02-27 18:09:28: Starting mission: View this week's trending discussions and leave a fun comment
-2025-02-27 18:09:28: Attempting to do mission...
-2025-02-27 18:09:29: Closing unrelated popup...
-2025-02-27 18:09:31: Retry 1...
-2025-02-27 18:09:32: Attempting to do mission...
-2025-02-27 18:09:32: Closing unrelated popup...
-2025-02-27 18:09:34: Retry 2...
-2025-02-27 18:09:35: Attempting to do mission...
-2025-02-27 18:09:35: Closing unrelated popup...
-2025-02-27 18:09:37: Retry 3...
-2025-02-27 18:09:38: Attempting to do mission...
-2025-02-27 18:09:38: Closing unrelated popup...
-2025-02-27 18:09:40: Retry 4...
-2025-02-27 18:09:41: Attempting to do mission...
-2025-02-27 18:09:41: Closing unrelated popup...
-2025-02-27 18:09:43: Unable to complete this mission.
-2025-02-27 18:09:43: Check-in result updated: Link isn't opened
-2025-02-27 18:09:43: Difference with Finished (tick) image: 0.0%
-2025-02-27 18:09:43: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-27 18:09:43: Difference with Reward image: 76.55833333333332%
-2025-02-27 18:09:43: Button detected as Finished
-2025-02-27 18:09:43: Skipping already finished mission (based on button state): Read this week's high-quality guides
-2025-02-27 18:09:43: Difference with Finished (tick) image: 0.0%
-2025-02-27 18:09:43: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-27 18:09:43: Difference with Reward image: 76.55833333333332%
-2025-02-27 18:09:43: Button detected as Finished
-2025-02-27 18:09:43: Skipping already finished mission (based on button state): Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game
-2025-02-27 18:09:43: Difference with Finished (tick) image: 0.0%
-2025-02-27 18:09:43: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-27 18:09:43: Difference with Reward image: 76.55833333333332%
-2025-02-27 18:09:43: Button detected as Finished
-2025-02-27 18:09:43: Skipping already finished mission (based on button state): Use the Zenless Zone Zero Wiki tool once
-2025-02-27 18:09:43: Difference with Finished (tick) image: 0.0%
-2025-02-27 18:09:43: Difference with Unfinished (arrow) image: 67.28333333333333%
-2025-02-27 18:09:43: Difference with Reward image: 76.55833333333332%
-2025-02-27 18:09:43: Button detected as Finished
-2025-02-27 18:09:43: Skipping already finished mission (based on button state): Visit the Zenless Zone Zero community today
-2025-02-27 18:09:43: Wait for Check-in activity
-2025-02-27 18:09:50: 127.0.0.1:62304 - "GET /account HTTP/1.1" 200
-2025-02-27 18:09:53: Final Check-in result: Link isn't opened
-2025-02-27 18:09:53: Mission data saved.
-2025-02-27 18:09:54: 127.0.0.1:62318 - "GET /check-run-status HTTP/1.1" 200
-2025-02-27 18:09:54: 127.0.0.1:62304 - "GET /overview/mission HTTP/1.1" 200
-2025-02-27 18:09:59: Applying Google Mail Defaults
-2025-02-27 18:10:02: Sent Email to galevan61@gmail.com
-2025-02-27 18:10:03: Email sent successfully.
-2025-02-27 18:10:03: Gather data cancelled due to setting.
-2025-02-27 18:10:09: Clicked on button.
-2025-02-27 18:10:09: Attempt 1: Target screen not yet visible, retrying...
-2025-02-27 18:10:10: Clicked on button.
-2025-02-27 18:10:10: Target screen appeared.
-2025-02-27 18:10:10: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
-2025-02-27 18:10:10: Difference from ZZZ Avatar: 73.31625000000001%
-2025-02-27 18:10:10: This is NOT ZZZ avatar
-2025-02-27 18:10:10: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
-2025-02-27 18:10:10: Difference from ZZZ Avatar: 0.0%
-2025-02-27 18:10:10: This is ZZZ avatar
-2025-02-27 18:10:10: Max draw you can afford: 6
-2025-02-27 18:10:10: Max draw available: 4
-2025-02-27 18:10:10: Available draw: 4
-2025-02-27 18:49:14: Error deleting log file ./..\log.txt: [WinError 32] The process cannot access the file because it is being used by another process: './..\\log.txt'
-2025-02-27 18:49:14: running in a PyInstaller bundle
-2025-02-27 18:49:14: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
-2025-02-27 18:49:14: Started server process [5968]
-2025-02-27 18:49:14: Waiting for application startup.
-2025-02-27 18:49:14: Application startup complete.
-2025-02-27 18:49:14: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-2025-02-27 18:54:33: Error deleting log file ./..\log.txt: [WinError 32] The process cannot access the file because it is being used by another process: './..\\log.txt'
-2025-02-27 18:54:33: running in a PyInstaller bundle
-2025-02-27 18:54:33: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
-2025-02-27 18:54:33: Started server process [33452]
-2025-02-27 18:54:33: Waiting for application startup.
-2025-02-27 18:54:33: Application startup complete.
-2025-02-27 18:54:33: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-2025-02-27 18:56:46: Error deleting log file ./..\log.txt: [WinError 32] The process cannot access the file because it is being used by another process: './..\\log.txt'
-2025-02-27 18:56:46: running in a PyInstaller bundle
-2025-02-27 18:56:46: {'FRONTEND_BUILD': './../frontend/dist', 'BROWSER': './playwright-browsers', 'ICON_PATH': './../images/Qingyi02.ico', 'SAD_ICON': './../images/Qingyi01.ico', 'STORAGE_PATH': './../authentication data/hoyo.json', 'ICON_FOLDER': './../images', 'OUTPUT_FOLDER': './../output', 'SCREENSHOT_FOLDER': './../screenshot', 'SAMPLE_FOLDER': './../sample', 'MISSION_BUTTON_FOLDER': './../mission button', 'MISSION_NOTIFICATION': './message/mission.html.jinja', 'ZZZ_ICON': './../sample/ZZZ Avatar.png', 'OUTPUT_FILE': './../output/missions.json', 'LAST_RUN_FILE': './../output/last_run.json', 'SETTINGS_FILE': './../output/settings.json', 'ACCOUNT_FILE': './../output/account.json', 'SHOPPING_FILE': './../output/shopping.json', 'REDEEM_FILE': './../output/redeem.json', 'WEB_UI_URL': 'http://127.0.0.1:8000'}
-2025-02-27 18:56:47: Started server process [34372]
-2025-02-27 18:56:47: Waiting for application startup.
-2025-02-27 18:56:47: Application startup complete.
-2025-02-27 18:56:47: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-03-27 11:40:53: Starting React dev server...
+2025-03-27 11:40:53: Starting FastAPI server...
+2025-03-27 11:40:53: Setting up tray icon...
+2025-03-27 11:41:02: Task cancelled due to setting.
+2025-03-27 11:41:02: Gather data cancelled due to setting.
+2025-03-27 11:41:09: Clicked on button.
+2025-03-27 11:41:09: Attempt 1: Target screen not yet visible, retrying...
+2025-03-27 11:41:10: Clicked on button.
+2025-03-27 11:41:10: Target screen appeared.
+2025-03-27 11:41:10: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
+2025-03-27 11:41:10: Difference from ZZZ Avatar: 73.31625000000001%
+2025-03-27 11:41:10: This is NOT ZZZ avatar
+2025-03-27 11:41:11: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
+2025-03-27 11:41:11: Difference from ZZZ Avatar: 0.0%
+2025-03-27 11:41:11: This is ZZZ avatar
+2025-03-27 11:41:11: Max draw you can afford: 16
+2025-03-27 11:41:11: Max draw available: 5
+2025-03-27 11:41:11: Available draw: 5
+2025-03-27 11:41:16: Exception in thread
+2025-03-27 11:41:16: Thread-2 (run_scheduled_tasks)
+2025-03-27 11:41:16: :
+2025-03-27 11:41:16: Traceback (most recent call last):
+2025-03-27 11:41:16: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1073, in _bootstrap_inner
+2025-03-27 11:41:16: self.run()
+2025-03-27 11:41:16: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1010, in run
+2025-03-27 11:41:16: self._target(*self._args, **self._kwargs)
+2025-03-27 11:41:16: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 320, in run_scheduled_tasks
+2025-03-27 11:41:16: check_missed_runs()
+2025-03-27 11:41:16: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 305, in check_missed_runs
+2025-03-27 11:41:16: playwright_task()
+2025-03-27 11:41:16: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 239, in playwright_task
+2025-03-27 11:41:16: DrawHandler.run(mino_page)
+2025-03-27 11:41:16: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\DrawHandler.py", line 34, in run
+2025-03-27 11:41:16: reward_name = detect_reward(page, reward_img)
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\ImageProcessor.py", line 143, in detect_reward
+2025-03-27 11:41:16: target_img = fetch_image_from_locator(page, img_locator)
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: ^
+2025-03-27 11:41:16: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\ImageProcessor.py", line 70, in fetch_image_from_locator
+2025-03-27 11:41:16: raise ValueError(f"Image URL not found for locator: {locator_selector}")
+2025-03-27 11:41:16: ValueError
+2025-03-27 11:41:16: :
+2025-03-27 11:41:16: Image URL not found for locator: <Locator frame=<Frame name= url='https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...'> selector='internal:role=img'>
+2025-03-27 11:42:37: Starting React dev server...
+2025-03-27 11:42:37: Starting FastAPI server...
+2025-03-27 11:42:37: Setting up tray icon...
+2025-03-27 11:42:39: Task cancelled due to setting.
+2025-03-27 11:42:39: Gather data cancelled due to setting.
+2025-03-27 11:42:47: Clicked on button.
+2025-03-27 11:42:47: Attempt 1: Target screen not yet visible, retrying...
+2025-03-27 11:42:49: Clicked on button.
+2025-03-27 11:42:49: Target screen appeared.
+2025-03-27 11:42:49: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
+2025-03-27 11:42:49: Difference from ZZZ Avatar: 73.31625000000001%
+2025-03-27 11:42:49: This is NOT ZZZ avatar
+2025-03-27 11:42:49: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
+2025-03-27 11:42:49: Difference from ZZZ Avatar: 0.0%
+2025-03-27 11:42:49: This is ZZZ avatar
+2025-03-27 11:42:49: Max draw you can afford: 15
+2025-03-27 11:42:49: Max draw available: 4
+2025-03-27 11:42:49: Available draw: 4
+2025-03-27 11:42:55: Exception in thread
+2025-03-27 11:42:55: Thread-2 (run_scheduled_tasks)
+2025-03-27 11:42:55: :
+2025-03-27 11:42:55: Traceback (most recent call last):
+2025-03-27 11:42:55: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1073, in _bootstrap_inner
+2025-03-27 11:42:55: self.run()
+2025-03-27 11:42:55: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1010, in run
+2025-03-27 11:42:55: self._target(*self._args, **self._kwargs)
+2025-03-27 11:42:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 320, in run_scheduled_tasks
+2025-03-27 11:42:55: check_missed_runs()
+2025-03-27 11:42:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 305, in check_missed_runs
+2025-03-27 11:42:55: playwright_task()
+2025-03-27 11:42:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 239, in playwright_task
+2025-03-27 11:42:55: DrawHandler.run(mino_page)
+2025-03-27 11:42:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\DrawHandler.py", line 34, in run
+2025-03-27 11:42:55: reward_name = detect_reward(page, reward_img)
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\ImageProcessor.py", line 143, in detect_reward
+2025-03-27 11:42:55: target_img = fetch_image_from_locator(page, img_locator)
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: ^
+2025-03-27 11:42:55: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\ImageProcessor.py", line 70, in fetch_image_from_locator
+2025-03-27 11:42:55: raise ValueError(f"Image URL not found for locator: {locator_selector}")
+2025-03-27 11:42:55: ValueError
+2025-03-27 11:42:55: :
+2025-03-27 11:42:55: Image URL not found for locator: <Locator frame=<Frame name= url='https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...'> selector='internal:role=img'>
+2025-03-27 11:48:36: Starting React dev server...
+2025-03-27 11:48:36: Starting FastAPI server...
+2025-03-27 11:48:36: Setting up tray icon...
+2025-03-27 11:48:38: Task cancelled due to setting.
+2025-03-27 11:48:38: Gather data cancelled due to setting.
+2025-03-27 11:48:38: Draw data cancelled due to setting.
+2025-03-27 11:48:38: Press ENTER to exit...
+2025-03-27 11:50:49: Exception in thread
+2025-03-27 11:50:49: Thread-2 (run_scheduled_tasks)
+2025-03-27 11:50:49: :
+2025-03-27 11:50:49: Traceback (most recent call last):
+2025-03-27 11:50:49: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1073, in _bootstrap_inner
+2025-03-27 11:50:49: self.run()
+2025-03-27 11:50:49: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1010, in run
+2025-03-27 11:50:49: self._target(*self._args, **self._kwargs)
+2025-03-27 11:50:49: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 320, in run_scheduled_tasks
+2025-03-27 11:50:49: check_missed_runs()
+2025-03-27 11:50:49: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 305, in check_missed_runs
+2025-03-27 11:50:49: playwright_task()
+2025-03-27 11:50:49: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 252, in playwright_task
+2025-03-27 11:50:49: input("Press ENTER to exit...")
+2025-03-27 11:50:49: File "<frozen codecs>", line 322, in decode
+2025-03-27 11:50:49: UnicodeDecodeError
+2025-03-27 11:50:49: :
+2025-03-27 11:50:49: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+2025-03-27 11:55:16: Starting React dev server...
+2025-03-27 11:55:16: Starting FastAPI server...
+2025-03-27 11:55:16: Setting up tray icon...
+2025-03-27 11:56:36: Starting React dev server...
+2025-03-27 11:56:36: Starting FastAPI server...
+2025-03-27 11:56:36: Setting up tray icon...
+2025-04-14 14:52:59,047: ERROR: Error deleting log file C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\log.txt: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\PC\\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\\Documents\\Playwright\\ZZZ bot - Python\\log.txt'
+2025-04-14 14:52:59: Starting React dev server...
+2025-04-14 14:52:59: Starting FastAPI server...
+2025-04-14 14:52:59: Setting up tray icon...
+2025-04-14 14:53:01: Task cancelled due to setting.
+2025-04-14 14:53:08: Clicked on button.
+2025-04-14 14:53:08: Attempt 1: Target screen not yet visible, retrying...
+2025-04-14 14:53:09: Clicked on button.
+2025-04-14 14:53:09: Target screen appeared.
+2025-04-14 14:53:09: Non-zero count found: 2 (Attempt 1)
+2025-04-14 14:53:09: Avatar count: 2
+2025-04-14 14:53:09: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
+2025-04-14 14:53:09: Difference from ZZZ Avatar: 73.31625000000001%
+2025-04-14 14:53:09: This is NOT ZZZ avatar
+2025-04-14 14:53:09: Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
+2025-04-14 14:53:09: Difference from ZZZ Avatar: 0.0%
+2025-04-14 14:53:09: This is ZZZ avatar
+2025-04-14 14:53:09: Current time is within the duration. Updating data.
+2025-04-14 14:53:09: Attempt 1: Count is 0, retrying...
+2025-04-14 14:53:10: Non-zero count found: 10 (Attempt 2)
+2025-04-14 14:53:11: Return time:
+2025-04-14 14:53:11: 18:00 16/04/25
+2025-04-14 14:53:11: Return time:
+2025-04-14 14:53:11: 18:00 16/04/25
+2025-04-14 14:53:11: Return time:
+2025-04-14 14:53:11: 18:00 16/04/25
+2025-04-14 14:53:11: Return time:
+2025-04-14 14:53:11: 18:00 16/04/25
+2025-04-14 14:53:11: Processing item: Polychrome ×60
+2025-04-14 14:53:11: Can't exchange item
+2025-04-14 14:53:11: Draw data cancelled due to setting.
+2025-04-14 14:53:11: Press ENTER to exit...
+2025-04-14 14:59:39: Exception in thread
+2025-04-14 14:59:39: Thread-2 (run_scheduled_tasks)
+2025-04-14 14:59:39: :
+2025-04-14 14:59:39: Traceback (most recent call last):
+2025-04-14 14:59:39: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1073, in _bootstrap_inner
+2025-04-14 14:59:39: self.run()
+2025-04-14 14:59:39: File "C:\Users\PC\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1010, in run
+2025-04-14 14:59:39: self._target(*self._args, **self._kwargs)
+2025-04-14 14:59:39: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 320, in run_scheduled_tasks
+2025-04-14 14:59:39: check_missed_runs()
+2025-04-14 14:59:39: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 305, in check_missed_runs
+2025-04-14 14:59:39: playwright_task()
+2025-04-14 14:59:39: File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 252, in playwright_task
+2025-04-14 14:59:39: input("Press ENTER to exit...")
+2025-04-14 14:59:39: File "<frozen codecs>", line 322, in decode
+2025-04-14 14:59:39: UnicodeDecodeError
+2025-04-14 14:59:39: :
+2025-04-14 14:59:39: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
