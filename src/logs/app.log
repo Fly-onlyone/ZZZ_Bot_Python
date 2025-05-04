@@ -1,0 +1,11 @@
+2025-05-04 11:09:34,880 - __main__ - INFO - Mounting frontend build and setting browser path...
+2025-05-04 11:09:34,880 - __main__ - INFO - Starting FastAPI server...
+2025-05-04 11:09:34,881 - __main__ - INFO - Setting up tray icon...
+2025-05-04 11:09:34,884 - asyncio - DEBUG - Using proactor: IocpProactor
+2025-05-04 11:09:34,913 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2025-05-04 11:09:34,914 - uvicorn.error - INFO - Started server process [5992]
+2025-05-04 11:09:34,914 - uvicorn.error - INFO - Waiting for application startup.
+2025-05-04 11:09:34,914 - uvicorn.error - INFO - Application startup complete.
+2025-05-04 11:09:34,915 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-05-04 11:09:34,921 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2025-05-04 11:09:34,935 - schedule - DEBUG - Deleting *all* jobs

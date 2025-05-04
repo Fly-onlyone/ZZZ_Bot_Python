@@ -5,10 +5,10 @@
     ],
     "exit_after_run": false,
     "open_web_ui": false,
-    "headless_mode": true,
+    "headless_mode": false,
     "run_task": false,
-    "gather_shopping_data": true,
-    "redeem_after_gather_data": true,
+    "gather_shopping_data": false,
+    "redeem_after_gather_data": false,
     "buy_all": false,
-    "draw_item": false
+    "draw_item": true
 }

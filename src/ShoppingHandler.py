@@ -192,5 +192,8 @@ def run_shopping(page: Page, shopping_data):
                 page.locator("div.gainCodeCopyBtn-Lwk9eR").click()
 
                 RedeemAutofill.run(page.context, code_text, item_name)
+                close_button = page.locator(".gainClose-7Q0hz8")
+                close_button.click()
+                print("Closing confirm dialog.")
         else:
             print("Can't exchange item")

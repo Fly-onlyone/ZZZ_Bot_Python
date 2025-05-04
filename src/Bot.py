@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import signal
 import subprocess
@@ -8,6 +9,7 @@ import time
 import webbrowser
 from dataclasses import asdict
 from datetime import datetime, timedelta
+from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
 import schedule
@@ -33,7 +35,7 @@ from DataHandler import (
     load_redeem_data,
 )
 from GlobalVar import app, accounts, CONFIG, settings, is_exe, RedeemItem
-from Logger import Logger
+from Logger import Logger, NoImportFilter
 from ManualLogin import run, playState_lock
 from Win32Icon import Win32Icon
 
@@ -374,14 +376,36 @@ def on_tray_exit(icon: Icon):
 
 # Main Entry Point
 if __name__ == "__main__":
-    # === 1 & 2. Setup Log Path and Initialize Logger (only in EXE mode) ===
+    # === 1. Setup Log Path and Initialize Logger (only in EXE mode) ===
     if is_exe:
-        log_path = os.path.join(os.path.dirname(sys.executable), "log.txt")
-        logger = Logger(log_path)
+        # ensure logs dir exists
+        os.makedirs("logs", exist_ok=True)
+
+        # configure root logger *only* with your rotating handler
+        handler = TimedRotatingFileHandler(
+            filename="logs/app.log",
+            when="D",  # rollover every day
+            interval=1,  # 1-day interval
+            backupCount=7,  # KEEP only 7 days of logs
+            encoding="utf-8",
+        )
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
+        handler.addFilter(NoImportFilter())
+
+        # attach handler to root logger
+        root = logging.getLogger()
+        root.setLevel(logging.DEBUG)
+        root.addHandler(handler)
+
+        app_log = logging.getLogger(__name__)
+        sys.stdout = Logger(app_log, logging.INFO)
+        sys.stderr = Logger(app_log, logging.ERROR)
     else:
         print("Running in normal Python process (dev mode)")
 
-    # === 3. Start React Dev Server (non-exe mode) ===
+    # === 2. Start React Dev Server (non-exe mode) ===
     if not is_exe:
         try:
             print("Starting React dev server...")
@@ -391,7 +415,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error starting React server: {e}")
 
-    # === 4. Mount Frontend (exe mode) ===
+    # === 3. Mount Frontend (exe mode) ===
     else:
         try:
             print("Mounting frontend build and setting browser path...")
@@ -404,19 +428,19 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error mounting frontend: {e}")
 
-    # === 5. Start FastAPI Server ===
+    # === 4. Start FastAPI Server ===
     print("Starting FastAPI server...")
     threading.Thread(
         target=lambda: uvicorn.run(app, log_config=None),
         daemon=True,
     ).start()
 
-    # === 6. Open Web UI ===
+    # === 5. Open Web UI ===
     if settings.open_web_ui:
         print("Opening web UI...")
         webbrowser.open_new_tab(CONFIG["WEB_UI_URL"])
 
-    # === 7. Setup Tray Icon ===
+    # === 6. Setup Tray Icon ===
     try:
         print("Setting up tray icon...")
         setup_tray_icon()
