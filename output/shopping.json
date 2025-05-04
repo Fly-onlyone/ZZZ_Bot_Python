@@ -8,25 +8,25 @@
         "Senior Investigator Log ×5": {
             "Name": "Senior Investigator Log ×5",
             "Price": 100,
-            "Inventory": 1232,
+            "Inventory": 1205,
             "Available": "Exchange"
         },
         "Dennies ×10,000": {
             "Name": "Dennies ×10,000",
             "Price": 80,
-            "Inventory": 6077,
+            "Inventory": 6052,
             "Available": "Exchange"
         },
         "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (Permanent)": {
             "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (Permanent)",
             "Price": 500,
-            "Inventory": 4997903,
+            "Inventory": 4997893,
             "Available": "Exchange"
         },
         "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (90-Day)": {
             "Name": "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (90-Day)",
             "Price": 90,
-            "Inventory": 4999843,
+            "Inventory": 4999842,
             "Available": "Exchange"
         },
         "Zenless Zone Zero Traveling Mimo Exclusive Avatar Frame (30-Day)": {
@@ -62,13 +62,12 @@
         "Dennies ×5,000": {
             "Name": "Dennies ×5,000",
             "Price": 50,
-            "Inventory": 47764,
+            "Inventory": 47746,
             "Available": "Limit Reached"
         }
     },
     "Selected": [
-        "Polychrome ×60",
-        "Polychrome ×30",
-        "Polychrome ×10"
+        "Senior Investigator Log ×5",
+        "Dennies ×10,000"
     ]
 }
