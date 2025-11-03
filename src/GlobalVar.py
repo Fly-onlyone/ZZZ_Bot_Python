@@ -103,7 +103,7 @@ class AppSettings(Serializable):
     schedule_times: List[str] = field(default_factory=lambda: ["08:00", "20:00"])
     exit_after_run: bool = False
     open_web_ui: bool = True
-    headless_mode: bool = False
+    hide_browser: bool = False
     run_task: bool = True
     gather_shopping_data: bool = True
     redeem_after_gather_data: bool = False
