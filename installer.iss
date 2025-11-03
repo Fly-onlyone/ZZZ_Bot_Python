@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "ZZZ Bot"
-#define MyAppVersion "1.2"
+#define MyAppVersion "1.3"
 #define MyAppPublisher "Fly"
 #define MyAppExeName "ZZZ Bot.exe"
 
@@ -28,9 +28,9 @@ ChangesAssociations=yes
 DisableProgramGroupPage=yes
 ; Remove the following line to run in administrative install mode (install for all users.)
 PrivilegesRequired=lowest
-OutputDir=C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\product
+OutputDir=C:\Users\PC\Documents\Playwright\ZZZ bot - Python\product
 OutputBaseFilename=ZZZ Bot Installer
-SetupIconFile=C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\images\Zhu Yuan02.ico
+SetupIconFile=C:\Users\PC\Documents\Playwright\ZZZ bot - Python\images\Zhu Yuan02.ico
 Compression=zip
 SolidCompression=yes
 WizardStyle=modern
@@ -43,10 +43,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "startup"; Description: "{cm:AutoStartProgram,{#MyAppName}}"; GroupDescription: "{cm:AutoStartProgramGroupDescription}";
 
 [Files]
-Source: "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\product\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\product\dist\authentication data\*"; DestDir: "{app}\authentication data"; Flags: recursesubdirs createallsubdirs onlyifdoesntexist
-Source: "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\product\dist\output\*"; DestDir: "{app}\output"; Flags: recursesubdirs createallsubdirs onlyifdoesntexist
-Source: "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\product\dist\screenshot\*"; DestDir: "{app}\screenshot"; Flags: recursesubdirs createallsubdirs onlyifdoesntexist
+Source: "C:\Users\PC\Documents\Playwright\ZZZ bot - Python\product\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\PC\Documents\Playwright\ZZZ bot - Python\product\dist\authentication data\*"; DestDir: "{app}\authentication data"; Flags: recursesubdirs createallsubdirs onlyifdoesntexist
+Source: "C:\Users\PC\Documents\Playwright\ZZZ bot - Python\product\dist\output\*"; DestDir: "{app}\output"; Flags: recursesubdirs createallsubdirs onlyifdoesntexist
+Source: "C:\Users\PC\Documents\Playwright\ZZZ bot - Python\product\dist\screenshot\*"; DestDir: "{app}\screenshot"; Flags: recursesubdirs createallsubdirs onlyifdoesntexist
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
