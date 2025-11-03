@@ -1,0 +1,111 @@
+2025-05-04 11:09:34,880 - __main__ - INFO - Mounting frontend build and setting browser path...
+2025-05-04 11:09:34,880 - __main__ - INFO - Starting FastAPI server...
+2025-05-04 11:09:34,881 - __main__ - INFO - Setting up tray icon...
+2025-05-04 11:09:34,884 - asyncio - DEBUG - Using proactor: IocpProactor
+2025-05-04 11:09:34,913 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2025-05-04 11:09:34,914 - uvicorn.error - INFO - Started server process [5992]
+2025-05-04 11:09:34,914 - uvicorn.error - INFO - Waiting for application startup.
+2025-05-04 11:09:34,914 - uvicorn.error - INFO - Application startup complete.
+2025-05-04 11:09:34,915 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-05-04 11:09:34,921 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2025-05-04 11:09:34,935 - schedule - DEBUG - Deleting *all* jobs
+2025-05-04 14:35:09,749 - __main__ - INFO - Mounting frontend build and setting browser path...
+2025-05-04 14:35:09,750 - __main__ - INFO - Starting FastAPI server...
+2025-05-04 14:35:09,750 - __main__ - INFO - Setting up tray icon...
+2025-05-04 14:35:09,754 - asyncio - DEBUG - Using proactor: IocpProactor
+2025-05-04 14:35:09,785 - uvicorn.error - INFO - Started server process [7912]
+2025-05-04 14:35:09,785 - uvicorn.error - INFO - Waiting for application startup.
+2025-05-04 14:35:09,785 - uvicorn.error - INFO - Application startup complete.
+2025-05-04 14:35:09,786 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-05-04 14:35:09,799 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2025-05-04 14:35:09,810 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2025-05-04 14:35:09,849 - schedule - DEBUG - Deleting *all* jobs
+2025-05-04 14:35:19,717 - pystray._base - ERROR - An error occurred when calling message handler
+Traceback (most recent call last):
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_win32.py", line 412, in _dispatcher
+    return int(icon._message_handlers.get(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Win32Icon.py", line 14, in _on_notify
+    super()._on_notify(wparam, lparam)
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_win32.py", line 224, in _on_notify
+    descriptors[index - 1](self)
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_base.py", line 328, in inner
+    callback(self)
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_base.py", line 453, in __call__
+    return self._action(icon, self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_base.py", line 554, in wrapper1
+    return action(icon)
+           ^^^^^^^^^^^^
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 354, in <lambda>
+    MenuItem("Exit", lambda item: on_tray_exit()),
+                                  ^^^^^^^^^^^^^^
+TypeError: on_tray_exit() missing 1 required positional argument: 'icon'
+2025-05-04 14:36:12,632 - __main__ - INFO - Mounting frontend build and setting browser path...
+2025-05-04 14:36:12,632 - __main__ - INFO - Starting FastAPI server...
+2025-05-04 14:36:12,633 - __main__ - INFO - Setting up tray icon...
+2025-05-04 14:36:12,636 - asyncio - DEBUG - Using proactor: IocpProactor
+2025-05-04 14:36:12,661 - uvicorn.error - INFO - Started server process [3824]
+2025-05-04 14:36:12,661 - uvicorn.error - INFO - Waiting for application startup.
+2025-05-04 14:36:12,662 - uvicorn.error - INFO - Application startup complete.
+2025-05-04 14:36:12,662 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-05-04 14:36:12,662 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2025-05-04 14:36:12,670 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2025-05-04 14:36:12,685 - schedule - DEBUG - Deleting *all* jobs
+2025-05-04 14:36:16,996 - pystray._base - ERROR - An error occurred when calling message handler
+Traceback (most recent call last):
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_win32.py", line 412, in _dispatcher
+    return int(icon._message_handlers.get(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Win32Icon.py", line 14, in _on_notify
+    super()._on_notify(wparam, lparam)
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_win32.py", line 224, in _on_notify
+    descriptors[index - 1](self)
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_base.py", line 328, in inner
+    callback(self)
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_base.py", line 453, in __call__
+    return self._action(icon, self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\pystray\_base.py", line 554, in wrapper1
+    return action(icon)
+           ^^^^^^^^^^^^
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 354, in <lambda>
+    MenuItem("Exit", lambda item: on_tray_exit(GlobalVar.tray_icon)),
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\PC\OneDrive - Ho Chi Minh City University of Foreign Languages and Information Technology - HUFLIT\Documents\Playwright\ZZZ bot - Python\src\Bot.py", line 372, in on_tray_exit
+    if not is_exe():
+           ^^^^^^^^
+TypeError: 'bool' object is not callable
+2025-05-04 14:37:09,453 - __main__ - INFO - Mounting frontend build and setting browser path...
+2025-05-04 14:37:09,454 - __main__ - INFO - Starting FastAPI server...
+2025-05-04 14:37:09,454 - __main__ - INFO - Setting up tray icon...
+2025-05-04 14:37:09,457 - asyncio - DEBUG - Using proactor: IocpProactor
+2025-05-04 14:37:09,485 - uvicorn.error - INFO - Started server process [10652]
+2025-05-04 14:37:09,485 - uvicorn.error - INFO - Waiting for application startup.
+2025-05-04 14:37:09,485 - uvicorn.error - INFO - Application startup complete.
+2025-05-04 14:37:09,486 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-05-04 14:37:09,505 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2025-05-04 14:37:09,514 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2025-05-04 14:37:09,553 - schedule - DEBUG - Deleting *all* jobs
+2025-05-04 14:38:06,433 - __main__ - INFO - Mounting frontend build and setting browser path...
+2025-05-04 14:38:06,433 - __main__ - INFO - Starting FastAPI server...
+2025-05-04 14:38:06,434 - __main__ - INFO - Setting up tray icon...
+2025-05-04 14:38:06,437 - asyncio - DEBUG - Using proactor: IocpProactor
+2025-05-04 14:38:06,462 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2025-05-04 14:38:06,464 - uvicorn.error - INFO - Started server process [29628]
+2025-05-04 14:38:06,464 - uvicorn.error - INFO - Waiting for application startup.
+2025-05-04 14:38:06,465 - uvicorn.error - INFO - Application startup complete.
+2025-05-04 14:38:06,465 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-05-04 14:38:06,471 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2025-05-04 14:38:06,486 - schedule - DEBUG - Deleting *all* jobs
+2025-05-04 14:38:54,400 - __main__ - INFO - Mounting frontend build and setting browser path...
+2025-05-04 14:38:54,401 - __main__ - INFO - Starting FastAPI server...
+2025-05-04 14:38:54,401 - __main__ - INFO - Setting up tray icon...
+2025-05-04 14:38:54,404 - asyncio - DEBUG - Using proactor: IocpProactor
+2025-05-04 14:38:54,430 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2025-05-04 14:38:54,430 - uvicorn.error - INFO - Started server process [3776]
+2025-05-04 14:38:54,430 - uvicorn.error - INFO - Waiting for application startup.
+2025-05-04 14:38:54,431 - uvicorn.error - INFO - Application startup complete.
+2025-05-04 14:38:54,431 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2025-05-04 14:38:54,438 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2025-05-04 14:38:54,453 - schedule - DEBUG - Deleting *all* jobs
