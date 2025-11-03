@@ -73,7 +73,7 @@ def check_and_process_item(item_locator):
 
 def init(page):
     # Get the current points
-    current_point_text = page.locator(".txt-EK942w").nth(1).inner_text()
+    current_point_text = page.locator(".txt-EK942w").inner_text()
     current_point = int(
         current_point_text.replace(",", "")
     )  # Assume it's a comma-separated number

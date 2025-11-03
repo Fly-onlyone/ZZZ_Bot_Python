@@ -46,61 +46,69 @@ def compare_images(arg1, arg2):
 
 
 def fetch_image_from_locator(page: Page, locator_selector: Locator):
-    # Try to get the `style` attribute
-    style = locator_selector.get_attribute("style")
     image_url = None
 
-    if style and "background-image" in style:
-        # Extract the URL from the style attribute
-        url_start = style.find('url("') + len('url("')
-        url_end = style.find('")', url_start)
-        image_url = style[url_start:url_end]
-    else:
-        # If `style` doesn't contain background-image, fall back to computed style
-        computed_style = locator_selector.evaluate(
-            "(el) => window.getComputedStyle(el).backgroundImage"
-        )
-        if computed_style and computed_style.startswith("url("):
-            # Extract the URL from the computed style
-            url_start = computed_style.find('url("') + len('url("')
-            url_end = computed_style.find('")', url_start)
-            image_url = computed_style[url_start:url_end]
+    # 1. If the locator *is* an <img>, grab its `src`
+    is_img = locator_selector.evaluate("el => el.tagName.toLowerCase() === 'img'")
+    if is_img:
+        image_url = locator_selector.get_attribute("src")
+
+    # 2. Otherwise, if it *contains* an <img>, grab that child src
+    if not image_url:
+        try:
+            child_img = locator_selector.locator("img")
+            # locator.count() > 0 if it found at least one <img>
+            if child_img.count() > 0:
+                image_url = child_img.first.get_attribute("src")
+        except Exception:
+            pass
+
+    # 3. Fallback to style attribute / computedStyle background-image
+    if not image_url:
+        style = locator_selector.get_attribute("style")
+        if style and "background-image" in style:
+            start = style.find('url("') + len('url("')
+            end = style.find('")', start)
+            image_url = style[start:end]
+        else:
+            computed = locator_selector.evaluate(
+                "(el) => window.getComputedStyle(el).backgroundImage"
+            )
+            if computed and computed.startswith("url("):
+                start = computed.find('url("') + len('url("')
+                end = computed.find('")', start)
+                image_url = computed[start:end]
 
     if not image_url:
         raise ValueError(f"Image URL not found for locator: {locator_selector}")
 
-    # Check if the URL is Base64-encoded
+    # 4. Decode data-URIs
     if image_url.startswith("data:image/"):
-        # Split the Base64 header from the actual data
         header, base64_data = image_url.split(",", 1)
         try:
-            # Decode Base64 data
-            image_data = base64.b64decode(base64_data)
-            image_array = np.frombuffer(image_data, np.uint8)
-            image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-            if image is None:
+            img_data = base64.b64decode(base64_data)
+            arr = np.frombuffer(img_data, np.uint8)
+            img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            if img is None:
                 raise ValueError("Failed to decode Base64 image.")
-            return image
+            return img
         except Exception as e:
             raise ValueError(f"Error decoding Base64 image: {e}")
-    else:
-        # Resolve relative URLs using the page's base URL
-        if not image_url.startswith("http://") and not image_url.startswith("https://"):
-            image_url = urljoin(page.url, image_url)  # Combine with the page's base URL
 
-        print(f"Resolved image URL: {image_url}")
+    # 5. Resolve relative → absolute URLs
+    if not image_url.startswith(("http://", "https://")):
+        image_url = urljoin(page.url, image_url)
+    print(f"Resolved image URL: {image_url}")
 
-        # Fetch image data using requests
-        response = requests.get(image_url)
-        response.raise_for_status()  # Ensure the request was successful
-        image_data = np.frombuffer(response.content, np.uint8)
+    # 6. Fetch & decode via requests + OpenCV
+    resp = requests.get(image_url)
+    resp.raise_for_status()
+    arr = np.frombuffer(resp.content, np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None:
+        raise ValueError(f"Failed to decode image from URL: {image_url}")
 
-        # Decode the image to an OpenCV format
-        image = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
-        if image is None:
-            raise ValueError(f"Failed to decode image from URL: {image_url}")
-
-        return image
+    return img
 
 
 def find_correct_avatar(page: Page):
