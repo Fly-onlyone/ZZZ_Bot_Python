@@ -32,30 +32,22 @@ def run(page: Page):
                 page.wait_for_timeout(5000)
 
                 # Check if the draw dialog is visible
-                draw_dialog = page.get_by_text("Congratulations, you've")
-                if draw_dialog.is_visible():
-                    reward_img = page.get_by_role("img")
-                    reward_name = detect_reward(page, reward_img)
-                    code = page.locator("gainCodeCopyInput-QcgdvD")
-                    RedeemAutofill.run(page.context, code, reward_name)
-                else:
-                    # print("Draw dialog not visible, skipping this draw.")
-                    notification.notify(
-                        title="ZZZ Bot",
-                        message="Draw dialog not visible, skipping this draw.",
-                        app_icon=CONFIG["SAD_ICON"],
-                    )
-                    break
-                draw_button = page.locator(".lotteryBtnCover-xI-MlR")
-                draw_dialog = page.get_by_text("Congratulations, you've")
-                draw_button.click()
-                page.wait_for_timeout(5000)
+                # draw_dialog = page.get_by_text("Congratulations, you've")
+                # if draw_dialog.is_visible():
+                #     reward_img = page.locator(".gainPrizeImage-FqEqMM")
+                #     reward_name = detect_reward(page, reward_img)
+                #     if not reward_name == "Unknown reward":
+                #         code = page.locator(".gainCodeCopyInput-QcgdvD")
+                #         RedeemAutofill.run(page.context, code, reward_name)
+                # else:
+                #     print("Draw dialog not visible, skipping this draw.")
+                #     notification.notify(
+                #         title="ZZZ Bot",
+                #         message="Draw dialog not visible, skipping this draw.",
+                #         app_icon=CONFIG["SAD_ICON"],
+                #     )
+                #     break
 
-                if draw_dialog.is_visible():
-                    reward_img = page.get_by_role("img")
-                    reward_name = detect_reward(page, reward_img)
-                    code = page.locator("gainCodeCopyInput-QcgdvD")
-                    RedeemAutofill.run(page.context, code, reward_name)
                 close_draw = page.locator(".gainClose-7Q0hz8")
                 print("Closing draw dialog")
                 close_draw.click()

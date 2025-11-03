@@ -168,7 +168,7 @@ export default function PermanentDrawer() {
                       fields: [
                         "schedule_times",
                         "exit_after_run",
-                        "headless_mode",
+                        "hide_browser",
                         "run_task",
                       ],
                     },

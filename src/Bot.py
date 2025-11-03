@@ -200,7 +200,7 @@ def playwright_task():
         CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
     )
     with sync_playwright() as p:
-        browser = p.firefox.launch(headless=settings.headless_mode)
+        browser = p.firefox.launch(headless=settings.hide_browser)
         context_options = (
             {"storage_state": CONFIG["STORAGE_PATH"]}
             if os.path.exists(CONFIG["STORAGE_PATH"])
@@ -250,7 +250,7 @@ def playwright_task():
         )
 
         context.storage_state(path=CONFIG["STORAGE_PATH"])
-        if not is_exe():
+        if not is_exe:
             input("Press ENTER to exit...")
         browser.close()
         if settings.exit_after_run:
@@ -351,7 +351,7 @@ def setup_tray_icon():
                 lambda item: toggle_setting("exit_after_run"),
                 checked=lambda item: settings.exit_after_run,
             ),
-            MenuItem("Exit", on_tray_exit),
+            MenuItem("Exit", lambda item: on_tray_exit(GlobalVar.tray_icon)),
         ),
         on_double_click=lambda icon, _: webbrowser.open_new_tab(CONFIG["WEB_UI_URL"]),
     )
@@ -369,7 +369,7 @@ def toggle_setting(setting_name):
 
 def on_tray_exit(icon: Icon):
     """Handle tray images exit."""
-    if not is_exe():
+    if not is_exe:
         react_server.send_signal(signal.CTRL_C_EVENT)
     icon.stop()
 

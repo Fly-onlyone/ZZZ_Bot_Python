@@ -66,6 +66,6 @@ def run(context: BrowserContext, code, item_name):
 
     # Save redeem data with state
     save_redeem_data(item_name, code, current_day, redeem_file_path, state=redeem_state)
-    if not settings.headless_mode:
+    if not settings.hide_browser:
         redeem_page.wait_for_timeout(2000)
     redeem_page.close()
