@@ -17,6 +17,8 @@ def run(page: Page):
             draw_pirce_text = page.locator(".lotteryCost-D-QGTv").inner_text()
             draw_price = extract_price(draw_pirce_text)
             max_draw_afford = int(current_point) // draw_price
+            print(f"Current points: {current_point}")
+            print(f"Draw price: {draw_price}")
             print(f"Max draw you can afford: {max_draw_afford}")
 
             draw_limit_text = page.locator(".lotteryLimitCount-fqLQOi").inner_text()
@@ -32,21 +34,21 @@ def run(page: Page):
                 page.wait_for_timeout(5000)
 
                 # Check if the draw dialog is visible
-                # draw_dialog = page.get_by_text("Congratulations, you've")
-                # if draw_dialog.is_visible():
-                #     reward_img = page.locator(".gainPrizeImage-FqEqMM")
-                #     reward_name = detect_reward(page, reward_img)
-                #     if not reward_name == "Unknown reward":
-                #         code = page.locator(".gainCodeCopyInput-QcgdvD")
-                #         RedeemAutofill.run(page.context, code, reward_name)
-                # else:
-                #     print("Draw dialog not visible, skipping this draw.")
-                #     notification.notify(
-                #         title="ZZZ Bot",
-                #         message="Draw dialog not visible, skipping this draw.",
-                #         app_icon=CONFIG["SAD_ICON"],
-                #     )
-                #     break
+                draw_dialog = page.get_by_text("Congratulations, you've")
+                if draw_dialog.is_visible():
+                    reward_img = page.locator(".gainPrizeImage-FqEqMM")
+                    reward_name = detect_reward(page, reward_img)
+                    if not reward_name == "Unknown reward":
+                        code = page.locator(".gainCodeCopyInput-QcgdvD")
+                        RedeemAutofill.run(page.context, code, reward_name)
+                else:
+                    print("Draw dialog not visible, skipping this draw.")
+                    notification.notify(
+                        title="ZZZ Bot",
+                        message="Draw dialog not visible, skipping this draw.",
+                        app_icon=CONFIG["SAD_ICON"],
+                    )
+                    break
 
                 close_draw = page.locator(".gainClose-7Q0hz8")
                 print("Closing draw dialog")

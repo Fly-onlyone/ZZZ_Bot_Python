@@ -129,7 +129,7 @@ CONFIG = generate_config(
     ["STORAGE_PATH", "OUTPUT_FOLDER", "SCREENSHOT_FOLDER"], ["WEB_UI_URL"]
 )
 CONFIG["WEB_UI_URL"] = (
-    "http://127.0.0.1:3000" if not is_exe else "http://127.0.0.1:8000"
+    "http://127.0.0.1:3000/" if not is_exe else "http://127.0.0.1:8000"
 )
 print(CONFIG)
 
