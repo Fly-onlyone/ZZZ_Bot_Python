@@ -72,16 +72,16 @@ def check_and_process_item(item_locator):
 
 
 def init(page):
-    # Get the current points
-    current_point_text = page.locator(".txt-EK942w").inner_text()
-    current_point = int(
-        current_point_text.replace(",", "")
-    )  # Assume it's a comma-separated number
     # Get the shopping button and screen locators
     shopping_button_locator = page.get_by_role("img").nth(1)
     screen_locator = page.locator(".wrapper-O3T67n")
     # Ensure the button is visible on the screen
     RetryHelper.retry_until_screen_appears(screen_locator, shopping_button_locator)
+    current_point_text = page.locator(".bubbleCnt-hsQFy-").inner_text()
+    current_point_text = current_point_text[1:]
+    current_point = int(current_point_text)
+    print(f"Current points: {current_point}")
+
     return current_point
 
 

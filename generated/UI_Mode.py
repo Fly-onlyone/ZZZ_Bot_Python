@@ -20,7 +20,7 @@ def run(playwright: Playwright) -> None:
     page.get_by_role("button", name="OK").click()
     page.locator(".lotteryBtnCover-xI-MlR").click()
     page.get_by_role("button", name="OK").click()
-
+    page.locator(".gainPrizeImage-FqEqMM").click()
     # ---------------------
     context.close()
     browser.close()
