@@ -58,7 +58,7 @@ def process_directory(base_dir, directories_to_copy):
 mode = get_environment()
 
 # Paths to the directories you want to copy
-directories_to_copy = ["./../authentication data", "./../screenshot", "./../output"]
+directories_to_copy = ["./../authentication data", "./../screenshot", "./../output","./../reward image"]
 spec_file_path="SpecStandalone.py" if mode =="MAKE_EXE_STANDALONE" else "SpecOnefile.py"
 # Read Spec.py and write its content to Bot.spec
 with open(spec_file_path, "r") as spec_file:
