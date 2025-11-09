@@ -4,9 +4,9 @@
         "20:00"
     ],
     "exit_after_run": false,
-    "open_web_ui": true,
-    "hide_browser": false,
-    "run_task": false,
+    "open_web_ui": false,
+    "hide_browser": true,
+    "run_task": true,
     "gather_shopping_data": true,
     "redeem_after_gather_data": true,
     "buy_all": true,

@@ -2,9 +2,9 @@ from datetime import datetime
 from pathlib import Path
 
 from playwright.sync_api import BrowserContext
-from plyer import notification
 
 import AutoLogin
+import NotificationHelper
 import RetryHelper
 from DataHandler import save_redeem_data
 from GlobalVar import CONFIG, settings
@@ -28,7 +28,7 @@ def run(context: BrowserContext, code, item_name):
                 .content_frame.get_by_text("Slide to complete the puzzle")
                 .is_visible()
             ):
-                notification.notify(
+                NotificationHelper.notify(
                     title="ZZZ Bot",
                     message="Captcha detected. Please complete manual login.",
                     app_icon=CONFIG["SAD_ICON"],
@@ -50,14 +50,14 @@ def run(context: BrowserContext, code, item_name):
         "Successfully redeemed. Please claim rewards from in-game mail."
     ).is_visible():
         redeem_state = True
-        notification.notify(
+        NotificationHelper.notify(
             title="ZZZ Bot",
             message=f"Redeemed {item_name} successfully.",
             app_icon=CONFIG["ICON_PATH"],
         )
     else:
         redeem_state = False
-        notification.notify(
+        NotificationHelper.notify(
             title="ZZZ Bot",
             message=f"Redeemed {item_name} failed.",
             app_icon=CONFIG["SAD_ICON"],

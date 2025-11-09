@@ -17,7 +17,6 @@ import uvicorn
 from PIL import Image
 from fastapi import BackgroundTasks, HTTPException
 from playwright.sync_api import sync_playwright
-from plyer import notification
 from pystray import Icon, Menu, MenuItem
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -28,6 +27,7 @@ import GlobalVar
 import ManualLogin
 import Mission
 import Notification
+import NotificationHelper
 import ShoppingHandler
 from DataHandler import (
     load_shopping_data,
@@ -215,7 +215,7 @@ def playwright_task():
 
         # Handle manual login if storage path doesn't exist
         if not os.path.exists(CONFIG["STORAGE_PATH"]):
-            notification.notify(
+            NotificationHelper.notify(
                 title="ZZZ Bot",
                 message="Please log in manually",
                 app_icon=CONFIG["SAD_ICON"],
@@ -233,19 +233,26 @@ def playwright_task():
         if settings.gather_shopping_data:
             ShoppingHandler.run(mino_page)
             close_button = mino_page.locator(".panelBack--wW5qj")
-            close_button.click()
+            close_button.click(force=True)  # Use force to bypass intercepting elements
         else:
             print("Gather data cancelled due to setting.")
 
         if settings.draw_item:
             DrawHandler.run(mino_page)
+            # Wait briefly for any overlays to disappear
+            mino_page.wait_for_timeout(1000)
             close_button = mino_page.locator(".panelBack--wW5qj")
-            close_button.click()
+            try:
+                close_button.click(force=True)  # Use force to bypass intercepting elements
+            except Exception as e:
+                print(f"Warning: Could not click back button: {e}")
+                # Try alternative method - press Escape key
+                mino_page.keyboard.press("Escape")
         else:
             print("Draw data cancelled due to setting.")
 
         save_last_run()
-        notification.notify(
+        NotificationHelper.notify(
             title="ZZZ Bot", message="Task finished", app_icon=CONFIG["ICON_PATH"]
         )
 
