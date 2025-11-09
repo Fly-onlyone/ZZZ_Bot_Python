@@ -1,47 +1,5 @@
 [
   {
-    "day": "11/05/2025",
-    "check_in": "Login Success",
-    "missions": [
-      {
-        "name": "Visit the Zenless Zone Zero community today",
-        "state": "Finished"
-      },
-      {
-        "name": "Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game",
-        "state": "Finished"
-      },
-      {
-        "name": "Log into Zenless Zone Zero today",
-        "state": "Finished"
-      },
-      {
-        "name": "Reach 400 Engagement today",
-        "state": "Finished"
-      },
-      {
-        "name": "Spend 80 Battery Charge today",
-        "state": "Finished"
-      },
-      {
-        "name": "Complete a Hollow Zero operation once this week",
-        "state": "Unfinished"
-      },
-      {
-        "name": "Log into the game for 7 days",
-        "state": "Finished"
-      },
-      {
-        "name": "Log into the game for 14 days",
-        "state": "Finished"
-      },
-      {
-        "name": "Complete Notorious Hunt once this week",
-        "state": "Finished"
-      }
-    ]
-  },
-  {
     "day": "02/11/2025",
     "check_in": "Link isn't opened",
     "missions": [
@@ -189,6 +147,48 @@
       },
       {
         "name": "Spend 80 Battery Charge today",
+        "state": "Finished"
+      },
+      {
+        "name": "Log into the game for 7 days",
+        "state": "Finished"
+      },
+      {
+        "name": "Log into the game for 14 days",
+        "state": "Finished"
+      },
+      {
+        "name": "Complete Notorious Hunt once this week",
+        "state": "Finished"
+      },
+      {
+        "name": "Complete a Hollow Zero operation once this week",
+        "state": "Finished"
+      }
+    ]
+  },
+  {
+    "day": "09/11/2025",
+    "check_in": "Link isn't opened",
+    "missions": [
+      {
+        "name": "Log into Zenless Zone Zero today",
+        "state": "Finished"
+      },
+      {
+        "name": "Reach 400 Engagement today",
+        "state": "Finished"
+      },
+      {
+        "name": "Spend 80 Battery Charge today",
+        "state": "Finished"
+      },
+      {
+        "name": "Visit the Zenless Zone Zero community today",
+        "state": "Finished"
+      },
+      {
+        "name": "Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game",
         "state": "Finished"
       },
       {

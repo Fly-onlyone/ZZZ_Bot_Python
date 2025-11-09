@@ -2,8 +2,8 @@ import threading
 import time
 
 from playwright.sync_api import sync_playwright
-from plyer import notification
 
+import NotificationHelper
 from GlobalVar import CONFIG
 
 playState = False
@@ -22,7 +22,7 @@ def run(url):
 
             print("Browser opened and navigated to:", url)
 
-            notification.notify(
+            NotificationHelper.notify(
                 title="ZZZ Bot",
                 message="Start manual login",
                 app_icon=CONFIG["SAD_ICON"],
@@ -38,7 +38,7 @@ def run(url):
             # Save the session
             context.storage_state(path=CONFIG["STORAGE_PATH"])
             print("Session saved.")
-            notification.notify(
+            NotificationHelper.notify(
                 title="ZZZ Bot",
                 message="Login session saved",
                 app_icon=CONFIG["ICON_PATH"],
@@ -48,7 +48,7 @@ def run(url):
     except Exception as e:
         # Log and reset playState on error
         print(f"Error in run function: {e}")
-        notification.notify(
+        NotificationHelper.notify(
             title="ZZZ Bot Error",
             message=f"An error occurred: {str(e)}",
             app_icon=CONFIG["SAD_ICON"],
