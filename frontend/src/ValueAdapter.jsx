@@ -7,6 +7,12 @@ import { ContentCopy, Visibility, VisibilityOff } from "@mui/icons-material";
 import { useQueryClient } from "@tanstack/react-query";
 import { DataLoader } from "./DataLoader";
 import SaveButton from "./SaveButton";
+import { COLORS, ALPHA } from "./theme/colors";
+import {
+  buttonStyles,
+  iconButtonStyles,
+  switchStyles,
+} from "./theme/styles";
 
 export default function ValueAdapter({
   customIcons = {},
@@ -61,154 +67,204 @@ export default function ValueAdapter({
     }));
   };
 
+  // Render array field (time pickers)
+  const renderArrayField = (key, fieldValue) => (
+    <div className="space-y-4">
+      {fieldValue.map((time, index) => (
+        <div
+          key={index}
+          className="flex items-center justify-between gap-4 rounded-lg p-3"
+          style={{
+            background: ALPHA.hover,
+            border: `1px solid ${ALPHA.cardBorder}`,
+          }}
+        >
+          <TimePicker
+            label="Select Time"
+            value={time ? dayjs(time, "HH:mm") : null}
+            onChange={(newValue) => {
+              const updatedArray = [...fieldValue];
+              updatedArray[index] = newValue ? newValue.format("HH:mm") : "";
+              handleChange(key, updatedArray);
+            }}
+          />
+          <Button
+            variant="contained"
+            onClick={() => {
+              const updatedArray = fieldValue.filter((_, i) => i !== index);
+              handleChange(key, updatedArray);
+            }}
+            sx={buttonStyles.error}
+          >
+            Remove
+          </Button>
+        </div>
+      ))}
+      <Button
+        variant="contained"
+        onClick={() => handleChange(key, [...fieldValue, ""])}
+        sx={buttonStyles.success}
+      >
+        Add Time
+      </Button>
+    </div>
+  );
+
+  // Render boolean field (switch)
+  const renderBooleanField = (key, fieldValue) => (
+    <Switch
+      id={key}
+      checked={fieldValue}
+      onChange={(e) => handleChange(key, e.target.checked)}
+      className="ml-auto"
+      sx={switchStyles.default}
+    />
+  );
+
+  // Render text field with optional password visibility toggle
+  const renderTextField = (key, fieldValue, isPassword) => (
+    <div className="flex flex-grow items-center gap-2">
+      <TextField
+        className={isPassword ? "" : "pr-12"}
+        id={key}
+        type={isPassword && passwordVisibility[key] ? "text" : isPassword ? "password" : "text"}
+        value={fieldValue || ""}
+        onChange={(e) => handleChange(key, e.target.value)}
+        fullWidth
+      />
+      {isPassword && (
+        <IconButton
+          onClick={() => togglePasswordVisibility(key)}
+          title={passwordVisibility[key] ? "Hide" : "Show"}
+          sx={iconButtonStyles.default}
+        >
+          {passwordVisibility[key] ? <VisibilityOff /> : <Visibility />}
+        </IconButton>
+      )}
+      <IconButton
+        onClick={() => navigator.clipboard.writeText(fieldValue || "")}
+        title="Copy to clipboard"
+        sx={iconButtonStyles.default}
+      >
+        <ContentCopy />
+      </IconButton>
+    </div>
+  );
+
+  // Main render field function
   const renderField = (key) => {
     const fieldValue = value[key];
     const isPassword = key.toLowerCase().includes("password");
 
     if (Array.isArray(fieldValue)) {
-      return (
-        <div className="space-y-4">
-          {fieldValue.map((time, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between gap-4 rounded-lg bg-gray-700 p-3"
-            >
-              <TimePicker
-                label="Select Time"
-                value={time ? dayjs(time, "HH:mm") : null}
-                onChange={(newValue) => {
-                  const updatedArray = [...fieldValue];
-                  updatedArray[index] = newValue
-                    ? newValue.format("HH:mm")
-                    : "";
-                  handleChange(key, updatedArray);
-                }}
-              />
-              <Button
-                variant="contained"
-                color="error"
-                onClick={() => {
-                  const updatedArray = fieldValue.filter((_, i) => i !== index);
-                  handleChange(key, updatedArray);
-                }}
-              >
-                Remove
-              </Button>
-            </div>
-          ))}
-          <Button
-            variant="contained"
-            color="success"
-            onClick={() => handleChange(key, [...fieldValue, ""])}
-          >
-            Add Time
-          </Button>
-        </div>
-      );
+      return renderArrayField(key, fieldValue);
     } else if (typeof fieldValue === "boolean") {
-      return (
-        <Switch
-          id={key}
-          checked={fieldValue}
-          onChange={(e) => handleChange(key, e.target.checked)}
-          color="primary"
-          className="ml-auto"
-        />
-      );
-    } else if (isPassword) {
-      return (
-        <div className="flex flex-grow items-center gap-2">
-          <TextField
-            id={key}
-            type={passwordVisibility[key] ? "text" : "password"}
-            value={fieldValue || ""}
-            onChange={(e) => handleChange(key, e.target.value)}
-            fullWidth
-          />
-          <IconButton
-            onClick={() => togglePasswordVisibility(key)}
-            title={passwordVisibility[key] ? "Hide" : "Show"}
-          >
-            {passwordVisibility[key] ? <VisibilityOff /> : <Visibility />}
-          </IconButton>
-          <IconButton
-            onClick={() => navigator.clipboard.writeText(fieldValue || "")}
-            title="Copy to clipboard"
-          >
-            <ContentCopy />
-          </IconButton>
-        </div>
-      );
+      return renderBooleanField(key, fieldValue);
     } else {
-      return (
-        <div className="flex flex-grow items-center gap-2">
-          <TextField
-            className="pr-12"
-            id={key}
-            value={fieldValue || ""}
-            onChange={(e) => handleChange(key, e.target.value)}
-            fullWidth
-          />
-          <IconButton
-            onClick={() => navigator.clipboard.writeText(fieldValue || "")}
-            title="Copy to clipboard"
-          >
-            <ContentCopy />
-          </IconButton>
-        </div>
-      );
+      return renderTextField(key, fieldValue, isPassword);
     }
   };
 
+  // Render a section with grouped fields
   const renderSection = (sectionKey, sectionData, index, length) => {
     if (!sectionKey || !sectionData || !sectionData.fields?.length) return null;
 
     const { fields, icon } = sectionData;
+    const isLastSection = index + 1 >= length;
 
     return (
       <div key={sectionKey} className="mb-8">
+        {/* Section header */}
         <div className="mb-4 flex items-center gap-4">
-          {icon && <div className="text-2xl">{icon}</div>}
-          <h2 className="text-2xl font-semibold capitalize">
+          {icon && (
+            <div className="text-2xl" style={{ color: COLORS.secondary.main }}>
+              {icon}
+            </div>
+          )}
+          <h2
+            className="text-2xl font-semibold capitalize"
+            style={{ color: COLORS.text.secondary }}
+          >
             {sectionKey.replace(/_/g, " ")}
           </h2>
         </div>
+
+        {/* Section fields */}
         <div className="space-y-6">
-          {fields.map((fieldKey) => (
-            <div
-              key={fieldKey}
-              className={`${
-                !Array.isArray(value[fieldKey]) ? "flex items-center gap-4" : ""
-              }`}
-            >
-              <label
-                className={`flex gap-4 text-lg font-medium capitalize ${
-                  !Array.isArray(value[fieldKey]) ? "w-1/4" : "mb-4"
-                }`}
-              >
-                {customIcons[fieldKey] && (
-                  <div className="flex items-center">
-                    {customIcons[fieldKey]}
-                  </div>
-                )}
-                {fieldKey.replace(/_/g, " ")}:
-              </label>
+          {fields.map((fieldKey) => {
+            const isArrayField = Array.isArray(value[fieldKey]);
+
+            return (
               <div
-                className={`${
-                  !Array.isArray(value[fieldKey]) ? "flex w-3/4" : ""
-                }`}
+                key={fieldKey}
+                className={isArrayField ? "" : "flex items-center gap-4"}
               >
-                {renderField(fieldKey)}
+                <label
+                  className={`flex gap-4 text-lg font-medium capitalize ${
+                    isArrayField ? "mb-4" : "w-1/4"
+                  }`}
+                  style={{ color: COLORS.text.tertiary }}
+                >
+                  {customIcons[fieldKey] && (
+                    <div
+                      className="flex items-center"
+                      style={{ color: COLORS.secondary.main }}
+                    >
+                      {customIcons[fieldKey]}
+                    </div>
+                  )}
+                  {fieldKey.replace(/_/g, " ")}:
+                </label>
+                <div className={isArrayField ? "" : "flex w-3/4"}>
+                  {renderField(fieldKey)}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-        {index + 1 < length && <Divider className="mt-6" />}
+
+        {/* Section divider */}
+        {!isLastSection && (
+          <Divider sx={{ borderColor: ALPHA.divider, mt: 3 }} />
+        )}
       </div>
     );
   };
 
   if (error) return <p className="text-red-500">{error}</p>;
+
+  // Render standalone fields (no sections)
+  const renderStandaloneFields = () =>
+    Object.keys(value).map((key) => {
+      const isArrayField = Array.isArray(value[key]);
+
+      return (
+        <div
+          key={key}
+          className={`mb-6 ${isArrayField ? "" : "flex items-center gap-4"}`}
+        >
+          <label
+            className={`flex gap-4 text-lg font-medium capitalize ${
+              isArrayField ? "mb-4" : "w-1/4"
+            }`}
+            style={{ color: COLORS.text.tertiary }}
+          >
+            {customIcons[key] && (
+              <div
+                className="flex items-center"
+                style={{ color: COLORS.secondary.main }}
+              >
+                {customIcons[key]}
+              </div>
+            )}
+            {key.replace(/_/g, " ")}:
+          </label>
+          <div className={isArrayField ? "" : "flex w-3/4"}>
+            {renderField(key)}
+          </div>
+        </div>
+      );
+    });
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -222,32 +278,7 @@ export default function ValueAdapter({
                 Object.keys(customSections).length
               )
             )
-          : Object.keys(value).map((key) => (
-              <div
-                key={key}
-                className={`mb-6 ${
-                  !Array.isArray(value[key]) ? "flex items-center gap-4" : ""
-                }`}
-              >
-                <label
-                  className={`flex gap-4 text-lg font-medium capitalize ${
-                    !Array.isArray(value[key]) ? "w-1/4" : "mb-4"
-                  }`}
-                >
-                  {customIcons[key] && (
-                    <div className="flex items-center">{customIcons[key]}</div>
-                  )}
-                  {key.replace(/_/g, " ")}:
-                </label>
-                <div
-                  className={`${
-                    !Array.isArray(value[key]) ? "flex w-3/4" : ""
-                  } `}
-                >
-                  {renderField(key)}
-                </div>
-              </div>
-            ))}
+          : renderStandaloneFields()}
       </div>
       <SaveButton onSave={handleSubmit} alert={alert} setAlert={setAlert} />
     </form>
