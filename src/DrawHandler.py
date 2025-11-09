@@ -2,6 +2,7 @@
 
 Handles automated prize draws, reward detection, and redemption code processing.
 """
+
 import logging
 from typing import Optional
 
@@ -59,10 +60,14 @@ def _extract_redemption_code(page: Page, draw_number: int) -> Optional[str]:
             # Check if element exists in DOM
             if code_element.count() == 0:
                 if selector_idx == 0:
-                    logger.debug(f"Draw {draw_number}: Selector '{selector}' not found, trying alternative...")
+                    logger.debug(
+                        f"Draw {draw_number}: Selector '{selector}' not found, trying alternative..."
+                    )
                     continue
                 else:
-                    logger.debug(f"Draw {draw_number}: No redemption code element found (reward may not have code)")
+                    logger.debug(
+                        f"Draw {draw_number}: No redemption code element found (reward may not have code)"
+                    )
                     return None
 
             # Wait for element to be attached and visible
@@ -80,19 +85,27 @@ def _extract_redemption_code(page: Page, draw_number: int) -> Optional[str]:
 
                 # Validate the code
                 if redeem_code and len(redeem_code.strip()) > 0:
-                    logger.info(f"Draw {draw_number}: Successfully extracted code: {redeem_code}")
+                    logger.info(
+                        f"Draw {draw_number}: Successfully extracted code: {redeem_code}"
+                    )
                     return redeem_code.strip()
                 else:
-                    logger.warning(f"Draw {draw_number}: Code element found but text is empty")
+                    logger.warning(
+                        f"Draw {draw_number}: Code element found but text is empty"
+                    )
 
             except PlaywrightTimeoutError:
-                logger.warning(f"Draw {draw_number}: Timeout waiting for code element with selector '{selector}'")
+                logger.warning(
+                    f"Draw {draw_number}: Timeout waiting for code element with selector '{selector}'"
+                )
 
                 # Try alternative method: text_content (doesn't wait for visibility)
                 try:
                     redeem_code = code_element.text_content(timeout=1000)
                     if redeem_code and len(redeem_code.strip()) > 0:
-                        logger.info(f"Draw {draw_number}: Extracted code via text_content: {redeem_code}")
+                        logger.info(
+                            f"Draw {draw_number}: Extracted code via text_content: {redeem_code}"
+                        )
                         return redeem_code.strip()
                 except Exception:
                     pass
@@ -107,7 +120,9 @@ def _extract_redemption_code(page: Page, draw_number: int) -> Optional[str]:
             if selector_idx < len(selectors_to_try) - 1:
                 continue
 
-    logger.warning(f"Draw {draw_number}: Could not extract redemption code after trying all methods")
+    logger.warning(
+        f"Draw {draw_number}: Could not extract redemption code after trying all methods"
+    )
     return None
 
 
@@ -124,26 +139,39 @@ def _calculate_available_draws(page: Page) -> Optional[int]:
         # Get current points
         current_point_text = page.locator(POINT_VALUE_SELECTOR).inner_text()
         current_points = int(current_point_text.replace(",", ""))
+        logger.debug(
+            f"Current points: {current_points} (raw text: '{current_point_text}')"
+        )
 
         # Get draw cost
         draw_cost_text = page.locator(DRAW_COST_SELECTOR).inner_text()
         draw_price = extract_price(draw_cost_text)
+        logger.debug(f"Draw price: ${draw_price} (raw text: '{draw_cost_text}')")
 
         # Calculate maximum affordable draws
         max_affordable = current_points // draw_price
 
-        # Get draw limit
+        # Get draw limit (format: "remaining/total")
         draw_limit_text = page.locator(DRAW_LIMIT_SELECTOR).inner_text()
-        draw_limit = extract_number(draw_limit_text)
+        logger.debug(f"Draw limit text (raw): '{draw_limit_text}'")
 
-        # Calculate available draws (minimum of affordable and limit)
-        available = min(max_affordable, draw_limit)
+        draws_remaining = extract_number(draw_limit_text, side="left")
+        draws_total = extract_number(draw_limit_text, side="right")
+        logger.debug(f"Parsed draws: remaining={draws_remaining}, total={draws_total}")
+
+        # Validate parsing
+        if draws_remaining is None or draws_total is None:
+            logger.error(f"Could not parse draw limit text: '{draw_limit_text}'")
+            return None
+
+        # Calculate available draws (minimum of affordable and remaining)
+        available = min(max_affordable, draws_remaining)
 
         logger.info(
             f"Draw calculation: {current_points} points, "
             f"${draw_price} per draw, "
             f"{max_affordable} affordable, "
-            f"{draw_limit} limit, "
+            f"{draws_remaining}/{draws_total} draws (remaining/total), "
             f"{available} available"
         )
 
@@ -168,8 +196,19 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
     logger.info(f"Performing draw {draw_number}/{total_draws}")
 
     try:
-        # Click draw button
+        # Get draw button
         draw_button = page.locator(DRAW_BUTTON_SELECTOR)
+
+        # Verify button is visible
+        if not draw_button.is_visible(timeout=3000):
+            logger.error(f"Draw {draw_number}: Draw button not visible")
+            return False
+
+        # Note: is_enabled() check removed - the button appears enabled even when
+        # no draws are available. We rely on the pre-calculation check instead.
+
+        # Click draw button
+        logger.debug(f"Draw {draw_number}: Clicking draw button")
         draw_button.click()
 
         # Wait for result
@@ -178,12 +217,26 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
         # Check for success dialog
         success_dialog = page.get_by_text(SUCCESS_DIALOG_TEXT)
         if not success_dialog.is_visible(timeout=3000):
-            logger.warning("Draw result dialog not visible")
-            NotificationHelper.notify(
-                title="ZZZ Bot - Draw Failed",
-                message=f"Draw {draw_number} failed - dialog not visible",
-                app_icon=CONFIG.get("SAD_ICON", ""),
+            logger.warning(
+                f"Draw {draw_number}: Draw result dialog not visible after clicking button"
             )
+
+            # This usually means no draws are actually available (page data was stale)
+            if draw_number == 1:
+                logger.warning(
+                    "First draw failed - likely no draws actually available despite what page shows"
+                )
+                NotificationHelper.notify(
+                    title="ZZZ Bot - No Draws Available",
+                    message="Draw button clicked but no result - draws may be exhausted",
+                    app_icon=CONFIG.get("ICON_PATH", ""),
+                )
+            else:
+                NotificationHelper.notify(
+                    title="ZZZ Bot - Draw Failed",
+                    message=f"Draw {draw_number} failed - dialog not visible",
+                    app_icon=CONFIG.get("SAD_ICON", ""),
+                )
             return False
 
         # Detect reward from image
@@ -191,7 +244,9 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
         reward_name = detect_reward(page, reward_image)
 
         if reward_name == UNKNOWN_REWARD:
-            logger.warning(f"Draw {draw_number}: Unknown reward detected, skipping redemption")
+            logger.warning(
+                f"Draw {draw_number}: Unknown reward detected, skipping redemption"
+            )
         else:
             logger.info(f"Draw {draw_number}: Received '{reward_name}'")
 
@@ -200,11 +255,15 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
             if redeem_code:
                 try:
                     RedeemAutofill.run(page.context, redeem_code, reward_name)
-                    logger.info(f"Processed redemption code for '{reward_name}': {redeem_code}")
+                    logger.info(
+                        f"Processed redemption code for '{reward_name}': {redeem_code}"
+                    )
                 except Exception as e:
                     logger.error(f"Error running autofill for '{reward_name}': {e}")
             else:
-                logger.warning(f"No redemption code found for '{reward_name}' (may not require one)")
+                logger.warning(
+                    f"No redemption code found for '{reward_name}' (may not require one)"
+                )
 
         # Close dialog
         try:
@@ -213,7 +272,9 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
             close_button.click(force=True, timeout=CLOSE_DIALOG_TIMEOUT)
             logger.debug("Closed draw dialog")
         except PlaywrightTimeoutError:
-            logger.warning("Close button not found, dialog may have closed automatically")
+            logger.warning(
+                "Close button not found, dialog may have closed automatically"
+            )
         except Exception as e:
             logger.warning(f"Error closing dialog: {e}, attempting to continue")
 
@@ -253,16 +314,34 @@ def run(page: Page) -> None:
 
         logger.info("ZZZ lottery verified")
 
+        # Wait for page to fully load and data to refresh
+        logger.debug("Waiting for draw data to load...")
+        page.wait_for_timeout(2000)  # Give page time to load fresh data from server
+
         # Calculate available draws
         available_draws = _calculate_available_draws(page)
 
         if available_draws is None:
             logger.error("Could not calculate available draws")
+            NotificationHelper.notify(
+                title="ZZZ Bot - Draw Error",
+                message="Could not calculate available draws",
+                app_icon=CONFIG.get("SAD_ICON", ""),
+            )
             return
 
-        if available_draws == 0:
-            logger.info("No draws available (insufficient points or limit reached)")
+        if available_draws <= 0:
+            logger.info(
+                f"No draws available (calculated: {available_draws} - insufficient points or limit reached)"
+            )
+            NotificationHelper.notify(
+                title="ZZZ Bot - No Draws",
+                message="No draws available (insufficient points or limit reached)",
+                app_icon=CONFIG.get("ICON_PATH", ""),
+            )
             return
+
+        logger.info(f"Starting {available_draws} prize draw(s)")
 
         # Perform all draws
         successful_draws = 0
@@ -273,7 +352,28 @@ def run(page: Page) -> None:
                 successful_draws += 1
             else:
                 failed_draws += 1
-                logger.warning(f"Draw {i} failed, stopping remaining draws")
+
+                # If first draw fails, page data was likely stale - log for user
+                if i == 1:
+                    logger.warning(
+                        f"First draw failed - page may have shown stale data"
+                    )
+                    logger.info(
+                        f"Page showed {available_draws} draws available, but none could be performed"
+                    )
+                    # Re-check actual draw count
+                    page.wait_for_timeout(1000)
+                    actual_available = _calculate_available_draws(page)
+                    if (
+                        actual_available is not None
+                        and actual_available != available_draws
+                    ):
+                        logger.info(
+                            f"After refresh: actually {actual_available} draws available (was showing {available_draws})"
+                        )
+                else:
+                    logger.warning(f"Draw {i} failed, stopping remaining draws")
+
                 break
 
             # Brief pause between draws

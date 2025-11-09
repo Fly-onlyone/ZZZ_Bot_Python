@@ -8,13 +8,13 @@
         "Yidhari Avatar Frame (Permanent)": {
             "Name": "Yidhari Avatar Frame (Permanent)",
             "Price": 150,
-            "Inventory": 3987076,
+            "Inventory": 3986953,
             "Available": "Exchange"
         },
         "Lucia Avatar Frame (Permanent)": {
             "Name": "Lucia Avatar Frame (Permanent)",
             "Price": 150,
-            "Inventory": 3987177,
+            "Inventory": 3987085,
             "Available": "Exchange"
         },
         "Senior Investigator Log ×5": {
@@ -50,13 +50,13 @@
         "Dennies ×5,000": {
             "Name": "Dennies ×5,000",
             "Price": 50,
-            "Inventory": 41651,
+            "Inventory": 41608,
             "Available": "Limit Reached"
         },
         "Dennies ×10,000": {
             "Name": "Dennies ×10,000",
             "Price": 80,
-            "Inventory": 2590,
+            "Inventory": 2545,
             "Available": "Limit Reached"
         }
     },
