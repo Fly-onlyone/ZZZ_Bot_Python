@@ -1,5 +1,12 @@
+"""Image processing module for ZZZ Bot.
+
+Provides image comparison, element detection, and visual state recognition
+using OpenCV for browser automation.
+"""
 import base64
 import os
+import logging
+from typing import Union, Tuple, Optional
 from urllib.parse import urljoin
 
 import cv2
@@ -10,34 +17,65 @@ from playwright.sync_api import Locator, Page
 import RetryHelper
 from GlobalVar import CONFIG
 
+logger = logging.getLogger(__name__)
 
-def compare_images(arg1, arg2):
-    # Check if the inputs are file paths (str), then read the images
-    if isinstance(arg1, str) and isinstance(arg2, str):
+# Type aliases
+ImageType = Union[str, np.ndarray]
+
+# Constants
+MATCH_THRESHOLD = 5.0  # Percentage difference threshold for image matching
+BINARY_THRESHOLD = 30  # Threshold for binary image diff
+
+
+def compare_images(arg1: ImageType, arg2: ImageType) -> float:
+    """Compare two images and return the difference percentage.
+
+    Args:
+        arg1: First image (file path or numpy array)
+        arg2: Second image (file path or numpy array)
+
+    Returns:
+        Percentage of different pixels (0-100)
+
+    Raises:
+        ValueError: If arguments are not valid image types
+    """
+    # Load first image
+    if isinstance(arg1, str):
         img1 = cv2.imread(arg1)
-        img2 = cv2.imread(arg2)
-    # If inputs are already OpenCV images (numpy arrays), use them directly
-    elif isinstance(arg1, np.ndarray) and isinstance(arg2, np.ndarray):
+        if img1 is None:
+            raise ValueError(f"Could not load image from path: {arg1}")
+    elif isinstance(arg1, np.ndarray):
         img1 = arg1
+    else:
+        raise ValueError(f"arg1 must be file path (str) or OpenCV image (numpy.ndarray), got {type(arg1)}")
+
+    # Load second image
+    if isinstance(arg2, str):
+        img2 = cv2.imread(arg2)
+        if img2 is None:
+            raise ValueError(f"Could not load image from path: {arg2}")
+    elif isinstance(arg2, np.ndarray):
         img2 = arg2
     else:
-        raise ValueError(
-            "Arguments must both be file paths (str) or OpenCV images (numpy.ndarray)."
-        )
+        raise ValueError(f"arg2 must be file path (str) or OpenCV image (numpy.ndarray), got {type(arg2)}")
 
-    # Resize images to the same size for comparison (optional if sizes differ)
-    img2 = cv2.resize(img2, (img1.shape[1], img1.shape[0]))
+    # Resize second image to match first image dimensions
+    if img1.shape != img2.shape:
+        img2 = cv2.resize(img2, (img1.shape[1], img1.shape[0]))
 
-    # Compute the difference between the images
+    # Compute absolute difference
     difference = cv2.absdiff(img1, img2)
 
-    # Convert the difference image to grayscale
+    # Convert to grayscale
     gray_diff = cv2.cvtColor(difference, cv2.COLOR_BGR2GRAY)
 
-    # Apply a binary threshold to the grayscale difference image
-    _, threshold_diff = cv2.threshold(gray_diff, 30, 255, cv2.THRESH_BINARY)
+    # Apply binary threshold
+    _, threshold_diff = cv2.threshold(
+        gray_diff, BINARY_THRESHOLD, 255, cv2.THRESH_BINARY
+    )
 
-    # Calculate the percentage of different pixels
+    # Calculate difference percentage
     non_zero_count = np.count_nonzero(threshold_diff)
     total_pixels = threshold_diff.size
     difference_percentage = (non_zero_count / total_pixels) * 100
@@ -111,22 +149,49 @@ def fetch_image_from_locator(page: Page, locator_selector: Locator):
     return img
 
 
-def find_correct_avatar(page: Page):
-    avatar_count = RetryHelper.retry_until_non_zero_count(
-        page.locator("div.avatarsItemImg-AiUG1h")
-    )
-    print(f"Avatar count: {avatar_count}")
+def find_correct_avatar(page: Page) -> Optional[Locator]:
+    """Find and return the ZZZ game avatar from available avatars.
+
+    Args:
+        page: Playwright Page instance
+
+    Returns:
+        Locator for ZZZ avatar if found, None otherwise
+    """
+    avatar_locators = page.locator("div.avatarsItemImg-AiUG1h")
+    avatar_count = RetryHelper.retry_until_non_zero_count(avatar_locators)
+
+    logger.info(f"Found {avatar_count} avatars")
+
+    if avatar_count == 0:
+        logger.warning("No avatars found on page")
+        return None
+
     zzz_icon_path = CONFIG["ZZZ_ICON"]
+    zzz_icon_img = cv2.imread(zzz_icon_path)
+
+    if zzz_icon_img is None:
+        logger.error(f"Could not load ZZZ icon from {zzz_icon_path}")
+        return None
+
     for i in range(avatar_count):
-        avatar_icon_locator = page.locator("div.avatarsItemImg-AiUG1h").nth(i)
-        avatar_image = fetch_image_from_locator(page, avatar_icon_locator)
-        diff = compare_images(avatar_image, cv2.imread(zzz_icon_path))
-        print(f"Difference from ZZZ Avatar: {diff}%")
-        if diff < 5:
-            print("This is ZZZ avatar")
-            return avatar_icon_locator
-        else:
-            print("This is NOT ZZZ avatar")
+        avatar_locator = avatar_locators.nth(i)
+
+        try:
+            avatar_image = fetch_image_from_locator(page, avatar_locator)
+            diff = compare_images(avatar_image, zzz_icon_img)
+
+            logger.debug(f"Avatar {i + 1}: {diff:.2f}% difference from ZZZ icon")
+
+            if diff < MATCH_THRESHOLD:
+                logger.info(f"ZZZ avatar found at position {i + 1}")
+                return avatar_locator
+
+        except Exception as e:
+            logger.warning(f"Error checking avatar {i + 1}: {e}")
+            continue
+
+    logger.warning("ZZZ avatar not found among available avatars")
     return None
 
 

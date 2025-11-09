@@ -1,55 +1,303 @@
-from playwright.sync_api import Page
-from plyer import notification
+"""Prize draw automation module for ZZZ Bot.
 
+Handles automated prize draws, reward detection, and redemption code processing.
+"""
+import logging
+from typing import Optional
+
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
+
+import NotificationHelper
 import RedeemAutofill
 import RetryHelper
 from GlobalVar import CONFIG
 from ImageProcessor import find_correct_lottery_logo, detect_reward
 from StringUtil import extract_price, extract_number
 
+logger = logging.getLogger(__name__)
 
-def run(page: Page):
-    draw_button_locator = page.get_by_role("img").nth(2)
-    screen_locator = page.locator(".panelTitle-6aEu3I").filter(has_text="Prize Draw")
-    if RetryHelper.retry_until_screen_appears(screen_locator, draw_button_locator):
-        if find_correct_lottery_logo(page):
-            current_point = page.locator(".lotteryPointValue-qM8enE").inner_text()
-            draw_pirce_text = page.locator(".lotteryCost-D-QGTv").inner_text()
-            draw_price = extract_price(draw_pirce_text)
-            max_draw_afford = int(current_point) // draw_price
-            print(f"Current points: {current_point}")
-            print(f"Draw price: {draw_price}")
-            print(f"Max draw you can afford: {max_draw_afford}")
+# Selector constants
+DRAW_BUTTON_INDEX = 2  # nth image role
+SCREEN_SELECTOR = ".panelTitle-6aEu3I"
+SCREEN_TEXT = "Prize Draw"
+POINT_VALUE_SELECTOR = ".lotteryPointValue-qM8enE"
+DRAW_COST_SELECTOR = ".lotteryCost-D-QGTv"
+DRAW_LIMIT_SELECTOR = ".lotteryLimitCount-fqLQOi"
+DRAW_BUTTON_SELECTOR = ".lotteryBtnCover-xI-MlR"
+SUCCESS_DIALOG_TEXT = "Congratulations, you've"
+REWARD_IMAGE_SELECTOR = ".gainPrizeImage-FqEqMM"
+REDEEM_CODE_SELECTOR = "div.gainCodeCopyInput-QcgdvD"  # More specific with tag
+REDEEM_CODE_SELECTOR_ALT = ".gainCodeCopyInput-QcgdvD"  # Fallback selector
+CLOSE_DIALOG_SELECTOR = ".gainClose-7Q0hz8"
 
-            draw_limit_text = page.locator(".lotteryLimitCount-fqLQOi").inner_text()
-            draw_limit = extract_number(draw_limit_text)
-            print(f"Max draw available: {draw_limit}")
+# Timing constants
+DRAW_RESULT_WAIT = 5000
+CLOSE_DIALOG_TIMEOUT = 2000
+REDEEM_CODE_WAIT = 3000  # Wait for redemption code element
 
-            available_draw = min(max_draw_afford, draw_limit)
-            print(f"Available draw: {available_draw}")
+# Reward constants
+UNKNOWN_REWARD = "Unknown reward"
 
-            for i in range(available_draw):
-                draw_button = page.locator(".lotteryBtnCover-xI-MlR")
-                draw_button.click()
-                page.wait_for_timeout(5000)
 
-                # Check if the draw dialog is visible
-                draw_dialog = page.get_by_text("Congratulations, you've")
-                if draw_dialog.is_visible():
-                    reward_img = page.locator(".gainPrizeImage-FqEqMM")
-                    reward_name = detect_reward(page, reward_img)
-                    if not reward_name == "Unknown reward":
-                        code = page.locator(".gainCodeCopyInput-QcgdvD")
-                        RedeemAutofill.run(page.context, code, reward_name)
+def _extract_redemption_code(page: Page, draw_number: int) -> Optional[str]:
+    """Extract redemption code from the reward dialog.
+
+    Args:
+        page: Playwright Page instance
+        draw_number: Current draw number for logging
+
+    Returns:
+        Redemption code string if found, None otherwise
+    """
+    # Try multiple selectors
+    selectors_to_try = [REDEEM_CODE_SELECTOR, REDEEM_CODE_SELECTOR_ALT]
+
+    for selector_idx, selector in enumerate(selectors_to_try):
+        try:
+            code_element = page.locator(selector)
+
+            # Check if element exists in DOM
+            if code_element.count() == 0:
+                if selector_idx == 0:
+                    logger.debug(f"Draw {draw_number}: Selector '{selector}' not found, trying alternative...")
+                    continue
                 else:
-                    print("Draw dialog not visible, skipping this draw.")
-                    notification.notify(
-                        title="ZZZ Bot",
-                        message="Draw dialog not visible, skipping this draw.",
-                        app_icon=CONFIG["SAD_ICON"],
-                    )
-                    break
+                    logger.debug(f"Draw {draw_number}: No redemption code element found (reward may not have code)")
+                    return None
 
-                close_draw = page.locator(".gainClose-7Q0hz8")
-                print("Closing draw dialog")
-                close_draw.click()
+            # Wait for element to be attached and visible
+            try:
+                # First wait for it to be attached to DOM
+                code_element.wait_for(state="attached", timeout=2000)
+                logger.debug(f"Draw {draw_number}: Code element attached to DOM")
+
+                # Then wait for it to be visible
+                code_element.wait_for(state="visible", timeout=REDEEM_CODE_WAIT)
+                logger.debug(f"Draw {draw_number}: Code element visible")
+
+                # Get the text using inner_text (waits for element to have text)
+                redeem_code = code_element.inner_text(timeout=2000)
+
+                # Validate the code
+                if redeem_code and len(redeem_code.strip()) > 0:
+                    logger.info(f"Draw {draw_number}: Successfully extracted code: {redeem_code}")
+                    return redeem_code.strip()
+                else:
+                    logger.warning(f"Draw {draw_number}: Code element found but text is empty")
+
+            except PlaywrightTimeoutError:
+                logger.warning(f"Draw {draw_number}: Timeout waiting for code element with selector '{selector}'")
+
+                # Try alternative method: text_content (doesn't wait for visibility)
+                try:
+                    redeem_code = code_element.text_content(timeout=1000)
+                    if redeem_code and len(redeem_code.strip()) > 0:
+                        logger.info(f"Draw {draw_number}: Extracted code via text_content: {redeem_code}")
+                        return redeem_code.strip()
+                except Exception:
+                    pass
+
+                # Try next selector if available
+                if selector_idx < len(selectors_to_try) - 1:
+                    logger.debug(f"Draw {draw_number}: Trying alternative selector...")
+                    continue
+
+        except Exception as e:
+            logger.error(f"Draw {draw_number}: Error with selector '{selector}': {e}")
+            if selector_idx < len(selectors_to_try) - 1:
+                continue
+
+    logger.warning(f"Draw {draw_number}: Could not extract redemption code after trying all methods")
+    return None
+
+
+def _calculate_available_draws(page: Page) -> Optional[int]:
+    """Calculate how many draws are available based on points and limits.
+
+    Args:
+        page: Playwright Page instance
+
+    Returns:
+        Number of available draws, or None if cannot be calculated
+    """
+    try:
+        # Get current points
+        current_point_text = page.locator(POINT_VALUE_SELECTOR).inner_text()
+        current_points = int(current_point_text.replace(",", ""))
+
+        # Get draw cost
+        draw_cost_text = page.locator(DRAW_COST_SELECTOR).inner_text()
+        draw_price = extract_price(draw_cost_text)
+
+        # Calculate maximum affordable draws
+        max_affordable = current_points // draw_price
+
+        # Get draw limit
+        draw_limit_text = page.locator(DRAW_LIMIT_SELECTOR).inner_text()
+        draw_limit = extract_number(draw_limit_text)
+
+        # Calculate available draws (minimum of affordable and limit)
+        available = min(max_affordable, draw_limit)
+
+        logger.info(
+            f"Draw calculation: {current_points} points, "
+            f"${draw_price} per draw, "
+            f"{max_affordable} affordable, "
+            f"{draw_limit} limit, "
+            f"{available} available"
+        )
+
+        return available
+
+    except Exception as e:
+        logger.error(f"Error calculating available draws: {e}")
+        return None
+
+
+def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool:
+    """Perform a single prize draw and handle the result.
+
+    Args:
+        page: Playwright Page instance
+        draw_number: Current draw number (1-indexed)
+        total_draws: Total number of draws planned
+
+    Returns:
+        True if draw was successful, False if should abort remaining draws
+    """
+    logger.info(f"Performing draw {draw_number}/{total_draws}")
+
+    try:
+        # Click draw button
+        draw_button = page.locator(DRAW_BUTTON_SELECTOR)
+        draw_button.click()
+
+        # Wait for result
+        page.wait_for_timeout(DRAW_RESULT_WAIT)
+
+        # Check for success dialog
+        success_dialog = page.get_by_text(SUCCESS_DIALOG_TEXT)
+        if not success_dialog.is_visible(timeout=3000):
+            logger.warning("Draw result dialog not visible")
+            NotificationHelper.notify(
+                title="ZZZ Bot - Draw Failed",
+                message=f"Draw {draw_number} failed - dialog not visible",
+                app_icon=CONFIG.get("SAD_ICON", ""),
+            )
+            return False
+
+        # Detect reward from image
+        reward_image = page.locator(REWARD_IMAGE_SELECTOR)
+        reward_name = detect_reward(page, reward_image)
+
+        if reward_name == UNKNOWN_REWARD:
+            logger.warning(f"Draw {draw_number}: Unknown reward detected, skipping redemption")
+        else:
+            logger.info(f"Draw {draw_number}: Received '{reward_name}'")
+
+            # Get and process redemption code
+            redeem_code = _extract_redemption_code(page, draw_number)
+            if redeem_code:
+                try:
+                    RedeemAutofill.run(page.context, redeem_code, reward_name)
+                    logger.info(f"Processed redemption code for '{reward_name}': {redeem_code}")
+                except Exception as e:
+                    logger.error(f"Error running autofill for '{reward_name}': {e}")
+            else:
+                logger.warning(f"No redemption code found for '{reward_name}' (may not require one)")
+
+        # Close dialog
+        try:
+            close_button = page.locator(CLOSE_DIALOG_SELECTOR)
+            # Use force=True to bypass any intercepting elements
+            close_button.click(force=True, timeout=CLOSE_DIALOG_TIMEOUT)
+            logger.debug("Closed draw dialog")
+        except PlaywrightTimeoutError:
+            logger.warning("Close button not found, dialog may have closed automatically")
+        except Exception as e:
+            logger.warning(f"Error closing dialog: {e}, attempting to continue")
+
+        return True
+
+    except PlaywrightTimeoutError as e:
+        logger.error(f"Timeout during draw {draw_number}: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Error during draw {draw_number}: {e}")
+        return False
+
+
+def run(page: Page) -> None:
+    """Main entry point for prize draw automation.
+
+    Args:
+        page: Playwright Page instance
+    """
+    logger.info("Starting prize draw automation...")
+
+    try:
+        # Navigate to prize draw screen
+        draw_button = page.get_by_role("img").nth(DRAW_BUTTON_INDEX)
+        prize_screen = page.locator(SCREEN_SELECTOR).filter(has_text=SCREEN_TEXT)
+
+        if not RetryHelper.retry_until_screen_appears(prize_screen, draw_button):
+            logger.error("Failed to open prize draw screen")
+            return
+
+        logger.info("Prize draw screen opened")
+
+        # Verify correct lottery (ZZZ)
+        if not find_correct_lottery_logo(page):
+            logger.error("ZZZ lottery not found or selected")
+            return
+
+        logger.info("ZZZ lottery verified")
+
+        # Calculate available draws
+        available_draws = _calculate_available_draws(page)
+
+        if available_draws is None:
+            logger.error("Could not calculate available draws")
+            return
+
+        if available_draws == 0:
+            logger.info("No draws available (insufficient points or limit reached)")
+            return
+
+        # Perform all draws
+        successful_draws = 0
+        failed_draws = 0
+
+        for i in range(1, available_draws + 1):
+            if _perform_single_draw(page, i, available_draws):
+                successful_draws += 1
+            else:
+                failed_draws += 1
+                logger.warning(f"Draw {i} failed, stopping remaining draws")
+                break
+
+            # Brief pause between draws
+            if i < available_draws:
+                page.wait_for_timeout(1000)
+
+        # Log summary
+        logger.info(
+            f"Prize draw completed: {successful_draws} successful, "
+            f"{failed_draws} failed out of {available_draws} available"
+        )
+
+        if successful_draws > 0:
+            NotificationHelper.notify(
+                title="ZZZ Bot - Draws Complete",
+                message=f"Completed {successful_draws} prize draws",
+                app_icon=CONFIG.get("ICON_PATH", ""),
+            )
+
+    except Exception as e:
+        logger.error(f"Prize draw automation failed: {e}", exc_info=True)
+        NotificationHelper.notify(
+            title="ZZZ Bot - Error",
+            message="Prize draw automation failed",
+            app_icon=CONFIG.get("SAD_ICON", ""),
+        )
+        raise
