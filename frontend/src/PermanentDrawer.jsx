@@ -26,16 +26,19 @@ import PersonIcon from "@mui/icons-material/Person";
 import PasswordIcon from "@mui/icons-material/Password";
 import AppRegistrationIcon from "@mui/icons-material/AppRegistration";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import ValueAdapter from "./ValueAdapter";
+import TaskIcon from "@mui/icons-material/Task";
+import RedeemIcon from "@mui/icons-material/Redeem";
+import { IconCards, IconLogin2 } from "@tabler/icons-react";
 import zIndex from "@mui/material/styles/zIndex";
+
+import ValueAdapter from "./ValueAdapter";
 import Overview from "./Overview";
 import Shopping from "./Shopping";
-import TaskIcon from "@mui/icons-material/Task";
 import ManualLogin from "./ManualLogin";
-import { IconCards, IconLogin2 } from "@tabler/icons-react";
-import { BACKEND_URL, DataLoader } from "./DataLoader";
-import RedeemIcon from "@mui/icons-material/Redeem";
 import Redeem from "./Redeem";
+import { BACKEND_URL, DataLoader } from "./DataLoader";
+import { COLORS, GRADIENTS, ALPHA } from "./theme/colors";
+import { TRANSITIONS } from "./theme/styles";
 
 const drawerWidth = 240;
 
@@ -64,6 +67,56 @@ function DrawerNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const isActive = (path) => location.pathname === path;
+
+  const getListItemStyles = (path) => ({
+    borderRadius: "12px",
+    mb: 0.5,
+    position: "relative",
+    overflow: "hidden",
+    background: isActive(path)
+      ? "linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%)"
+      : "transparent",
+    borderLeft: isActive(path)
+      ? `3px solid ${COLORS.secondary.main}`
+      : "3px solid transparent",
+    transition: TRANSITIONS.cubic,
+    "&:hover": {
+      background: isActive(path)
+        ? "linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(99, 102, 241, 0.2) 100%)"
+        : `linear-gradient(135deg, ${ALPHA.card} 0%, ${ALPHA.card} 100%)`,
+      transform: "translateX(4px)",
+      borderLeft: `3px solid ${COLORS.secondary.light}`,
+    },
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: isActive(path)
+        ? `radial-gradient(circle at top left, ${ALPHA.hover}, transparent)`
+        : "transparent",
+      transition: TRANSITIONS.default,
+    },
+  });
+
+  const getIconStyles = (path) => ({
+    color: isActive(path) ? COLORS.secondary.light : COLORS.text.muted,
+    minWidth: "40px",
+    transition: TRANSITIONS.default,
+    transform: isActive(path) ? "scale(1.1)" : "scale(1)",
+  });
+
+  const getTextStyles = (path) => ({
+    "& .MuiTypography-root": {
+      fontWeight: isActive(path) ? 600 : 500,
+      color: isActive(path) ? COLORS.text.secondary : COLORS.text.tertiary,
+      transition: TRANSITIONS.default,
+    },
+  });
+
   return (
     <Drawer
       className="w-60 shrink-0"
@@ -74,26 +127,21 @@ function DrawerNavigation() {
     >
       <Toolbar />
       <Box className="overflow-auto">
-        <List>
+        <List sx={{ px: 1 }}>
           {tabs.map((tab) => (
             <ListItem
               button
               key={tab.label}
               onClick={() => navigate(tab.path)}
-              className={`rounded-lg hover:bg-green-900 ${
-                location.pathname === tab.path ? "bg-cyan-900" : ""
-              }`}
+              sx={getListItemStyles(tab.path)}
             >
-              <ListItemIcon
-                className={`text-inherit ${
-                  location.pathname === tab.path ? "text-cyan-400" : ""
-                }`}
-              >
+              <ListItemIcon sx={getIconStyles(tab.path)}>
                 {tab.icon}
               </ListItemIcon>
               <ListItemText
                 primary={tab.label}
-                className="overflow-hidden text-ellipsis whitespace-nowrap" // Prevents text overflow
+                sx={getTextStyles(tab.path)}
+                className="overflow-hidden text-ellipsis whitespace-nowrap"
               />
             </ListItem>
           ))}
@@ -116,21 +164,42 @@ export default function PermanentDrawer() {
         // style={{ backgroundImage: `url(${BACKEND_URL}/images/Ellen.jpg)` }}
       >
         <CssBaseline />
-        <AppBar
-          position="fixed"
-          sx={{ zIndex: zIndex.drawer + 1 }}
-          className="w-full bg-black"
-        >
+        <AppBar position="fixed" sx={{ zIndex: zIndex.drawer + 1 }}>
           <Toolbar className="relative flex items-center justify-center">
-            {/* Icon on the Left */}
-            <div className="absolute left-4 flex items-center">
-              <img src={Qingyi02} alt="ZZZ Bot Icon" className="h-12 w-12" />
+            {/* App Icon */}
+            <div className="absolute left-4 flex items-center gap-2">
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "12px",
+                  padding: "4px",
+                  background: GRADIENTS.header,
+                  border: `1px solid ${ALPHA.cardBorder}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: TRANSITIONS.default,
+                  "&:hover": {
+                    transform: "scale(1.05)",
+                    boxShadow: "0 4px 20px rgba(139, 92, 246, 0.4)",
+                  },
+                }}
+              >
+                <img src={Qingyi02} alt="ZZZ Bot Icon" className="h-10 w-10" />
+              </Box>
             </div>
+
+            {/* App Title */}
             <Typography
               variant="h6"
               noWrap
               component="div"
-              className="font-bold text-white"
+              sx={{
+                fontWeight: 700,
+                color: COLORS.text.primary,
+                letterSpacing: "0.5px",
+              }}
             >
               ZZZ Bot
             </Typography>

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./authentication data/**)",
+      "Read(./output/account.json)"
+    ]
+  }
+}
