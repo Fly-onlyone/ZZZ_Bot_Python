@@ -2,17 +2,19 @@
 
 This will open the browser, navigate to shopping page, and extract current points.
 """
+
 import logging
+
 from playwright.sync_api import sync_playwright
 
 import ShoppingHandler
-from GlobalVar import CONFIG, settings
+from GlobalVar import CONFIG
 
 # Set up logging to see debug messages
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
 
 def test_shopping_points():
     """Test shopping points extraction."""
@@ -38,7 +40,9 @@ def test_shopping_points():
 
             # Navigate to event page
             print("\nNavigating to HoYoLab event page...")
-            page.goto("https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...")
+            page.goto(
+                "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
+            )
             page.wait_for_timeout(3000)
 
             # Run shopping handler following the correct flow
@@ -48,7 +52,10 @@ def test_shopping_points():
 
             # Use retry logic like the bot does
             import RetryHelper
-            if not RetryHelper.retry_until_screen_appears(shopping_screen, shopping_button):
+
+            if not RetryHelper.retry_until_screen_appears(
+                shopping_screen, shopping_button
+            ):
                 print("ERROR: Could not open shopping screen!")
                 browser.close()
                 return
@@ -58,6 +65,7 @@ def test_shopping_points():
 
             print("Step 2: Finding and clicking ZZZ avatar...")
             from ImageProcessor import find_correct_avatar
+
             zzz_avatar = find_correct_avatar(page)
             if not zzz_avatar:
                 print("ERROR: Could not find ZZZ avatar!")
@@ -92,7 +100,9 @@ def test_shopping_points():
     except Exception as e:
         print(f"\n✗ FATAL ERROR: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     test_shopping_points()

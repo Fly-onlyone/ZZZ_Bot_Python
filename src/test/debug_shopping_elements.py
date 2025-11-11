@@ -1,9 +1,13 @@
 """Debug script to find the correct points element."""
+
 import logging
+
 from playwright.sync_api import sync_playwright
+
 from GlobalVar import CONFIG
 
 logging.basicConfig(level=logging.INFO)
+
 
 def debug_elements():
     """Find all possible points elements on the page."""
@@ -17,7 +21,9 @@ def debug_elements():
         page = context.new_page()
 
         print("\nNavigating to page...")
-        page.goto("https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...")
+        page.goto(
+            "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
+        )
         page.wait_for_timeout(3000)
 
         # Click shopping button
@@ -57,7 +63,7 @@ def debug_elements():
             "[class*='bubble']",
             "[class*='point']",
             "[class*='Point']",
-            "[class*='cnt']"
+            "[class*='cnt']",
         ]
 
         for selector in selectors_to_try:
@@ -69,8 +75,8 @@ def debug_elements():
                         print(f"\n  POTENTIAL MATCH with selector '{selector}':")
                         print(f"    Text: '{text}'")
                         print(f"    HTML: {elem.evaluate('el => el.outerHTML')[:300]}")
-            except:
-                pass
+            except Exception as e:
+                print(f"  Error checking element: {e}")
 
         print("\n" + "=" * 70)
         print("Browser will stay open for 30 seconds so you can inspect.")
@@ -79,6 +85,7 @@ def debug_elements():
         page.wait_for_timeout(30000)
 
         browser.close()
+
 
 if __name__ == "__main__":
     debug_elements()

@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "ZZZ Bot"
-#define MyAppVersion "1.4"
+#define MyAppVersion "1.5"
 #define MyAppPublisher "Fly"
 #define MyAppExeName "ZZZ Bot.exe"
 
@@ -47,7 +47,6 @@ Source: "C:\Users\PC\Documents\Playwright\ZZZ bot - Python\product\dist\{#MyAppE
 Source: "C:\Users\PC\Documents\Playwright\ZZZ bot - Python\product\dist\authentication data\*"; DestDir: "{app}\authentication data"; Flags: recursesubdirs createallsubdirs onlyifdoesntexist
 Source: "C:\Users\PC\Documents\Playwright\ZZZ bot - Python\product\dist\output\*"; DestDir: "{app}\output"; Flags: recursesubdirs createallsubdirs onlyifdoesntexist
 Source: "C:\Users\PC\Documents\Playwright\ZZZ bot - Python\product\dist\screenshot\*"; DestDir: "{app}\screenshot"; Flags: recursesubdirs createallsubdirs onlyifdoesntexist
-Source: "C:\Users\PC\Documents\Playwright\ZZZ bot - Python\product\dist\reward image\*"; DestDir: "{app}\reward image"; Flags: recursesubdirs createallsubdirs onlyifdoesntexist
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

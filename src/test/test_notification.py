@@ -2,9 +2,12 @@
 
 Run this to verify that notifications appear in Windows notification center.
 """
+
 import time
+
 import NotificationHelper
 from GlobalVar import CONFIG
+
 
 def test_notifications():
     """Test notification persistence in Windows notification center."""
@@ -17,7 +20,7 @@ def test_notifications():
         title="ZZZ Bot - Test 1",
         message="This is a test notification. Check your Windows notification center!",
         app_icon=CONFIG.get("ICON_PATH", ""),
-        duration="long"
+        duration="long",
     )
     print("   [OK] Success notification sent")
     time.sleep(2)
@@ -28,7 +31,7 @@ def test_notifications():
         title="ZZZ Bot - Test 2",
         message="This notification should persist in your notification center",
         app_icon=CONFIG.get("SAD_ICON", ""),
-        duration="long"
+        duration="long",
     )
     print("   [OK] Warning notification sent")
     time.sleep(2)
@@ -54,6 +57,7 @@ def test_notifications():
     print("  - Press Windows + N")
     print("  - Or click the notification icon in taskbar")
     print("=" * 60)
+
 
 if __name__ == "__main__":
     test_notifications()

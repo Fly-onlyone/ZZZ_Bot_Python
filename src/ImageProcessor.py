@@ -3,10 +3,11 @@
 Provides image comparison, element detection, and visual state recognition
 using OpenCV for browser automation.
 """
+
 import base64
-import os
 import logging
-from typing import Union, Tuple, Optional
+import os
+from typing import Union, Optional
 from urllib.parse import urljoin
 
 import cv2
@@ -25,6 +26,29 @@ ImageType = Union[str, np.ndarray]
 # Constants
 MATCH_THRESHOLD = 5.0  # Percentage difference threshold for image matching
 BINARY_THRESHOLD = 30  # Threshold for binary image diff
+
+# Connection pooling for image fetches
+_http_session = None
+
+
+def get_http_session():
+    """Get or create a shared requests session with connection pooling.
+
+    Returns:
+        requests.Session: Reusable session instance
+    """
+    global _http_session
+    if _http_session is None:
+        _http_session = requests.Session()
+        # Configure connection pooling
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=10,
+            pool_maxsize=20,
+            max_retries=3
+        )
+        _http_session.mount('http://', adapter)
+        _http_session.mount('https://', adapter)
+    return _http_session
 
 
 def compare_images(arg1: ImageType, arg2: ImageType) -> float:
@@ -48,7 +72,9 @@ def compare_images(arg1: ImageType, arg2: ImageType) -> float:
     elif isinstance(arg1, np.ndarray):
         img1 = arg1
     else:
-        raise ValueError(f"arg1 must be file path (str) or OpenCV image (numpy.ndarray), got {type(arg1)}")
+        raise ValueError(
+            f"arg1 must be file path (str) or OpenCV image (numpy.ndarray), got {type(arg1)}"
+        )
 
     # Load second image
     if isinstance(arg2, str):
@@ -58,7 +84,9 @@ def compare_images(arg1: ImageType, arg2: ImageType) -> float:
     elif isinstance(arg2, np.ndarray):
         img2 = arg2
     else:
-        raise ValueError(f"arg2 must be file path (str) or OpenCV image (numpy.ndarray), got {type(arg2)}")
+        raise ValueError(
+            f"arg2 must be file path (str) or OpenCV image (numpy.ndarray), got {type(arg2)}"
+        )
 
     # Resize second image to match first image dimensions
     if img1.shape != img2.shape:
@@ -98,8 +126,8 @@ def fetch_image_from_locator(page: Page, locator_selector: Locator):
             # locator.count() > 0 if it found at least one <img>
             if child_img.count() > 0:
                 image_url = child_img.first.get_attribute("src")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not extract image from child img element: {e}")
 
     # 3. Fallback to style attribute / computedStyle background-image
     if not image_url:
@@ -136,10 +164,11 @@ def fetch_image_from_locator(page: Page, locator_selector: Locator):
     # 5. Resolve relative → absolute URLs
     if not image_url.startswith(("http://", "https://")):
         image_url = urljoin(page.url, image_url)
-    print(f"Resolved image URL: {image_url}")
+    logger.debug(f"Resolved image URL: {image_url}")
 
-    # 6. Fetch & decode via requests + OpenCV
-    resp = requests.get(image_url)
+    # 6. Fetch & decode via requests + OpenCV (using connection pooling)
+    session = get_http_session()
+    resp = session.get(image_url, timeout=10)
     resp.raise_for_status()
     arr = np.frombuffer(resp.content, np.uint8)
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)

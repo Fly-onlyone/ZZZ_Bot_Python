@@ -4,97 +4,97 @@
 
 /* Custom Animations */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes slideIn {
-  from {
-    transform: translateX(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+    from {
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
 
 @keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.8;
-  }
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
 }
 
 @keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
+    0% {
+        background-position: -1000px 0;
+    }
+    100% {
+        background-position: 1000px 0;
+    }
 }
 
 /* Smooth scrolling */
 * {
-  scroll-behavior: smooth;
+    scroll-behavior: smooth;
 }
 
 /* Custom scrollbar for dark mode */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+    width: 10px;
+    height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
-  border-radius: 5px;
+    background: #0f172a;
+    border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-  border-radius: 5px;
-  transition: all 0.3s ease;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    border-radius: 5px;
+    transition: all 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
-  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+    background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
 }
 
 /* Global fade-in animation */
 body {
-  animation: fadeIn 0.5s ease-in-out;
+    animation: fadeIn 0.5s ease-in-out;
 }
 
 /* Add shimmer effect class */
 .shimmer {
-  animation: shimmer 2s infinite;
-  background: linear-gradient(
-    to right,
-    rgba(139, 92, 246, 0.1) 0%,
-    rgba(139, 92, 246, 0.3) 50%,
-    rgba(139, 92, 246, 0.1) 100%
-  );
-  background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+    background: linear-gradient(
+            to right,
+            rgba(139, 92, 246, 0.1) 0%,
+            rgba(139, 92, 246, 0.3) 50%,
+            rgba(139, 92, 246, 0.1) 100%
+    );
+    background-size: 1000px 100%;
 }
 
 /* Focus visible for accessibility */
 *:focus-visible {
-  outline: 2px solid #8b5cf6;
-  outline-offset: 2px;
-  border-radius: 4px;
+    outline: 2px solid #8b5cf6;
+    outline-offset: 2px;
+    border-radius: 4px;
 }
 
 /* Smooth transitions for all interactive elements */
 button, a, input, select, textarea {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }

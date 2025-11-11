@@ -2,6 +2,7 @@
 
 This will open the browser, navigate to prize draw page, and show what values are extracted.
 """
+
 import logging
 import sys
 from pathlib import Path
@@ -14,8 +15,7 @@ from StringUtil import extract_number, extract_price
 
 # Set up logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 # Selectors from DrawHandler.py
@@ -57,7 +57,9 @@ def test_draw_limit_detection():
 
             # Navigate to event page
             print("\nNavigating to HoYoLab event page...")
-            page.goto("https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...")
+            page.goto(
+                "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
+            )
             page.wait_for_timeout(3000)
 
             # Click draw button
@@ -105,7 +107,9 @@ def test_draw_limit_detection():
             # Calculate affordable
             max_affordable = current_points // draw_price if draw_price > 0 else 0
             print(f"\n3. Affordable Draws:")
-            print(f"   Calculation: {current_points} // {draw_price} = {max_affordable}")
+            print(
+                f"   Calculation: {current_points} // {draw_price} = {max_affordable}"
+            )
 
             # Get draw limit
             try:
@@ -125,7 +129,9 @@ def test_draw_limit_detection():
 
                 if draws_used is not None and draws_total is not None:
                     draws_remaining = draws_total - draws_used
-                    print(f"   Calculated remaining: {draws_total} - {draws_used} = {draws_remaining}")
+                    print(
+                        f"   Calculated remaining: {draws_total} - {draws_used} = {draws_remaining}"
+                    )
                 else:
                     draws_remaining = None
                     print(f"   ERROR: Could not parse draw limit!")
@@ -133,6 +139,7 @@ def test_draw_limit_detection():
             except Exception as e:
                 print(f"\n4. Draw Limit: ERROR - {e}")
                 import traceback
+
                 traceback.print_exc()
                 draws_remaining = None
                 draws_used = None
@@ -145,7 +152,9 @@ def test_draw_limit_detection():
 
             if draws_remaining is not None:
                 available_draws = min(max_affordable, draws_remaining)
-                print(f"Available draws = min({max_affordable} affordable, {draws_remaining} remaining)")
+                print(
+                    f"Available draws = min({max_affordable} affordable, {draws_remaining} remaining)"
+                )
                 print(f"                = {available_draws}")
 
                 if available_draws <= 0:
@@ -191,6 +200,7 @@ def test_draw_limit_detection():
     except Exception as e:
         print(f"\n[FATAL ERROR] {e}")
         import traceback
+
         traceback.print_exc()
 
 

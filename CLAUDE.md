@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ZZZ Bot is a desktop automation tool for the game "Zenless Zone Zero" by HoYoverse. It automates daily tasks on the HoYoLab event website including check-ins, shopping, redemptions, and prize draws, with email notifications.
+ZZZ Bot is a desktop automation tool for the game "Zenless Zone Zero" by HoYoverse. It automates daily tasks on the
+HoYoLab event website including check-ins, shopping, redemptions, and prize draws, with email notifications.
 
 **Tech Stack:**
+
 - **Backend:** Python (FastAPI, Playwright, OpenCV, Schedule)
 - **Frontend:** React 18 + Material-UI v6 + Vite
 - **Desktop:** System tray integration (Pystray)
@@ -15,14 +17,16 @@ ZZZ Bot is a desktop automation tool for the game "Zenless Zone Zero" by HoYover
 ## Architecture
 
 ### Hybrid Desktop Application
+
 - **Development Mode:**
-  - Backend: `python src/Bot.py` (FastAPI on port 8000)
-  - Frontend: `cd frontend && npm run dev` (Vite dev server on port 3000)
+    - Backend: `python src/Bot.py` (FastAPI on port 8000)
+    - Frontend: `cd frontend && npm run dev` (Vite dev server on port 3000)
 - **Production Mode:**
-  - Single executable serving both backend and built frontend on port 8000
-  - System tray icon with web UI launcher
+    - Single executable serving both backend and built frontend on port 8000
+    - System tray icon with web UI launcher
 
 ### Browser Automation Pipeline
+
 ```
 Bot.py (scheduler) → playwright_task()
   ├─→ Mission.run()        # Daily missions
@@ -33,7 +37,9 @@ Bot.py (scheduler) → playwright_task()
 ```
 
 ### Image Recognition System
+
 Uses OpenCV to detect UI states by comparing screenshots with reference images in `sample/` and `reward image/`:
+
 - Game avatar identification (ZZZ vs other games)
 - Button state detection (Finished/Unfinished/Reward)
 - Reward recognition from prize draws
@@ -42,6 +48,7 @@ Uses OpenCV to detect UI states by comparing screenshots with reference images i
 Key module: `ImageProcessor.py` with `RetryHelper.py` for element polling.
 
 ### Data Persistence
+
 - Base class: `Serializable` with `.save()` and `.load()` methods
 - Storage: JSON files in `output/` folder
 - Automatic rotation: Keeps last 5 days of mission data, 30 days of redemptions
@@ -49,6 +56,7 @@ Key module: `ImageProcessor.py` with `RetryHelper.py` for element polling.
 ## Key Modules
 
 ### Core Backend (`src/`)
+
 - **Bot.py:** Main entry, scheduler, FastAPI server, system tray
 - **GlobalVar.py:** Global config, settings dataclass, shared app instance
 - **Mission.py:** Daily mission automation
@@ -61,6 +69,7 @@ Key module: `ImageProcessor.py` with `RetryHelper.py` for element polling.
 - **Notification.py:** Email reports via Apprise with Jinja2 templates
 
 ### Frontend (`frontend/src/`)
+
 - **main.jsx:** React app entry with MUI theme configuration
 - **PermanentDrawer.jsx:** Navigation drawer component
 - **ValueAdapter.jsx:** Dynamic settings form generator (detects types, renders appropriate inputs)
@@ -68,6 +77,7 @@ Key module: `ImageProcessor.py` with `RetryHelper.py` for element polling.
 - **Overview/Shopping/Redeem/ManualLogin.jsx:** Feature pages
 
 ### REST API Endpoints
+
 - `/shopping`, `/redeem`, `/account`, `/settings` - CRUD operations
 - `/manual` - Manual browser control (open/close/status)
 - `/overview/mission` - Mission reports with date filtering
@@ -76,11 +86,12 @@ Key module: `ImageProcessor.py` with `RetryHelper.py` for element polling.
 ## Path Resolution Strategy
 
 Critical for both development and packaged exe:
+
 ```python
 def resource_path(relative_path, outside=False):
-    # Handles paths differently in dev vs exe mode
-    # outside=True for output/, screenshot/ (persist across updates)
-    # outside=False for bundled resources
+# Handles paths differently in dev vs exe mode
+# outside=True for output/, screenshot/ (persist across updates)
+# outside=False for bundled resources
 ```
 
 When testing exe behavior in dev: `set SIMULATE_EXE=1` environment variable.
@@ -88,6 +99,7 @@ When testing exe behavior in dev: `set SIMULATE_EXE=1` environment variable.
 ## Common Commands
 
 ### Development
+
 ```bash
 # Run backend (auto-opens web UI at http://localhost:8000)
 python src/Bot.py
@@ -99,6 +111,7 @@ npm run dev
 ```
 
 ### Build
+
 ```bash
 # Build frontend
 cd frontend
@@ -113,6 +126,7 @@ iscc installer.iss
 ```
 
 ### Testing
+
 ```bash
 pytest src/test/
 ```
@@ -120,9 +134,13 @@ pytest src/test/
 ## Configuration Files
 
 ### `output/settings.json`
+
 ```json
 {
-  "schedule_times": ["08:00", "20:00"],
+  "schedule_times": [
+    "08:00",
+    "20:00"
+  ],
   "exit_after_run": false,
   "open_web_ui": true,
   "hide_browser": true,
@@ -135,23 +153,28 @@ pytest src/test/
 ```
 
 ### `output/account.json`
+
 Stores email credentials for Gmail notifications.
 
 ## Important Patterns
 
 ### 1. Session Management
+
 - Playwright stores sessions in `authentication data/`
 - First-time setup requires manual login via web UI
 - Session persists across runs for automated execution
 
 ### 2. Scheduled Tasks
+
 - Uses `schedule` library for time-based execution
 - Checks for missed runs on startup
 - Tracks last run in `output/last_run.json`
 - Next run calculated and displayed in web UI
 
 ### 3. Image Comparison Workflow
+
 Instead of fixed selectors (which break easily), the bot:
+
 1. Takes screenshots during execution
 2. Compares with reference images using `cv2.matchTemplate`
 3. Calculates difference percentage
@@ -160,13 +183,17 @@ Instead of fixed selectors (which break easily), the bot:
 This handles dynamic web content and layout changes gracefully.
 
 ### 4. React Dynamic Forms
+
 `ValueAdapter.jsx` generates forms from JSON structure:
+
 - Automatically detects types (bool → switch, array → multi-input, string → text field)
 - Custom rendering via `typeConfig` prop
 - Synchronized with backend via API calls
 
 ### 5. PyInstaller Packaging
+
 `Bot.spec` includes:
+
 - Frontend build files (`frontend/dist`)
 - Reference images (`sample/`, `reward image/`)
 - Playwright browsers (chromium)

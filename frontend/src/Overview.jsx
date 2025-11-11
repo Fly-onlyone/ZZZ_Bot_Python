@@ -1,28 +1,30 @@
-import { Typography, Paper, Box } from "@mui/material";
+import React, { memo } from "react";
+import { Box, Paper, Typography } from "@mui/material";
 import Mission from "./content/Mission";
 import RunningStatus from "./content/RunningStatus";
-import { IconReportAnalytics, IconActivity } from "@tabler/icons-react";
-import { COLORS, GRADIENTS, ALPHA } from "./theme/colors";
+import { IconActivity, IconReportAnalytics } from "@tabler/icons-react";
+import { ALPHA, COLORS, GRADIENTS } from "./theme/colors";
 import { cardStyles } from "./theme/styles";
 
+// Memoized icon badge component to prevent unnecessary re-renders
+const IconBadge = memo(({ icon, gradient }) => (
+  <Box
+    sx={{
+      width: 40,
+      height: 40,
+      borderRadius: "10px",
+      background: gradient,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      boxShadow: "0 4px 14px rgba(139, 92, 246, 0.4)",
+    }}
+  >
+    {icon}
+  </Box>
+));
+
 export default function Overview() {
-  // Card icon badge component
-  const IconBadge = ({ icon, gradient }) => (
-    <Box
-      sx={{
-        width: 40,
-        height: 40,
-        borderRadius: "10px",
-        background: gradient,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: "0 4px 14px rgba(139, 92, 246, 0.4)",
-      }}
-    >
-      {icon}
-    </Box>
-  );
 
   // Section card component
   const SectionCard = ({ title, icon, children, colorScheme = "primary" }) => {
@@ -57,7 +59,10 @@ export default function Overview() {
           }}
         >
           <IconBadge icon={icon} gradient={iconGradient} />
-          <Typography variant="h5" sx={{ fontWeight: 700, color: COLORS.text.primary }}>
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 700, color: COLORS.text.primary }}
+          >
             {title}
           </Typography>
         </Box>

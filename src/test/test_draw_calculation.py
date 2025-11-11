@@ -2,6 +2,7 @@
 
 This tests the fix for draw limit detection (should be 0 remaining when limit is reached).
 """
+
 import sys
 from pathlib import Path
 
@@ -40,7 +41,9 @@ def test_extract_number():
         else:
             failed += 1
 
-        print(f"{status} | extract_number('{text}', '{side}') = {result} (expected: {expected}) - {description}")
+        print(
+            f"{status} | extract_number('{text}', '{side}') = {result} (expected: {expected}) - {description}"
+        )
 
     print("-" * 70)
     print(f"Results: {passed} passed, {failed} failed")
@@ -84,7 +87,9 @@ def test_draw_remaining_calculation():
         else:
             failed += 1
 
-        print(f"{status} | '{draw_limit_text}' -> {draws_used}/{draws_total} -> {draws_remaining} remaining (expected: {expected_remaining})")
+        print(
+            f"{status} | '{draw_limit_text}' -> {draws_used}/{draws_total} -> {draws_remaining} remaining (expected: {expected_remaining})"
+        )
         print(f"       {description}")
 
     print("-" * 70)
@@ -113,7 +118,13 @@ def test_available_draws_calculation():
     passed = 0
     failed = 0
 
-    for current_points, draw_price, draw_limit_text, expected_available, description in test_cases:
+    for (
+        current_points,
+        draw_price,
+        draw_limit_text,
+        expected_available,
+        description,
+    ) in test_cases:
         # Simulate the full logic from DrawHandler._calculate_available_draws
         max_affordable = current_points // draw_price
 
@@ -130,8 +141,12 @@ def test_available_draws_calculation():
         else:
             failed += 1
 
-        print(f"{status} | {current_points} pts, ${draw_price}/draw, {draw_limit_text} limit")
-        print(f"       -> {max_affordable} affordable, {draws_remaining} remaining, {available} available (expected: {expected_available})")
+        print(
+            f"{status} | {current_points} pts, ${draw_price}/draw, {draw_limit_text} limit"
+        )
+        print(
+            f"       -> {max_affordable} affordable, {draws_remaining} remaining, {available} available (expected: {expected_available})"
+        )
         print(f"       {description}\n")
 
     print("-" * 70)
@@ -156,7 +171,9 @@ if __name__ == "__main__":
     print("\n" + "=" * 70)
     if all_passed:
         print("[SUCCESS] ALL TESTS PASSED! Draw limit detection is working correctly.")
-        print("          The fix correctly calculates 0 available draws when limit is 5/5.")
+        print(
+            "          The fix correctly calculates 0 available draws when limit is 5/5."
+        )
     else:
         print("[FAILED] SOME TESTS FAILED! Please review the output above.")
     print("=" * 70 + "\n")

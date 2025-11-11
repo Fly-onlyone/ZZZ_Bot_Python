@@ -3,6 +3,7 @@
 Provides cross-platform notifications with Windows notification center persistence.
 On Windows 10/11, notifications are saved in the Action Center.
 """
+
 import logging
 import platform
 from pathlib import Path
@@ -17,6 +18,7 @@ IS_WINDOWS = platform.system() == "Windows"
 if IS_WINDOWS:
     try:
         from winotify import Notification as WinNotification, audio
+
         WINOTIFY_AVAILABLE = True
         logger.info("Using winotify for persistent Windows notifications")
     except ImportError:
@@ -26,6 +28,7 @@ if IS_WINDOWS:
 else:
     WINOTIFY_AVAILABLE = False
     from plyer import notification as plyer_notification
+
     logger.info("Using plyer for notifications (non-Windows platform)")
 
 
@@ -90,7 +93,7 @@ def _send_windows_notification(
         title=title,
         msg=message,
         duration=duration,
-        icon=icon_path_str if icon_path_str else ""
+        icon=icon_path_str if icon_path_str else "",
     )
 
     # Add sound (default notification sound)

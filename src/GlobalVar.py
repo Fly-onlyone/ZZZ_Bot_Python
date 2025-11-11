@@ -75,12 +75,14 @@ def generate_config(outside_folder, exclude_keys=None):
         if key in base_config
     }
 
-    # Apply resource_path conditionally
+    # Apply resource_path conditionally with secure path checking
     def should_use_outside_folder(path):
-        abs_path = os.path.abspath(path)
+        abs_path = os.path.abspath(os.path.normpath(path))
+        # Use normalized paths to prevent traversal attacks
         return any(
-            abs_path.startswith(folder_path)
+            os.path.commonpath([abs_path, folder_path]) == folder_path
             for folder_path in outside_folder_paths.values()
+            if os.path.exists(folder_path) or abs_path == folder_path
         )
 
     return {
@@ -113,9 +115,10 @@ class AppSettings(Serializable):
 
 @dataclass
 class Account(Serializable):
-    username: str = "galevan61"
+    """Account credentials for email notifications. Load from output/account.json."""
+    username: str = ""
     password: str = ""
-    app_password: str = "jlqrqxxtaggvnuce"
+    app_password: str = ""
 
 
 class RedeemItem(BaseModel):
@@ -131,7 +134,7 @@ CONFIG = generate_config(
 CONFIG["WEB_UI_URL"] = (
     "http://127.0.0.1:3000/" if not is_exe else "http://127.0.0.1:8000"
 )
-print(CONFIG)
+# Config loaded successfully (removed print to avoid exposing paths)
 
 
 settings = AppSettings.load(CONFIG["SETTINGS_FILE"])
@@ -140,10 +143,16 @@ tray_icon = None
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # Restrict to localhost only for security (desktop app)
+    allow_origins=[
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3000",
+        "http://localhost:8000",
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],  # Only allow needed methods
+    allow_headers=["Content-Type"],  # Only allow needed headers
 )
 app.mount("/images", StaticFiles(directory=CONFIG["ICON_FOLDER"]), name="images")
 app.mount(

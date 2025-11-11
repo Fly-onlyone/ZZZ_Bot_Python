@@ -7,7 +7,13 @@
       "Bash(python -m py_compile:*)",
       "Bash(python -c:*)",
       "Bash(.venv/Scripts/pip install:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(nul)",
+      "Bash(dir \"C:\\Users\\PC\\Documents\\Playwright\\ZZZ bot - Python\" /AD /B)",
+      "Bash(test:*)",
+      "Bash(npm run build:*)",
+      "Bash(dir \"C:\\Users\\PC\\Documents\\Playwright\\ZZZ bot - Python\\frontend\\dist\" /AD /B)",
+      "Bash(npm run check:*)"
     ],
     "deny": [],
     "ask": []
