@@ -10,5 +10,6 @@
     "gather_shopping_data": true,
     "redeem_after_gather_data": true,
     "buy_all": true,
-    "draw_item": true
+    "draw_item": true,
+    "enable_hunt_mode": true
 }
