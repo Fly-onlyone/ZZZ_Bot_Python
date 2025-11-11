@@ -123,6 +123,7 @@ class AppSettings(Serializable):
     redeem_after_gather_data: bool = False
     buy_all: bool = False
     draw_item: bool = False
+    enable_hunt_mode: bool = False
 
 
 @dataclass
