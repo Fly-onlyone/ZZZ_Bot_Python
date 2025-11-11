@@ -6,7 +6,7 @@
     "exit_after_run": false,
     "open_web_ui": false,
     "hide_browser": true,
-    "run_task": false,
+    "run_task": true,
     "gather_shopping_data": true,
     "redeem_after_gather_data": true,
     "buy_all": true,

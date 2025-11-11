@@ -107,7 +107,9 @@ function App() {
                   : "#ffffff",
                 borderRadius: "0 16px 16px 0",
                 border: "none",
-                borderRight: `1px solid ${prefersDarkMode ? "#334155" : "#e2e8f0"}`,
+                borderRight: `1px solid ${
+                  prefersDarkMode ? "#334155" : "#e2e8f0"
+                }`,
                 boxShadow: "4px 0 24px rgba(0, 0, 0, 0.15)",
                 transition: "all 0.3s ease-in-out",
               },
@@ -121,7 +123,9 @@ function App() {
                   : "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
                 backdropFilter: "blur(10px)",
                 boxShadow: "0 4px 20px rgba(0, 0, 0, 0.2)",
-                borderBottom: `1px solid ${prefersDarkMode ? "#334155" : "rgba(255,255,255,0.1)"}`,
+                borderBottom: `1px solid ${
+                  prefersDarkMode ? "#334155" : "rgba(255,255,255,0.1)"
+                }`,
                 transition: "all 0.3s ease-in-out",
               },
             },

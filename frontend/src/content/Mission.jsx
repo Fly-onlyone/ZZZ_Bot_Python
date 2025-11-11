@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Typography, Box, Chip, Paper } from "@mui/material";
+import { Alert, Box, Chip, Paper, Typography } from "@mui/material";
 import { BACKEND_URL, DataLoader } from "../DataLoader";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
@@ -205,9 +205,7 @@ export default function Mission() {
                     size="small"
                     icon={
                       mission.state === "Finished" ? (
-                        <CheckCircleIcon
-                          sx={{ color: "#10b981 !important" }}
-                        />
+                        <CheckCircleIcon sx={{ color: "#10b981 !important" }} />
                       ) : (
                         <ErrorIcon sx={{ color: "#ef4444 !important" }} />
                       )
@@ -220,7 +218,11 @@ export default function Mission() {
                       color:
                         mission.state === "Finished" ? "#34d399" : "#f87171",
                       fontWeight: 600,
-                      border: `1px solid ${mission.state === "Finished" ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+                      border: `1px solid ${
+                        mission.state === "Finished"
+                          ? "rgba(16, 185, 129, 0.3)"
+                          : "rgba(239, 68, 68, 0.3)"
+                      }`,
                     }}
                   />
                 </Box>

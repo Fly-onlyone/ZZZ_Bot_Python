@@ -15,6 +15,7 @@ datas += [
     ("./../frontend/dist", "frontend/dist"),
     ("./../images", "images"),
     ("./../sample", "sample"),
+    ("./../reward image", "reward image"),
     ("./../src/message", "message"),
     ("./../src/playwright-browsers", "playwright-browsers"),
 ]

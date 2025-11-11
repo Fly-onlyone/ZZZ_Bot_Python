@@ -1,5 +1,5 @@
 // Common style utilities for consistent component styling
-import { COLORS, GRADIENTS, ALPHA } from "./colors";
+import { ALPHA, COLORS, GRADIENTS } from "./colors";
 
 // Common transitions
 export const TRANSITIONS = {

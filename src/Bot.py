@@ -39,6 +39,9 @@ from Logger import Logger, NoImportFilter
 from ManualLogin import run, playState_lock
 from Win32Icon import Win32Icon
 
+# Configure logger
+logger = logging.getLogger(__name__)
+
 
 @app.get("/routes")
 async def get_routes():
@@ -228,14 +231,14 @@ def playwright_task():
             close_button.click()
             Notification.send_mission_data_via_email_html(todays_data)
         else:
-            print("Task cancelled due to setting.")
+            logger.info("Task cancelled due to setting.")
 
         if settings.gather_shopping_data:
             ShoppingHandler.run(mino_page)
             close_button = mino_page.locator(".panelBack--wW5qj")
             close_button.click(force=True)  # Use force to bypass intercepting elements
         else:
-            print("Gather data cancelled due to setting.")
+            logger.info("Gather data cancelled due to setting.")
 
         if settings.draw_item:
             DrawHandler.run(mino_page)
@@ -243,13 +246,15 @@ def playwright_task():
             mino_page.wait_for_timeout(1000)
             close_button = mino_page.locator(".panelBack--wW5qj")
             try:
-                close_button.click(force=True)  # Use force to bypass intercepting elements
+                close_button.click(
+                    force=True
+                )  # Use force to bypass intercepting elements
             except Exception as e:
-                print(f"Warning: Could not click back button: {e}")
+                logger.warning(f"Could not click back button: {e}")
                 # Try alternative method - press Escape key
                 mino_page.keyboard.press("Escape")
         else:
-            print("Draw data cancelled due to setting.")
+            logger.info("Draw data cancelled due to setting.")
 
         save_last_run()
         NotificationHelper.notify(
@@ -261,7 +266,7 @@ def playwright_task():
             input("Press ENTER to exit...")
         browser.close()
         if settings.exit_after_run:
-            print("Exiting after run as per the setting.")
+            logger.info("Exiting after run as per the setting.")
             sys.exit()
 
 
@@ -410,7 +415,20 @@ if __name__ == "__main__":
         sys.stdout = Logger(app_log, logging.INFO)
         sys.stderr = Logger(app_log, logging.ERROR)
     else:
+        # Development mode - log to console
         print("Running in normal Python process (dev mode)")
+
+        # Configure console logging for development
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
+        console_handler.addFilter(NoImportFilter())
+
+        # Attach handler to root logger
+        root = logging.getLogger()
+        root.setLevel(logging.DEBUG)
+        root.addHandler(console_handler)
 
     # === 2. Start React Dev Server (non-exe mode) ===
     if not is_exe:

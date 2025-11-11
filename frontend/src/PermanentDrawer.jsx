@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, memo } from "react";
 import {
   BrowserRouter,
   Navigate,
@@ -37,7 +37,7 @@ import Shopping from "./Shopping";
 import ManualLogin from "./ManualLogin";
 import Redeem from "./Redeem";
 import { BACKEND_URL, DataLoader } from "./DataLoader";
-import { COLORS, GRADIENTS, ALPHA } from "./theme/colors";
+import { ALPHA, COLORS, GRADIENTS } from "./theme/colors";
 import { TRANSITIONS } from "./theme/styles";
 
 const drawerWidth = 240;
@@ -63,13 +63,14 @@ const tabs = [
   { label: "Setting", icon: <SettingsIcon />, path: "/settings" },
 ];
 
-function DrawerNavigation() {
+const DrawerNavigation = memo(function DrawerNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const isActive = (path) => location.pathname === path;
 
-  const getListItemStyles = (path) => ({
+  // Memoize style functions to prevent recreating objects on every render
+  const getListItemStyles = useMemo(() => (path) => ({
     borderRadius: "12px",
     mb: 0.5,
     position: "relative",
@@ -100,22 +101,22 @@ function DrawerNavigation() {
         : "transparent",
       transition: TRANSITIONS.default,
     },
-  });
+  }), [location.pathname]);
 
-  const getIconStyles = (path) => ({
+  const getIconStyles = useMemo(() => (path) => ({
     color: isActive(path) ? COLORS.secondary.light : COLORS.text.muted,
     minWidth: "40px",
     transition: TRANSITIONS.default,
     transform: isActive(path) ? "scale(1.1)" : "scale(1)",
-  });
+  }), [location.pathname]);
 
-  const getTextStyles = (path) => ({
+  const getTextStyles = useMemo(() => (path) => ({
     "& .MuiTypography-root": {
       fontWeight: isActive(path) ? 600 : 500,
       color: isActive(path) ? COLORS.text.secondary : COLORS.text.tertiary,
       transition: TRANSITIONS.default,
     },
-  });
+  }), [location.pathname]);
 
   return (
     <Drawer
@@ -149,7 +150,7 @@ function DrawerNavigation() {
       </Box>
     </Drawer>
   );
-}
+});
 
 export default function PermanentDrawer() {
   const { prefetchAllRoutes } = DataLoader();
@@ -159,10 +160,7 @@ export default function PermanentDrawer() {
   const Qingyi02 = `${BACKEND_URL}/images/Qingyi02.ico`;
   return (
     <BrowserRouter>
-      <Box
-        className="flex bg-fixed"
-        // style={{ backgroundImage: `url(${BACKEND_URL}/images/Ellen.jpg)` }}
-      >
+      <Box className="flex bg-fixed">
         <CssBaseline />
         <AppBar position="fixed" sx={{ zIndex: zIndex.drawer + 1 }}>
           <Toolbar className="relative flex items-center justify-center">

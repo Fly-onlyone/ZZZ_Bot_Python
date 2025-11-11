@@ -3,11 +3,11 @@
 Handles shopping item gathering, exchange, and redemption code automation.
 """
 
-import re
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict
 
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
 
@@ -164,7 +164,11 @@ def _extract_current_points(page: Page) -> int:
 
         # Wait for element to be visible and have content
         point_element.wait_for(state="visible", timeout=5000)
-        page.wait_for_timeout(1000)  # Brief wait for content to load
+        # Wait for non-empty text content instead of fixed timeout
+        page.wait_for_function(
+            f"document.querySelector('{CURRENT_POINT_SELECTOR}')?.innerText?.trim().length > 0",
+            timeout=5000
+        )
 
         # Get the text content
         point_text = point_element.inner_text()
@@ -187,8 +191,12 @@ def _extract_current_points(page: Page) -> int:
 
     except (ValueError, AttributeError, IndexError) as e:
         logger.error(f"Failed to extract points: {e}")
-        logger.error(f"Point text was: '{point_text if 'point_text' in locals() else 'N/A'}'")
-        raise ValueError(f"Could not parse point balance from element {CURRENT_POINT_SELECTOR}") from e
+        logger.error(
+            f"Point text was: '{point_text if 'point_text' in locals() else 'N/A'}'"
+        )
+        raise ValueError(
+            f"Could not parse point balance from element {CURRENT_POINT_SELECTOR}"
+        ) from e
 
 
 def gather_data(page: Page, point: int) -> Dict:
@@ -279,7 +287,8 @@ def run(page: Page) -> None:
         logger.info("Selected ZZZ avatar")
 
         # NOW extract points after selecting the game
-        page.wait_for_timeout(1000)  # Wait for points to update
+        # Wait for network activity to settle after avatar selection
+        page.wait_for_load_state("networkidle", timeout=5000)
         current_points = _extract_current_points(page)
 
         # Load or gather shopping data
@@ -356,10 +365,9 @@ def _process_single_item(page: Page, item_name: str, item_data: Dict) -> bool:
         logger.info(f"Clicked exchange button for '{item_name}'")
 
         # Wait for and handle confirmation dialog
-        page.wait_for_timeout(1000)  # Brief wait for dialog
         confirm_dialog = page.locator(CONFIRM_DIALOG_SELECTOR)
 
-        if not confirm_dialog.is_visible(timeout=3000):
+        if not confirm_dialog.is_visible(timeout=5000):
             logger.warning("Confirmation dialog did not appear")
             return False
 
@@ -368,8 +376,8 @@ def _process_single_item(page: Page, item_name: str, item_data: Dict) -> bool:
         confirm_ok_button.click()
 
         # Extract and process redemption code
-        page.wait_for_timeout(500)  # Wait for code to appear
         code_element = page.locator(REDEEM_CODE_SELECTOR)
+        code_element.wait_for(state="visible", timeout=5000)
         redeem_code = code_element.inner_text()
 
         # Copy code to clipboard

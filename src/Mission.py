@@ -2,9 +2,10 @@
 
 Handles daily check-ins, mission completion, and reward collection.
 """
+
+import logging
 from datetime import datetime
 from typing import Dict, Optional
-import logging
 
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
 
@@ -55,7 +56,7 @@ def _close_dialog_if_visible(page: Page) -> None:
             close_btn.click()
             logger.info("Closed popup dialog")
     except PlaywrightTimeoutError:
-        pass  # Dialog not found, continue
+        logger.debug("No dialog found to close")
     except Exception as e:
         logger.warning(f"Error closing dialog: {e}")
 
@@ -68,7 +69,8 @@ def handle_check_in(new_page: Page, todays_data: Dict) -> None:
         todays_data: Dictionary to store today's mission data
     """
     logger.info("Starting check-in process...")
-    new_page.wait_for_timeout(DIALOG_WAIT_TIMEOUT)
+    # Wait for page to be fully loaded instead of fixed timeout
+    new_page.wait_for_load_state("networkidle", timeout=10000)
 
     _close_dialog_if_visible(new_page)
 
@@ -127,7 +129,9 @@ class Mission:
             try:
                 if mission_button.is_enabled(timeout=1000):
                     mission_button.click()
-                    logger.info(f"Mission button clicked (attempt {attempt}/{max_retries})")
+                    logger.info(
+                        f"Mission button clicked (attempt {attempt}/{max_retries})"
+                    )
                     self.page.wait_for_timeout(MISSION_CLICK_WAIT)
 
                 # Check for success popup
@@ -295,7 +299,9 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
 
         if button_state == "Finished":
             mission_done = True
-            logger.info(f"Mission '{mission_name}' already finished (detected via image)")
+            logger.info(
+                f"Mission '{mission_name}' already finished (detected via image)"
+            )
         else:
             # Attach listener for first mission to handle check-in popup
             if idx == 1 and not listener_attached:
@@ -316,8 +322,7 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
     # Log final check-in status
     check_in_status = todays_data.get("check_in", STATUS_LINK_NOT_OPENED)
     if check_in_status == STATUS_LINK_NOT_OPENED:
-        logger.warning("Check-in link was not opened, waiting...")
-        page.wait_for_timeout(DIALOG_WAIT_TIMEOUT)
+        logger.warning("Check-in link was not opened - skipping unnecessary wait")
 
     logger.info(f"Check-in status: {check_in_status}")
 
