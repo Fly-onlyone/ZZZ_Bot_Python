@@ -1,4 +1,5 @@
 """Quick test to verify the draw limit fix is working."""
+
 import sys
 from pathlib import Path
 
@@ -28,7 +29,9 @@ def test_draw_with_fix():
             page = context.new_page()
 
             print("Navigating to HoYoLab...")
-            page.goto("https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...")
+            page.goto(
+                "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
+            )
             page.wait_for_timeout(3000)
 
             print("\nRunning DrawHandler.run()...")
@@ -54,6 +57,7 @@ def test_draw_with_fix():
     except Exception as e:
         print(f"\n[ERROR] {e}")
         import traceback
+
         traceback.print_exc()
 
 

@@ -1,8 +1,9 @@
-import PyInstaller.__main__
-import shutil
-import os
 import glob
+import os
+import shutil
 import stat
+
+import PyInstaller.__main__
 
 
 def get_environment():
@@ -58,7 +59,7 @@ def process_directory(base_dir, directories_to_copy):
 mode = get_environment()
 
 # Paths to the directories you want to copy
-directories_to_copy = ["./../authentication data", "./../screenshot", "./../output","./../reward image"]
+directories_to_copy = ["./../authentication data", "./../screenshot", "./../output"]
 spec_file_path="SpecStandalone.py" if mode =="MAKE_EXE_STANDALONE" else "SpecOnefile.py"
 # Read Spec.py and write its content to Bot.spec
 with open(spec_file_path, "r") as spec_file:

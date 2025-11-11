@@ -7,12 +7,8 @@ import { ContentCopy, Visibility, VisibilityOff } from "@mui/icons-material";
 import { useQueryClient } from "@tanstack/react-query";
 import { DataLoader } from "./DataLoader";
 import SaveButton from "./SaveButton";
-import { COLORS, ALPHA } from "./theme/colors";
-import {
-  buttonStyles,
-  iconButtonStyles,
-  switchStyles,
-} from "./theme/styles";
+import { ALPHA, COLORS } from "./theme/colors";
+import { buttonStyles, iconButtonStyles, switchStyles } from "./theme/styles";
 
 export default function ValueAdapter({
   customIcons = {},
@@ -127,7 +123,13 @@ export default function ValueAdapter({
       <TextField
         className={isPassword ? "" : "pr-12"}
         id={key}
-        type={isPassword && passwordVisibility[key] ? "text" : isPassword ? "password" : "text"}
+        type={
+          isPassword && passwordVisibility[key]
+            ? "text"
+            : isPassword
+            ? "password"
+            : "text"
+        }
         value={fieldValue || ""}
         onChange={(e) => handleChange(key, e.target.value)}
         fullWidth
