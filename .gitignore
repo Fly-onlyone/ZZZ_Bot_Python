@@ -1,7 +1,9 @@
-product/
+product/build/
+product/dist/
+product/ZZZ Bot Installer.exe
 
 src/playwright-browsers/
 
-!product/*.py
-!product/Bot.spec
-!product/Bot version.txt
+__pycache__/
+*.pyc
+*.pyo

@@ -79,11 +79,23 @@ def generate_config(outside_folder, exclude_keys=None):
     def should_use_outside_folder(path):
         abs_path = os.path.abspath(os.path.normpath(path))
         # Use normalized paths to prevent traversal attacks
-        return any(
-            os.path.commonpath([abs_path, folder_path]) == folder_path
-            for folder_path in outside_folder_paths.values()
-            if os.path.exists(folder_path) or abs_path == folder_path
-        )
+        for folder_path in outside_folder_paths.values():
+            try:
+                # Normalize folder_path to handle both files and folders
+                folder_path_normalized = os.path.normpath(folder_path)
+                # If folder_path is a file, use its directory
+                if not folder_path.endswith(('.json', '.ico', '.png', '.html', '.jinja')):
+                    # It's a folder
+                    if os.path.commonpath([abs_path, folder_path_normalized]) == folder_path_normalized:
+                        return True
+                else:
+                    # It's a file, check if paths match
+                    if abs_path == folder_path_normalized:
+                        return True
+            except ValueError:
+                # Paths are on different drives on Windows, skip
+                continue
+        return False
 
     return {
         key: (
