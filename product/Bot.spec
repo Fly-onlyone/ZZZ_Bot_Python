@@ -31,7 +31,7 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[],
     noarchive=False,
-    optimize=2,  # Enable bytecode optimization for smaller size
+    optimize=0,
 )
 pyz = PYZ(a.pure)
 
@@ -44,9 +44,8 @@ exe = EXE(
     name="ZZZ Bot",
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,  # Strip debug symbols for smaller binary
+    strip=False,
     upx=True,
-    onefile=True,  # Create single executable file
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
