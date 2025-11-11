@@ -7,6 +7,7 @@ import SaveButton from "./SaveButton";
 
 export default function Shopping() {
   const [selectedRows, setSelectedRows] = useState([]); // Store selected row data (Name + Priority)
+  const [huntItems, setHuntItems] = useState([]); // Store hunt item names
   const [alert, setAlert] = useState({
     open: false,
     type: "success",
@@ -19,7 +20,7 @@ export default function Shopping() {
   const { data: shopping, error } = useRouteData(route);
   const mutation = useSaveData(route);
 
-  // Initialize selected rows when data is available
+  // Initialize selected rows and hunt items when data is available
   useEffect(() => {
     if (shopping?.Selected) {
       setSelectedRows(
@@ -28,6 +29,9 @@ export default function Shopping() {
           Priority: index + 1,
         }))
       );
+    }
+    if (shopping?.Hunt) {
+      setHuntItems(shopping.Hunt);
     }
   }, [shopping]);
 
@@ -45,6 +49,17 @@ export default function Shopping() {
     Priority:
       selectedRows.find((row) => row.Name === item.Name)?.Priority || null, // Add priority if already selected
   }));
+
+  // Handle hunt checkbox toggle
+  const handleHuntToggle = (itemName) => {
+    setHuntItems((prev) => {
+      if (prev.includes(itemName)) {
+        return prev.filter((name) => name !== itemName);
+      } else {
+        return [...prev, itemName];
+      }
+    });
+  };
 
   // Define the columns
   const columns = [
@@ -73,6 +88,19 @@ export default function Shopping() {
         );
         return isSelected ? params.value : "N/A"; // Show "N/A" for unselected rows
       },
+    },
+    {
+      field: "Hunt",
+      headerName: "Hunt",
+      flex: 0.5,
+      renderCell: (params) => (
+        <input
+          type="checkbox"
+          checked={huntItems.includes(params.row.Name)}
+          onChange={() => handleHuntToggle(params.row.Name)}
+          className="w-4 h-4 cursor-pointer"
+        />
+      ),
     },
   ];
 
@@ -138,9 +166,10 @@ export default function Shopping() {
   };
 
   const handleSave = () => {
-    // Transform selectedRows to the required structure
+    // Transform selectedRows and huntItems to the required structure
     const payload = {
       Selected: selectedRows.map((row) => row.Name), // Extract only the Name field
+      Hunt: huntItems, // Include hunt items
     };
 
     console.log("Payload:", payload); // Log payload for debugging

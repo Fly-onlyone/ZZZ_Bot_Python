@@ -24,6 +24,7 @@ from starlette.staticfiles import StaticFiles
 
 import DrawHandler
 import GlobalVar
+import HuntMode
 import ManualLogin
 import Mission
 import Notification
@@ -82,6 +83,9 @@ def update_shopping_data(selected: dict):
 
     # Update or add the "Selected" key
     shopping_data["Selected"] = selected.get("Selected", [])
+
+    # Update or add the "Hunt" key
+    shopping_data["Hunt"] = selected.get("Hunt", [])
 
     # Save the updated shopping data back to the file
     with open(file_path, "w", encoding="utf-8") as file:
@@ -237,6 +241,9 @@ def playwright_task():
             ShoppingHandler.run(mino_page)
             close_button = mino_page.locator(".panelBack--wW5qj")
             close_button.click(force=True)  # Use force to bypass intercepting elements
+
+            # Reschedule hunt tasks after shopping data is updated
+            schedule_hunt_tasks()
         else:
             logger.info("Gather data cancelled due to setting.")
 
@@ -321,11 +328,43 @@ def check_missed_runs():
             break
 
 
+def schedule_hunt_tasks():
+    """Schedule hunt mode tasks based on item return times."""
+    if not settings.enable_hunt_mode:
+        logger.info("Hunt mode is disabled, skipping hunt scheduling")
+        return
+
+    next_hunt_time = HuntMode.get_next_hunt_time()
+    if not next_hunt_time:
+        logger.info("No hunt items with return times, skipping hunt scheduling")
+        return
+
+    try:
+        # Parse the hunt time format "HH:MM DD/MM/YY"
+        hunt_datetime = datetime.strptime(next_hunt_time, "%H:%M %d/%m/%y")
+        now = datetime.now()
+
+        # Only schedule if the hunt time is in the future
+        if hunt_datetime > now:
+            # Schedule at specific date and time
+            schedule_time = hunt_datetime.strftime("%H:%M")
+            schedule.every().day.at(schedule_time).do(HuntMode.run_hunt).tag("hunt")
+            logger.info(f"Hunt mode scheduled for {next_hunt_time}")
+        else:
+            logger.info(f"Hunt time {next_hunt_time} is in the past, skipping")
+
+    except ValueError as e:
+        logger.error(f"Failed to parse hunt time '{next_hunt_time}': {e}")
+
+
 def schedule_tasks():
     """Reschedule tasks based on current settings."""
     schedule.clear()
     for scheduled_time in settings.schedule_times:
         schedule.every().day.at(scheduled_time).do(playwright_task)
+
+    # Schedule hunt tasks if enabled
+    schedule_hunt_tasks()
 
 
 def run_scheduled_tasks():
