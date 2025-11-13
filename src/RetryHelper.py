@@ -61,7 +61,45 @@ def retry_until_screen_appears(
         if attempt < max_retries:
             button.page.wait_for_timeout(delay_ms)
 
+    # Diagnostic logging when max retries reached
     logger.error(f"Max retries ({max_retries}) reached. Target screen did not appear.")
+
+    try:
+        # Log diagnostic information
+        page = button.page
+
+        # Take screenshot for debugging
+        from GlobalVar import CONFIG
+        import os
+        from datetime import datetime
+
+        screenshot_dir = CONFIG.get("SCREENSHOT_FOLDER", "./screenshot")
+        os.makedirs(screenshot_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        screenshot_path = os.path.join(screenshot_dir, f"retry_failed_{timestamp}.png")
+        page.screenshot(path=screenshot_path)
+        logger.error(f"Screenshot saved to: {screenshot_path}")
+
+        # Log available image buttons
+        all_images = page.get_by_role("img")
+        image_count = all_images.count()
+        logger.error(f"Found {image_count} image elements on page:")
+        for i in range(min(image_count, 10)):  # Log first 10 images
+            try:
+                img = all_images.nth(i)
+                alt_text = img.get_attribute("alt") or "N/A"
+                src = img.get_attribute("src") or "N/A"
+                logger.error(f"  Image {i}: alt='{alt_text}', src='{src[:50]}...'")
+            except Exception as e:
+                logger.error(f"  Image {i}: Error getting attributes - {e}")
+
+        # Log target screen selector info
+        screen_count = screen.count()
+        logger.error(f"Target screen selector matched {screen_count} elements")
+
+    except Exception as e:
+        logger.error(f"Error during diagnostic logging: {e}")
+
     return False
 
 

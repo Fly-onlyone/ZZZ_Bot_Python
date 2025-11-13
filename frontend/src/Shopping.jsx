@@ -93,14 +93,27 @@ export default function Shopping() {
       field: "Hunt",
       headerName: "Hunt",
       flex: 0.5,
-      renderCell: (params) => (
-        <input
-          type="checkbox"
-          checked={huntItems.includes(params.row.Name)}
-          onChange={() => handleHuntToggle(params.row.Name)}
-          className="w-4 h-4 cursor-pointer"
-        />
-      ),
+      renderCell: (params) => {
+        const isSelected = selectedRows.some(
+          (row) => row.Name === params.row.Name
+        );
+        return (
+          <input
+            type="checkbox"
+            checked={huntItems.includes(params.row.Name)}
+            onChange={() => handleHuntToggle(params.row.Name)}
+            disabled={!isSelected}
+            className={`w-4 h-4 ${
+              isSelected ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+            }`}
+            title={
+              isSelected
+                ? "Enable hunt mode for this item"
+                : "Select item for shopping first"
+            }
+          />
+        );
+      },
     },
   ];
 
@@ -115,6 +128,11 @@ export default function Shopping() {
     });
 
     setSelectedRows(updatedRows);
+
+    // Auto-remove hunt items that are no longer selected for shopping
+    setHuntItems((prevHuntItems) =>
+      prevHuntItems.filter((huntItem) => newSelection.includes(huntItem))
+    );
   };
 
   const processRowUpdate = (newRow, oldRow) => {

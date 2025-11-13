@@ -186,17 +186,43 @@ async def update_settings(request: Request):
     settings.save(CONFIG["SETTINGS_FILE"])
     schedule_tasks()
     update_tray_menu()
+
+    # Update next_run in last_run.json when schedule_times change
+    if "schedule_times" in data:
+        if os.path.exists(CONFIG["LAST_RUN_FILE"]):
+            with open(CONFIG["LAST_RUN_FILE"]) as f:
+                run_data = json.load(f)
+
+            # Recalculate next run with new schedule times
+            next_run = calculate_next_run()
+            run_data["next_run"] = next_run.strftime("%H:%M %d/%m/%y")
+
+            # Save updated data
+            with open(CONFIG["LAST_RUN_FILE"], "w") as f:
+                json.dump(run_data, f)
+
+            logger.info(f"Updated next run to: {run_data['next_run']}")
+
     return JSONResponse({"message": "Settings updated"})
 
 
 @app.get("/check-run-status")
 def check_run_status():
-    """Check the last run status."""
+    """Check the last run status with dynamically calculated next run."""
+    # Load last run data if exists
+    last_run = None
     if os.path.exists(CONFIG["LAST_RUN_FILE"]):
         with open(CONFIG["LAST_RUN_FILE"]) as f:
             data = json.load(f)
-        return data
-    return None
+            last_run = data.get("last_run")
+
+    # Always calculate next run dynamically based on current time and settings
+    next_run = calculate_next_run()
+
+    return {
+        "last_run": last_run,
+        "next_run": next_run.strftime("%H:%M %d/%m/%y"),
+    }
 
 
 # Bot Logic
@@ -237,17 +263,91 @@ def playwright_task():
         else:
             logger.info("Task cancelled due to setting.")
 
+        # Track if shopping screen was closed successfully
+        shopping_screen_closed = True  # Default to True if shopping is disabled
+
         if settings.gather_shopping_data:
             ShoppingHandler.run(mino_page)
+
+            # Close the shopping screen with retry logic
+            shopping_screen = mino_page.locator(".wrapper-O3T67n")  # Shopping screen selector
             close_button = mino_page.locator(".panelBack--wW5qj")
-            close_button.click(force=True)  # Use force to bypass intercepting elements
+
+            max_close_attempts = 3
+            shopping_screen_closed = False
+
+            for attempt in range(1, max_close_attempts + 1):
+                try:
+                    logger.info(f"Attempting to close shopping screen (attempt {attempt}/{max_close_attempts})")
+
+                    # Check close button status
+                    close_button_count = close_button.count()
+                    logger.info(f"Close button count: {close_button_count}")
+
+                    if close_button_count > 0:
+                        is_visible = close_button.is_visible(timeout=2000)
+                        logger.info(f"Close button visible: {is_visible}")
+
+                        if is_visible:
+                            # Get button position for debugging
+                            box = close_button.bounding_box()
+                            if box:
+                                logger.info(f"Close button position: x={box['x']}, y={box['y']}, width={box['width']}, height={box['height']}")
+
+                            close_button.click(force=True)
+                            logger.info("Clicked shopping close button")
+                            mino_page.wait_for_timeout(500)  # Wait for click to process
+                        else:
+                            logger.warning("Close button exists but not visible")
+                    else:
+                        logger.warning("Close button not found on page")
+
+                    # Try Escape key as well
+                    mino_page.keyboard.press("Escape")
+                    mino_page.wait_for_timeout(500)
+
+                    # Check if screen disappeared
+                    if not shopping_screen.is_visible(timeout=2000):
+                        logger.info("Shopping screen closed successfully")
+                        shopping_screen_closed = True
+                        break
+                    else:
+                        logger.warning(f"Shopping screen still visible after attempt {attempt}")
+                        # Take screenshot for debugging
+                        if attempt == max_close_attempts:
+                            screenshot_path = os.path.join(CONFIG["SCREENSHOT_FOLDER"], f"shopping_wont_close_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+                            mino_page.screenshot(path=screenshot_path)
+                            logger.error(f"Final screenshot saved to: {screenshot_path}")
+
+                except Exception as e:
+                    logger.warning(f"Error during close attempt {attempt}: {e}")
+
+            if not shopping_screen_closed:
+                logger.error("Failed to close shopping screen after all attempts")
+                logger.error("Skipping draw handler to avoid conflicts")
+                # Reschedule hunt tasks and skip draw
+                schedule_hunt_tasks()
+                NotificationHelper.notify(
+                    title="ZZZ Bot - Warning",
+                    message="Shopping screen won't close, skipped prize draws",
+                    app_icon=CONFIG["SAD_ICON"],
+                )
+                # Skip to saving state
+                context.storage_state(path=CONFIG["STORAGE_PATH"])
+                if not is_exe:
+                    input("Press ENTER to exit...")
+                browser.close()
+                if settings.exit_after_run:
+                    logger.info("Exiting after run as per the setting.")
+                    sys.exit()
+                return
 
             # Reschedule hunt tasks after shopping data is updated
             schedule_hunt_tasks()
         else:
             logger.info("Gather data cancelled due to setting.")
 
-        if settings.draw_item:
+        if settings.draw_item and shopping_screen_closed:
             DrawHandler.run(mino_page)
             # Wait briefly for any overlays to disappear
             mino_page.wait_for_timeout(1000)
@@ -277,8 +377,12 @@ def playwright_task():
             sys.exit()
 
 
-def save_last_run():
-    """Save the current time as last run and calculate the next run."""
+def calculate_next_run() -> datetime:
+    """Calculate the next scheduled run time based on current settings.
+
+    Returns:
+        datetime object of next scheduled run
+    """
     now = datetime.now()
     next_run = None
 
@@ -287,7 +391,8 @@ def save_last_run():
         today_scheduled = datetime.combine(
             now.date(), datetime.strptime(scheduled_time, "%H:%M").time()
         )
-        if now <= today_scheduled:
+        # Only schedule if the time is in the future (not equal to current time)
+        if now < today_scheduled:
             next_run = today_scheduled
             break
 
@@ -297,6 +402,14 @@ def save_last_run():
             now.date() + timedelta(days=1),
             datetime.strptime(settings.schedule_times[0], "%H:%M").time(),
         )
+
+    return next_run
+
+
+def save_last_run():
+    """Save the current time as last run and calculate the next run."""
+    now = datetime.now()
+    next_run = calculate_next_run()
 
     # Save the last and next run times to the file
     with open(CONFIG["LAST_RUN_FILE"], "w") as f:
@@ -342,16 +455,23 @@ def schedule_hunt_tasks():
     try:
         # Parse the hunt time format "HH:MM DD/MM/YY"
         hunt_datetime = datetime.strptime(next_hunt_time, "%H:%M %d/%m/%y")
+
+        # Schedule EARLIER to allow buffer time for opening shopping screen
+        # Subtract buffer time (2 minutes by default)
+        schedule_datetime = hunt_datetime - timedelta(seconds=HuntMode.WAIT_BUFFER_SECONDS)
         now = datetime.now()
 
-        # Only schedule if the hunt time is in the future
-        if hunt_datetime > now:
-            # Schedule at specific date and time
-            schedule_time = hunt_datetime.strftime("%H:%M")
+        # Only schedule if the schedule time is in the future
+        if schedule_datetime > now:
+            # Schedule at specific date and time (with buffer)
+            schedule_time = schedule_datetime.strftime("%H:%M")
             schedule.every().day.at(schedule_time).do(HuntMode.run_hunt).tag("hunt")
-            logger.info(f"Hunt mode scheduled for {next_hunt_time}")
+            logger.info(
+                f"Hunt mode scheduled at {schedule_datetime.strftime('%H:%M %d/%m/%y')} "
+                f"(target item time: {next_hunt_time})"
+            )
         else:
-            logger.info(f"Hunt time {next_hunt_time} is in the past, skipping")
+            logger.info(f"Hunt schedule time {schedule_datetime.strftime('%H:%M %d/%m/%y')} is in the past, skipping")
 
     except ValueError as e:
         logger.error(f"Failed to parse hunt time '{next_hunt_time}': {e}")
