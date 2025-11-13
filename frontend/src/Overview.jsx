@@ -2,7 +2,8 @@ import React, { memo } from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import Mission from "./content/Mission";
 import RunningStatus from "./content/RunningStatus";
-import { IconActivity, IconReportAnalytics } from "@tabler/icons-react";
+import Hunt from "./content/Hunt";
+import { IconActivity, IconReportAnalytics, IconTarget } from "@tabler/icons-react";
 import { ALPHA, COLORS, GRADIENTS } from "./theme/colors";
 import { cardStyles } from "./theme/styles";
 
@@ -79,6 +80,14 @@ export default function Overview() {
         colorScheme="primary"
       >
         <Mission />
+      </SectionCard>
+
+      <SectionCard
+        title="Hunt Mode"
+        icon={<IconTarget size={24} color="#ffffff" />}
+        colorScheme="primary"
+      >
+        <Hunt />
       </SectionCard>
 
       <SectionCard
