@@ -233,3 +233,21 @@ Bot.py
 - API responses: Use Pydantic models for validation
 - Frontend state: TanStack Query for server state, React state for UI state
 - Image comparison: Always use absolute paths for OpenCV, log comparison percentages
+
+## Commit Message Style
+
+When writing commit messages for this project, follow these guidelines:
+
+- **Keep it short and concise** - Brief, action-oriented statements
+- **Use simple present tense** - "Add", "Fix", "Improve", not "Added" or "Adding"
+- **Multiple changes** - Separate with periods, list main changes only
+- **Focus on what, not why** - Describe the change, not the reason
+- **No detailed explanations** - Save details for PR descriptions
+
+**Examples:**
+- `Add hunt overview. Fix countdown regex. Improve hunt scheduling. Fix icon colors.`
+- `Add hunt mode`
+- `Fix draw handler`
+- `Improve codebase`
+
+**Format:** `[Verb] [brief description]. [Verb] [brief description]. ...`

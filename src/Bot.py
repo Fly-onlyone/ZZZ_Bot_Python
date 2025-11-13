@@ -131,6 +131,60 @@ def get_mission_report():
     return todays_data
 
 
+@app.get("/overview/hunt")
+def get_hunt_info():
+    """Return hunt mode information including hunt items and next hunt time."""
+    from datetime import datetime, timedelta
+    from StringUtil import calculate_return_time
+
+    hunt_items = HuntMode.get_hunt_items()
+    next_hunt_time = HuntMode.get_next_hunt_time()
+    hunt_enabled = settings.enable_hunt_mode
+
+    # Get detailed item information including availability
+    file_path = Path(CONFIG["SHOPPING_FILE"])
+    shopping_data = load_shopping_data(file_path)
+    items_list = shopping_data.get("Item's list", {}) if shopping_data else {}
+
+    # Build hunt items with scheduled hunt time
+    hunt_items_with_info = []
+    for item_name in hunt_items:
+        item_data = items_list.get(item_name, {})
+        availability = item_data.get("Available", "")
+
+        # Calculate scheduled hunt time (availability time - buffer)
+        scheduled_hunt_time = None
+        try:
+            # Check if availability is in countdown format (e.g., "153:03:27")
+            if ":" in availability and "/" not in availability:
+                # Convert countdown to return time format
+                availability = calculate_return_time(availability)
+
+            # Now parse the return time format "HH:MM DD/MM/YY"
+            if "/" in availability and ":" in availability:
+                return_time = datetime.strptime(availability, "%H:%M %d/%m/%y")
+                # Schedule hunt WAIT_BUFFER_SECONDS before item becomes available
+                hunt_time = return_time - timedelta(seconds=HuntMode.WAIT_BUFFER_SECONDS)
+                scheduled_hunt_time = hunt_time.strftime("%H:%M %d/%m/%y")
+            else:
+                scheduled_hunt_time = "Not scheduled"
+        except (ValueError, Exception):
+            scheduled_hunt_time = "Invalid time"
+
+        hunt_items_with_info.append({
+            "name": item_name,
+            "scheduled_time": scheduled_hunt_time,
+            "price": item_data.get("Price", 0),
+            "inventory": item_data.get("Inventory", 0),
+        })
+
+    return {
+        "enabled": hunt_enabled,
+        "hunt_items": hunt_items_with_info,
+        "next_hunt_time": next_hunt_time,
+    }
+
+
 @app.get("/account")
 def get_account():
     return asdict(accounts)
@@ -442,7 +496,14 @@ def check_missed_runs():
 
 
 def schedule_hunt_tasks():
-    """Schedule hunt mode tasks based on item return times."""
+    """Schedule hunt mode tasks based on item return times.
+
+    This should only be called after shopping data has been refreshed.
+    """
+    # Clear existing hunt tasks before scheduling new ones
+    schedule.clear("hunt")
+    logger.info("Cleared old hunt schedules")
+
     if not settings.enable_hunt_mode:
         logger.info("Hunt mode is disabled, skipping hunt scheduling")
         return
@@ -483,8 +544,8 @@ def schedule_tasks():
     for scheduled_time in settings.schedule_times:
         schedule.every().day.at(scheduled_time).do(playwright_task)
 
-    # Schedule hunt tasks if enabled
-    schedule_hunt_tasks()
+    # Note: Hunt tasks are NOT scheduled here
+    # They will be scheduled only after shopping data is refreshed in playwright_task()
 
 
 def run_scheduled_tasks():
