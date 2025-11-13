@@ -297,12 +297,23 @@ def run(page: Page) -> None:
     logger.info("Starting prize draw automation...")
 
     try:
+        # Log diagnostic information before attempting to open screen
+        logger.info(f"Looking for draw button at image index {DRAW_BUTTON_INDEX}")
+        logger.info(f"Looking for screen with selector '{SCREEN_SELECTOR}' containing text '{SCREEN_TEXT}'")
+
+        # Count total images available
+        all_images = page.get_by_role("img")
+        total_images = all_images.count()
+        logger.info(f"Total image elements found on page: {total_images}")
+
         # Navigate to prize draw screen
         draw_button = page.get_by_role("img").nth(DRAW_BUTTON_INDEX)
         prize_screen = page.locator(SCREEN_SELECTOR).filter(has_text=SCREEN_TEXT)
 
         if not RetryHelper.retry_until_screen_appears(prize_screen, draw_button):
             logger.error("Failed to open prize draw screen")
+            logger.error(f"Expected button at index {DRAW_BUTTON_INDEX}, but page has {total_images} images")
+            logger.error("Check the screenshot in the screenshot folder for more details")
             return
 
         logger.info("Prize draw screen opened")

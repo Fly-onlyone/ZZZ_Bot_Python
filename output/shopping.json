@@ -1,5 +1,5 @@
 {
-    "Point": 180,
+    "Point": 20,
     "Duration": {
         "Start": "14/10",
         "End": "23/11"
@@ -8,55 +8,55 @@
         "Yidhari Avatar Frame (Permanent)": {
             "Name": "Yidhari Avatar Frame (Permanent)",
             "Price": 150,
-            "Inventory": 3986443,
+            "Inventory": 4985483,
             "Available": "Exchange"
         },
         "Lucia Avatar Frame (Permanent)": {
             "Name": "Lucia Avatar Frame (Permanent)",
             "Price": 150,
-            "Inventory": 3986657,
+            "Inventory": 4985761,
             "Available": "Exchange"
         },
         "Senior Investigator Log ×5": {
             "Name": "Senior Investigator Log ×5",
             "Price": 100,
-            "Inventory": 0,
-            "Available": "18:00 12/11/25"
-        },
-        "Polychrome ×10": {
-            "Name": "Polychrome ×10",
-            "Price": 100,
-            "Inventory": 0,
-            "Available": "18:00 12/11/25"
-        },
-        "Polychrome ×30": {
-            "Name": "Polychrome ×30",
-            "Price": 200,
-            "Inventory": 0,
-            "Available": "18:00 12/11/25"
+            "Inventory": 852,
+            "Available": "Exchange"
         },
         "Polychrome ×60": {
             "Name": "Polychrome ×60",
             "Price": 300,
             "Inventory": 0,
-            "Available": "18:00 12/11/25"
+            "Available": "153:03:27"
         },
         "Polychrome ×100": {
             "Name": "Polychrome ×100",
             "Price": 500,
             "Inventory": 0,
-            "Available": "18:00 12/11/25"
+            "Available": "153:03:26"
         },
         "Dennies ×5,000": {
             "Name": "Dennies ×5,000",
             "Price": 50,
-            "Inventory": 41377,
+            "Inventory": 53093,
             "Available": "Limit Reached"
         },
         "Dennies ×10,000": {
             "Name": "Dennies ×10,000",
             "Price": 80,
-            "Inventory": 2292,
+            "Inventory": 4489,
+            "Available": "Limit Reached"
+        },
+        "Polychrome ×10": {
+            "Name": "Polychrome ×10",
+            "Price": 100,
+            "Inventory": 1426,
+            "Available": "Limit Reached"
+        },
+        "Polychrome ×30": {
+            "Name": "Polychrome ×30",
+            "Price": 200,
+            "Inventory": 1612,
             "Available": "Limit Reached"
         }
     },
