@@ -57,7 +57,7 @@ const tabs = [
   },
   {
     label: "Manual Login",
-    icon: <IconLogin2 className="text-cyan-500" />,
+    icon: <IconLogin2 />,
     path: "/manual",
   },
   { label: "Setting", icon: <SettingsIcon />, path: "/settings" },
@@ -250,7 +250,7 @@ export default function PermanentDrawer() {
                       ],
                     },
                     Draw: {
-                      icon: <IconCards className="text-cyan-500" />,
+                      icon: <IconCards />,
                       fields: ["draw_item"],
                     },
                   }}

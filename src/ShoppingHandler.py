@@ -41,7 +41,7 @@ COPY_BUTTON_SELECTOR = "div.gainCodeCopyBtn-Lwk9eR"
 CLOSE_BUTTON_SELECTOR = ".gainClose-7Q0hz8"
 
 # Constants
-TIME_PATTERN = re.compile(r"^\d{1,2}:\d{2}:\d{2}$")
+TIME_PATTERN = re.compile(r"^\d+:\d{2}:\d{2}$")  # Allow any number of digits for hours
 EXCHANGE_BUTTON_TEXT = "Exchange"
 
 
