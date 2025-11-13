@@ -124,6 +124,7 @@ class AppSettings(Serializable):
     buy_all: bool = False
     draw_item: bool = False
     enable_hunt_mode: bool = False
+    stop_on_failed_exchange: bool = False
 
 
 @dataclass

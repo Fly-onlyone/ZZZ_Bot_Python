@@ -3,19 +3,21 @@
 Handles automatic purchasing of specific items when the shop renews.
 """
 
+import json
 import logging
 import os
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
-from playwright.sync_api import sync_playwright, Page, Locator
+from playwright.sync_api import sync_playwright, Page, Locator, TimeoutError as PlaywrightTimeoutError
 
 import NotificationHelper
+import RedeemAutofill
 import RetryHelper
 import ShoppingHandler
-from DataHandler import load_shopping_data
+from DataHandler import load_shopping_data, save_shopping_data
 from GlobalVar import CONFIG, settings
 from ImageProcessor import find_correct_avatar
 from StringUtil import calculate_return_time
@@ -29,10 +31,10 @@ EXCHANGE_BUTTON_TEXT = "Exchange"
 
 
 def get_hunt_items() -> List[str]:
-    """Get the list of items marked for hunting.
+    """Get the list of items marked for hunting, sorted by shopping priority.
 
     Returns:
-        List of item names to hunt
+        List of item names to hunt, ordered by their priority in Selected list
     """
     file_path = Path(CONFIG["SHOPPING_FILE"])
     shopping_data = load_shopping_data(file_path)
@@ -42,8 +44,29 @@ def get_hunt_items() -> List[str]:
         return []
 
     hunt_items = shopping_data.get("Hunt", [])
-    logger.info(f"Found {len(hunt_items)} items to hunt: {hunt_items}")
-    return hunt_items
+    selected_items = shopping_data.get("Selected", [])
+
+    if not hunt_items:
+        logger.info("No items marked for hunting")
+        return []
+
+    # Sort hunt items by their priority in Selected list
+    # Items that appear earlier in Selected list have higher priority
+    sorted_hunt_items = []
+    for item in selected_items:
+        if item in hunt_items:
+            sorted_hunt_items.append(item)
+
+    # Add any hunt items not in Selected (shouldn't happen, but just in case)
+    for item in hunt_items:
+        if item not in sorted_hunt_items:
+            sorted_hunt_items.append(item)
+            logger.warning(f"Hunt item '{item}' not found in Selected list")
+
+    logger.info(
+        f"Found {len(sorted_hunt_items)} items to hunt (ordered by priority): {sorted_hunt_items}"
+    )
+    return sorted_hunt_items
 
 
 def get_next_hunt_time() -> Optional[str]:
@@ -150,6 +173,137 @@ def wait_for_exchange_button(page: Page, item_name: str, max_wait_seconds: int =
     return False
 
 
+def exchange_item_only(page: Page, item_name: str) -> Optional[str]:
+    """Exchange an item and return the redemption code WITHOUT redeeming it.
+
+    Args:
+        page: Playwright Page instance
+        item_name: Name of the item to exchange
+
+    Returns:
+        Redemption code if successful, None if failed
+    """
+    logger.info(f"Exchanging item: {item_name}")
+
+    # Locate item on page
+    item_locator = page.locator(ShoppingHandler.ITEM_SELECTOR).filter(
+        has=page.get_by_text(item_name, exact=True)
+    )
+
+    if item_locator.count() == 0:
+        logger.warning(f"Item '{item_name}' not found on page")
+        return None
+
+    try:
+        # Check exchange button
+        exchange_button = item_locator.locator(ShoppingHandler.ITEM_BUTTON_SELECTOR)
+        button_text = exchange_button.inner_text()
+
+        if button_text != EXCHANGE_BUTTON_TEXT:
+            logger.info(
+                f"Item '{item_name}' not available for exchange (status: {button_text})"
+            )
+            return None
+
+        # Click exchange
+        exchange_button.click()
+        logger.info(f"Clicked exchange button for '{item_name}'")
+
+        # Wait for and handle confirmation dialog
+        confirm_dialog = page.locator(ShoppingHandler.CONFIRM_DIALOG_SELECTOR)
+
+        if not confirm_dialog.is_visible(timeout=5000):
+            logger.warning("Confirmation dialog did not appear")
+            return None
+
+        logger.info("Confirmation dialog detected")
+        confirm_ok_button = page.locator(ShoppingHandler.CONFIRM_OK_SELECTOR)
+        confirm_ok_button.click()
+
+        # Extract redemption code
+        code_element = page.locator(ShoppingHandler.REDEEM_CODE_SELECTOR)
+        code_element.wait_for(state="visible", timeout=5000)
+        redeem_code = code_element.inner_text()
+
+        # Copy code to clipboard
+        copy_button = page.locator(ShoppingHandler.COPY_BUTTON_SELECTOR)
+        copy_button.click()
+        logger.info(f"Obtained redemption code for '{item_name}': {redeem_code}")
+
+        # Close dialog
+        close_button = page.locator(ShoppingHandler.CLOSE_BUTTON_SELECTOR)
+        close_button.click()
+        logger.info(f"Successfully exchanged '{item_name}'")
+
+        return redeem_code
+
+    except PlaywrightTimeoutError as e:
+        logger.error(f"Timeout while exchanging '{item_name}': {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Error exchanging '{item_name}': {e}")
+        return None
+
+
+def redeem_all_codes(context, codes_to_redeem: List[Tuple[str, str]]):
+    """Redeem all collected codes after exchanging.
+
+    Args:
+        context: Playwright browser context
+        codes_to_redeem: List of tuples (item_name, redeem_code)
+    """
+    if not codes_to_redeem:
+        logger.info("No codes to redeem")
+        return
+
+    logger.info(f"Redeeming {len(codes_to_redeem)} codes...")
+
+    for item_name, redeem_code in codes_to_redeem:
+        try:
+            logger.info(f"Redeeming code for '{item_name}': {redeem_code}")
+            RedeemAutofill.run(context, redeem_code, item_name)
+            logger.info(f"Successfully redeemed '{item_name}'")
+        except Exception as e:
+            logger.error(f"Failed to redeem '{item_name}': {e}")
+
+    logger.info("All codes redeemed")
+
+
+def remove_items_from_hunt_list(item_names: List[str]):
+    """Remove successfully hunted items from the hunt list.
+
+    Args:
+        item_names: List of item names to remove from hunt list
+    """
+    if not item_names:
+        logger.info("No items to remove from hunt list")
+        return
+
+    file_path = Path(CONFIG["SHOPPING_FILE"])
+    shopping_data = load_shopping_data(file_path)
+
+    if not shopping_data:
+        logger.error("No shopping data found")
+        return
+
+    hunt_items = shopping_data.get("Hunt", [])
+    original_count = len(hunt_items)
+
+    # Remove items
+    for item_name in item_names:
+        if item_name in hunt_items:
+            hunt_items.remove(item_name)
+            logger.info(f"Removed '{item_name}' from hunt list")
+
+    shopping_data["Hunt"] = hunt_items
+
+    # Save updated data
+    save_shopping_data(file_path, shopping_data)
+
+    removed_count = original_count - len(hunt_items)
+    logger.info(f"Removed {removed_count} item(s) from hunt list. Remaining: {len(hunt_items)}")
+
+
 def run_hunt():
     """Execute hunt mode by waiting at shopping screen and purchasing items when available."""
     logger.info("Starting hunt mode...")
@@ -163,28 +317,12 @@ def run_hunt():
         logger.info("No items to hunt, skipping")
         return
 
-    # Calculate when to start waiting
+    # Get next hunt time for logging purposes
     next_hunt_time_str = get_next_hunt_time()
-    if not next_hunt_time_str:
+    if next_hunt_time_str:
+        logger.info(f"Target item availability time: {next_hunt_time_str}")
+    else:
         logger.info("No hunt items with return times, skipping")
-        return
-
-    try:
-        hunt_time = datetime.strptime(next_hunt_time_str, "%H:%M %d/%m/%y")
-        wait_start_time = hunt_time - timedelta(seconds=WAIT_BUFFER_SECONDS)
-        now = datetime.now()
-
-        # Calculate how long to wait before opening shopping screen
-        if wait_start_time > now:
-            wait_duration = (wait_start_time - now).total_seconds()
-            logger.info(
-                f"Waiting {wait_duration:.0f} seconds before opening shopping screen "
-                f"(opens at {wait_start_time.strftime('%H:%M:%S')})"
-            )
-            time.sleep(wait_duration)
-
-    except ValueError as e:
-        logger.error(f"Failed to parse hunt time '{next_hunt_time_str}': {e}")
         return
 
     browser = None
@@ -247,47 +385,80 @@ def run_hunt():
                     logger.error("No shopping data available for hunting")
                     return
 
-                successful_hunts = 0
-                failed_hunts = 0
+                # Phase 1: Exchange all items and collect codes
+                logger.info("=" * 50)
+                logger.info("PHASE 1: Exchanging all hunt items...")
+                logger.info("=" * 50)
 
-                # Wait and hunt each item
+                codes_to_redeem = []  # List of (item_name, redeem_code) tuples
+                successful_exchanges = []
+                failed_items = []
+
                 for item_name in hunt_items:
                     logger.info(f"Starting hunt for '{item_name}'")
 
                     # Wait for Exchange button to appear
                     if wait_for_exchange_button(page, item_name):
-                        # Item is available, attempt purchase
-                        item_data = shopping_data.get("Item's list", {}).get(item_name)
+                        # Item is available, attempt exchange
+                        redeem_code = exchange_item_only(page, item_name)
 
-                        if item_data:
-                            if ShoppingHandler._process_single_item(page, item_name, item_data):
-                                successful_hunts += 1
-                                logger.info(f"Successfully hunted '{item_name}'")
-                            else:
-                                failed_hunts += 1
-                                logger.warning(f"Failed to hunt '{item_name}'")
+                        if redeem_code:
+                            codes_to_redeem.append((item_name, redeem_code))
+                            successful_exchanges.append(item_name)
+                            logger.info(f"✓ Successfully exchanged '{item_name}'")
                         else:
-                            logger.error(f"Item data not found for '{item_name}'")
-                            failed_hunts += 1
+                            failed_items.append(item_name)
+                            logger.warning(f"✗ Failed to exchange '{item_name}'")
                     else:
-                        logger.warning(f"Hunt timeout for '{item_name}'")
-                        failed_hunts += 1
+                        failed_items.append(item_name)
+                        logger.warning(f"✗ Hunt timeout for '{item_name}'")
 
-                    # Brief pause between items
+                    # Brief pause between exchanges
                     time.sleep(1)
+
+                logger.info(f"Exchange phase completed: {len(successful_exchanges)} success, {len(failed_items)} failed")
+
+                # Phase 2: Redeem all collected codes
+                logger.info("=" * 50)
+                logger.info("PHASE 2: Redeeming all codes...")
+                logger.info("=" * 50)
+
+                if codes_to_redeem:
+                    redeem_all_codes(context, codes_to_redeem)
+                else:
+                    logger.warning("No codes to redeem")
+
+                # Phase 3: Remove successful items from hunt list
+                logger.info("=" * 50)
+                logger.info("PHASE 3: Updating hunt list...")
+                logger.info("=" * 50)
+
+                if successful_exchanges:
+                    remove_items_from_hunt_list(successful_exchanges)
+                    logger.info(f"Removed {len(successful_exchanges)} item(s) from hunt list")
+                else:
+                    logger.info("No items to remove from hunt list")
 
                 # Save session state
                 context.storage_state(path=CONFIG["STORAGE_PATH"])
 
                 # Send notification
-                message = f"Hunt completed: {successful_hunts} success, {failed_hunts} failed"
+                message = (
+                    f"Hunt completed!\n"
+                    f"Exchanged: {len(successful_exchanges)}\n"
+                    f"Failed: {len(failed_items)}\n"
+                    f"Removed from hunt list: {len(successful_exchanges)}"
+                )
                 NotificationHelper.notify(
                     title="ZZZ Bot - Hunt Mode",
                     message=message,
-                    app_icon=CONFIG["ICON_PATH"] if successful_hunts > 0 else CONFIG["SAD_ICON"],
+                    app_icon=CONFIG["ICON_PATH"] if successful_exchanges else CONFIG["SAD_ICON"],
                 )
 
-                logger.info(f"Hunt mode completed: {successful_hunts} successful, {failed_hunts} failed")
+                logger.info("=" * 50)
+                logger.info(f"Hunt mode completed: {len(successful_exchanges)} successful, {len(failed_items)} failed")
+                logger.info(f"Items removed from hunt list: {successful_exchanges}")
+                logger.info("=" * 50)
 
             finally:
                 # Always close browser, even if errors occur

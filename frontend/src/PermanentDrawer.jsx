@@ -245,6 +245,7 @@ export default function PermanentDrawer() {
                         "gather_shopping_data",
                         "redeem_after_gather_data",
                         "buy_all",
+                        "stop_on_failed_exchange",
                         "enable_hunt_mode",
                       ],
                     },

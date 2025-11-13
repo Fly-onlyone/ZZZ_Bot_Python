@@ -385,13 +385,17 @@ def _process_single_item(page: Page, item_name: str, item_data: Dict) -> bool:
         copy_button.click()
         logger.info(f"Copied redemption code for '{item_name}'")
 
-        # Autofill and redeem
-        RedeemAutofill.run(page.context, redeem_code, item_name)
-
-        # Close dialog
+        # Close dialog BEFORE redeeming to avoid context issues
         close_button = page.locator(CLOSE_BUTTON_SELECTOR)
         close_button.click()
-        logger.info(f"Successfully exchanged '{item_name}'")
+        logger.info(f"Closed exchange dialog for '{item_name}'")
+
+        # Brief pause to ensure dialog is fully closed
+        page.wait_for_timeout(500)
+
+        # Autofill and redeem (after dialog is closed)
+        RedeemAutofill.run(page.context, redeem_code, item_name)
+        logger.info(f"Successfully exchanged and redeemed '{item_name}'")
 
         return True
 
@@ -441,6 +445,9 @@ def run_shopping(page: Page, shopping_data: Dict) -> None:
         if not item_data:
             logger.warning(f"Item '{item_name}' not found in shopping data, skipping")
             failed_exchanges += 1
+            if settings.stop_on_failed_exchange:
+                logger.info("stop_on_failed_exchange enabled, stopping shopping")
+                break
             continue
 
         # Process exchange
@@ -448,6 +455,9 @@ def run_shopping(page: Page, shopping_data: Dict) -> None:
             successful_exchanges += 1
         else:
             failed_exchanges += 1
+            if settings.stop_on_failed_exchange:
+                logger.info("stop_on_failed_exchange enabled, stopping shopping")
+                break
 
         # Brief pause between exchanges
         page.wait_for_timeout(1000)
