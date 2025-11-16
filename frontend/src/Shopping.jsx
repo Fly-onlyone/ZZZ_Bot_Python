@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { Box, Grid2, Typography } from "@mui/material";
+import { Box, Chip, Grid2, Typography } from "@mui/material";
 import { useLocation } from "react-router-dom";
 import { DataLoader } from "./DataLoader";
 import SaveButton from "./SaveButton";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
 
 export default function Shopping() {
   const [selectedRows, setSelectedRows] = useState([]); // Store selected row data (Name + Priority)
@@ -42,13 +44,30 @@ export default function Shopping() {
     return <Typography>Error loading data: {error.message}</Typography>; // Handle fetch error
   }
 
-  // Convert shopping data into rows
-  const rows = Object.entries(shopping["Item's list"]).map(([key, item]) => ({
-    id: item.Name, // Use Name as the row ID
-    ...item,
-    Priority:
-      selectedRows.find((row) => row.Name === item.Name)?.Priority || null, // Add priority if already selected
-  }));
+  // Convert shopping data into rows and add purchased items
+  const rows = [
+    // Add purchased items first
+    ...(shopping.Purchased || []).map((itemName) => ({
+      id: itemName,
+      Name: itemName,
+      Price: shopping["Item's list"][itemName]?.Price || "N/A",
+      Inventory: shopping["Item's list"][itemName]?.Inventory || "N/A",
+      Available: "Purchased",
+      Priority:
+        selectedRows.find((row) => row.Name === itemName)?.Priority || null,
+      isPurchased: true, // Flag to identify purchased items
+    })),
+    // Add regular shopping items
+    ...Object.entries(shopping["Item's list"])
+      .filter(([key, item]) => !(shopping.Purchased || []).includes(item.Name))
+      .map(([key, item]) => ({
+        id: item.Name,
+        ...item,
+        Priority:
+          selectedRows.find((row) => row.Name === item.Name)?.Priority || null,
+        isPurchased: false,
+      })),
+  ];
 
   // Handle hunt checkbox toggle
   const handleHuntToggle = (itemName) => {
@@ -232,13 +251,30 @@ export default function Shopping() {
           columns={columns}
           checkboxSelection
           disableRowSelectionOnClick
-          getRowId={(row) => row.Name} // Use Name as unique identifier
-          rowSelectionModel={selectedRows.map((row) => row.Name)} // Pre-select rows by Name
-          onRowSelectionModelChange={handleRowSelectionChange} // Update selected rows
+          getRowId={(row) => row.Name}
+          rowSelectionModel={selectedRows.map((row) => row.Name)}
+          onRowSelectionModelChange={handleRowSelectionChange}
           processRowUpdate={processRowUpdate}
           isCellEditable={(params) => {
             // Allow editing only for selected rows
             return selectedRows.some((row) => row.Name === params.row.Name);
+          }}
+          getRowClassName={(params) =>
+            params.row.isPurchased ? "purchased-row" : ""
+          }
+          sx={{
+            "& .purchased-row": {
+              background:
+                "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)",
+              "&:hover": {
+                background:
+                  "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)",
+              },
+            },
+            "& .purchased-row .MuiDataGrid-cell": {
+              color: "#10b981",
+              fontWeight: 500,
+            },
           }}
         />
       </div>
