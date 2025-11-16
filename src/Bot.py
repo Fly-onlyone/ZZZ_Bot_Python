@@ -91,6 +91,10 @@ def update_shopping_data(selected: dict):
     with open(file_path, "w", encoding="utf-8") as file:
         json.dump(shopping_data, file, indent=4, ensure_ascii=False)
 
+    # Reschedule hunt tasks to reflect updated hunt items/priorities
+    # Note: Scheduled time is based on earliest item availability, not priority order
+    schedule_hunt_tasks()
+
     return {"message": "Shopping data updated successfully"}
 
 
@@ -164,19 +168,23 @@ def get_hunt_info():
             if "/" in availability and ":" in availability:
                 return_time = datetime.strptime(availability, "%H:%M %d/%m/%y")
                 # Schedule hunt WAIT_BUFFER_SECONDS before item becomes available
-                hunt_time = return_time - timedelta(seconds=HuntMode.WAIT_BUFFER_SECONDS)
+                hunt_time = return_time - timedelta(
+                    seconds=HuntMode.WAIT_BUFFER_SECONDS
+                )
                 scheduled_hunt_time = hunt_time.strftime("%H:%M %d/%m/%y")
             else:
                 scheduled_hunt_time = "Not scheduled"
         except (ValueError, Exception):
             scheduled_hunt_time = "Invalid time"
 
-        hunt_items_with_info.append({
-            "name": item_name,
-            "scheduled_time": scheduled_hunt_time,
-            "price": item_data.get("Price", 0),
-            "inventory": item_data.get("Inventory", 0),
-        })
+        hunt_items_with_info.append(
+            {
+                "name": item_name,
+                "scheduled_time": scheduled_hunt_time,
+                "price": item_data.get("Price", 0),
+                "inventory": item_data.get("Inventory", 0),
+            }
+        )
 
     return {
         "enabled": hunt_enabled,
@@ -324,7 +332,9 @@ def playwright_task():
             ShoppingHandler.run(mino_page)
 
             # Close the shopping screen with retry logic
-            shopping_screen = mino_page.locator(".wrapper-O3T67n")  # Shopping screen selector
+            shopping_screen = mino_page.locator(
+                ".wrapper-O3T67n"
+            )  # Shopping screen selector
             close_button = mino_page.locator(".panelBack--wW5qj")
 
             max_close_attempts = 3
@@ -332,7 +342,9 @@ def playwright_task():
 
             for attempt in range(1, max_close_attempts + 1):
                 try:
-                    logger.info(f"Attempting to close shopping screen (attempt {attempt}/{max_close_attempts})")
+                    logger.info(
+                        f"Attempting to close shopping screen (attempt {attempt}/{max_close_attempts})"
+                    )
 
                     # Check close button status
                     close_button_count = close_button.count()
@@ -346,7 +358,9 @@ def playwright_task():
                             # Get button position for debugging
                             box = close_button.bounding_box()
                             if box:
-                                logger.info(f"Close button position: x={box['x']}, y={box['y']}, width={box['width']}, height={box['height']}")
+                                logger.info(
+                                    f"Close button position: x={box['x']}, y={box['y']}, width={box['width']}, height={box['height']}"
+                                )
 
                             close_button.click(force=True)
                             logger.info("Clicked shopping close button")
@@ -366,12 +380,19 @@ def playwright_task():
                         shopping_screen_closed = True
                         break
                     else:
-                        logger.warning(f"Shopping screen still visible after attempt {attempt}")
+                        logger.warning(
+                            f"Shopping screen still visible after attempt {attempt}"
+                        )
                         # Take screenshot for debugging
                         if attempt == max_close_attempts:
-                            screenshot_path = os.path.join(CONFIG["SCREENSHOT_FOLDER"], f"shopping_wont_close_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+                            screenshot_path = os.path.join(
+                                CONFIG["SCREENSHOT_FOLDER"],
+                                f"shopping_wont_close_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                            )
                             mino_page.screenshot(path=screenshot_path)
-                            logger.error(f"Final screenshot saved to: {screenshot_path}")
+                            logger.error(
+                                f"Final screenshot saved to: {screenshot_path}"
+                            )
 
                 except Exception as e:
                     logger.warning(f"Error during close attempt {attempt}: {e}")
@@ -519,7 +540,9 @@ def schedule_hunt_tasks():
 
         # Schedule EARLIER to allow buffer time for opening shopping screen
         # Subtract buffer time (2 minutes by default)
-        schedule_datetime = hunt_datetime - timedelta(seconds=HuntMode.WAIT_BUFFER_SECONDS)
+        schedule_datetime = hunt_datetime - timedelta(
+            seconds=HuntMode.WAIT_BUFFER_SECONDS
+        )
         now = datetime.now()
 
         # Only schedule if the schedule time is in the future
@@ -532,7 +555,9 @@ def schedule_hunt_tasks():
                 f"(target item time: {next_hunt_time})"
             )
         else:
-            logger.info(f"Hunt schedule time {schedule_datetime.strftime('%H:%M %d/%m/%y')} is in the past, skipping")
+            logger.info(
+                f"Hunt schedule time {schedule_datetime.strftime('%H:%M %d/%m/%y')} is in the past, skipping"
+            )
 
     except ValueError as e:
         logger.error(f"Failed to parse hunt time '{next_hunt_time}': {e}")
