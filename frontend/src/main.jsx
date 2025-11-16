@@ -6,69 +6,36 @@ import { createTheme, ThemeProvider, useMediaQuery } from "@mui/material";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { createThemePalette } from "./theme/themes";
+import { ThemeContextProvider, useThemeContext } from "./theme/ThemeContext";
 
-function App() {
+function ThemedApp() {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
+  const { themeName, themeColors } = useThemeContext();
 
-  // Create the theme based on the user's system preference
+  // Create the theme based on the selected theme and system preference
   const theme = React.useMemo(
     () =>
       createTheme({
-        palette: {
-          mode: prefersDarkMode ? "dark" : "light",
-          primary: {
-            main: "#6366f1", // Indigo
-            light: "#818cf8",
-            dark: "#4f46e5",
-          },
-          secondary: {
-            main: "#8b5cf6", // Purple
-            light: "#a78bfa",
-            dark: "#7c3aed",
-          },
-          success: {
-            main: "#10b981", // Emerald
-            light: "#34d399",
-            dark: "#059669",
-          },
-          error: {
-            main: "#ef4444", // Red
-            light: "#f87171",
-            dark: "#dc2626",
-          },
-          warning: {
-            main: "#f59e0b", // Amber
-            light: "#fbbf24",
-            dark: "#d97706",
-          },
-          info: {
-            main: "#06b6d4", // Cyan
-            light: "#22d3ee",
-            dark: "#0891b2",
-          },
-          background: {
-            default: prefersDarkMode ? "#0f172a" : "#f8fafc",
-            paper: prefersDarkMode ? "#1e293b" : "#ffffff",
-          },
-        },
+        palette: createThemePalette(themeName, prefersDarkMode),
         components: {
           MuiOutlinedInput: {
             styleOverrides: {
               root: {
                 transition: "all 0.3s ease-in-out",
                 "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "#6366f1",
+                  borderColor: themeColors.primary.main,
                   borderWidth: 2,
                   transition: "all 0.3s ease-in-out",
                 },
                 "&:hover .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "#8b5cf6",
-                  boxShadow: "0 0 10px rgba(139, 92, 246, 0.3)",
+                  borderColor: themeColors.secondary.main,
+                  boxShadow: `0 0 10px ${themeColors.alpha.hover}`,
                 },
                 "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "#a78bfa",
+                  borderColor: themeColors.secondary.light,
                   borderWidth: 2,
-                  boxShadow: "0 0 15px rgba(167, 139, 250, 0.4)",
+                  boxShadow: `0 0 15px ${themeColors.alpha.hover}`,
                 },
               },
             },
@@ -79,7 +46,7 @@ function App() {
                 color: "#94a3b8",
                 transition: "all 0.3s ease-in-out",
                 "&.Mui-focused": {
-                  color: "#a78bfa",
+                  color: themeColors.secondary.light,
                 },
               },
             },
@@ -103,7 +70,7 @@ function App() {
             styleOverrides: {
               paper: {
                 background: prefersDarkMode
-                  ? "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)"
+                  ? themeColors.gradients.background
                   : "#ffffff",
                 borderRadius: "0 16px 16px 0",
                 border: "none",
@@ -120,7 +87,7 @@ function App() {
               root: {
                 background: prefersDarkMode
                   ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
-                  : "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+                  : themeColors.gradients.primary,
                 backdropFilter: "blur(10px)",
                 boxShadow: "0 4px 20px rgba(0, 0, 0, 0.2)",
                 borderBottom: `1px solid ${
@@ -139,7 +106,7 @@ function App() {
                 transition: "all 0.3s ease-in-out",
                 "&:hover": {
                   transform: "translateY(-2px)",
-                  boxShadow: "0 6px 20px rgba(139, 92, 246, 0.4)",
+                  boxShadow: `0 6px 20px ${themeColors.alpha.hover}`,
                 },
               },
             },
@@ -174,16 +141,25 @@ function App() {
           },
         },
       }),
-    [prefersDarkMode]
+    [prefersDarkMode, themeName, themeColors]
   );
+
+  return (
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <ThemeProvider theme={theme}>
+        <PermanentDrawer />
+      </ThemeProvider>
+    </LocalizationProvider>
+  );
+}
+
+function App() {
   const queryClient = new QueryClient();
   return (
     <QueryClientProvider client={queryClient}>
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <ThemeProvider theme={theme}>
-          <PermanentDrawer />
-        </ThemeProvider>
-      </LocalizationProvider>
+      <ThemeContextProvider>
+        <ThemedApp />
+      </ThemeContextProvider>
     </QueryClientProvider>
   );
 }

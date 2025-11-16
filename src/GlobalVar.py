@@ -125,6 +125,7 @@ class AppSettings(Serializable):
     draw_item: bool = False
     enable_hunt_mode: bool = False
     stop_on_failed_exchange: bool = False
+    theme: str = "purple"  # purple, green, blue
 
 
 @dataclass
