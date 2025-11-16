@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Box, Chip, Typography } from "@mui/material";
+import { Alert, Box, Chip, Paper, Typography } from "@mui/material";
 import { DataLoader } from "../DataLoader";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
@@ -49,41 +49,52 @@ export default function Hunt() {
   return (
     <div>
       <Box
-        sx={{
-          display: "flex",
-          gap: 3,
-          mb: 3,
-          flexWrap: "wrap",
-        }}
+        sx={{ mb: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}
       >
-        <Chip
-          label="Hunt Mode Active"
-          icon={<CheckCircleIcon sx={{ color: "#ffffff !important" }} />}
+        <Paper
+          elevation={2}
           sx={{
-            background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-            color: "#ffffff",
-            fontWeight: 600,
-            fontSize: "16px",
-            padding: "24px 12px",
-            borderRadius: "10px",
-            boxShadow: "0 4px 14px rgba(16, 185, 129, 0.3)",
+            p: 3,
+            borderRadius: "12px",
+            background:
+              "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)",
+            border: "1px solid rgba(16, 185, 129, 0.3)",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1,
           }}
-        />
-        <Chip
-          label={`${hunt_items.length} Item${
-            hunt_items.length > 1 ? "s" : ""
-          } Hunting`}
-          icon={<LocalMallIcon sx={{ color: "#ffffff !important" }} />}
+        >
+          <CheckCircleIcon sx={{ color: "#10b981", fontSize: 32 }} />
+          <Typography
+            variant="body1"
+            sx={{ fontWeight: 600, color: "#34d399" }}
+          >
+            Hunt Mode Active
+          </Typography>
+        </Paper>
+        <Paper
+          elevation={2}
           sx={{
-            background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-            color: "#ffffff",
-            fontWeight: 600,
-            fontSize: "16px",
-            padding: "24px 12px",
-            borderRadius: "10px",
-            boxShadow: "0 4px 14px rgba(245, 158, 11, 0.3)",
+            p: 3,
+            borderRadius: "12px",
+            background:
+              "linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)",
+            border: "1px solid rgba(245, 158, 11, 0.3)",
+            textAlign: "center",
           }}
-        />
+        >
+          <Typography
+            variant="body2"
+            sx={{ color: "#94a3b8", fontWeight: 600, mb: 1, display: "block" }}
+          >
+            Items Hunting
+          </Typography>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: "#fbbf24" }}>
+            {hunt_items.length}
+          </Typography>
+        </Paper>
       </Box>
 
       {next_hunt_time && (

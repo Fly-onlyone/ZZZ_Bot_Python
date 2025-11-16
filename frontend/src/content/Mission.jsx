@@ -28,50 +28,65 @@ export default function Mission() {
   return (
     <div>
       <Box
-        sx={{
-          display: "flex",
-          gap: 3,
-          mb: 3,
-          flexWrap: "wrap",
-        }}
+        sx={{ mb: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}
       >
-        <Chip
-          label={`Day: ${day}`}
+        <Paper
+          elevation={2}
           sx={{
-            background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
-            color: "#ffffff",
-            fontWeight: 600,
-            fontSize: "16px",
-            padding: "24px 12px",
-            borderRadius: "10px",
-            boxShadow: "0 4px 14px rgba(139, 92, 246, 0.3)",
+            p: 3,
+            borderRadius: "12px",
+            background:
+              "linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)",
+            border: "1px solid rgba(139, 92, 246, 0.3)",
+            textAlign: "center",
           }}
-        />
-        <Chip
-          label={check_in}
-          icon={
-            check_in === "Login Success" ? (
-              <CheckCircleIcon sx={{ color: "#ffffff !important" }} />
-            ) : (
-              <ErrorIcon sx={{ color: "#ffffff !important" }} />
-            )
-          }
+        >
+          <Typography
+            variant="body2"
+            sx={{ color: "#94a3b8", fontWeight: 600, mb: 1, display: "block" }}
+          >
+            Current Day
+          </Typography>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: "#a78bfa" }}>
+            {day}
+          </Typography>
+        </Paper>
+        <Paper
+          elevation={2}
           sx={{
+            p: 3,
+            borderRadius: "12px",
             background:
               check_in === "Login Success"
-                ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
-                : "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
-            color: "#ffffff",
-            fontWeight: 600,
-            fontSize: "16px",
-            padding: "24px 12px",
-            borderRadius: "10px",
-            boxShadow:
+                ? "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)"
+                : "linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)",
+            border: `1px solid ${
               check_in === "Login Success"
-                ? "0 4px 14px rgba(16, 185, 129, 0.3)"
-                : "0 4px 14px rgba(239, 68, 68, 0.3)",
+                ? "rgba(16, 185, 129, 0.3)"
+                : "rgba(239, 68, 68, 0.3)"
+            }`,
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1,
           }}
-        />
+        >
+          {check_in === "Login Success" ? (
+            <CheckCircleIcon sx={{ color: "#10b981", fontSize: 32 }} />
+          ) : (
+            <ErrorIcon sx={{ color: "#ef4444", fontSize: 32 }} />
+          )}
+          <Typography
+            variant="body1"
+            sx={{
+              fontWeight: 600,
+              color: check_in === "Login Success" ? "#34d399" : "#f87171",
+            }}
+          >
+            {check_in}
+          </Typography>
+        </Paper>
       </Box>
 
       {check_in === "Login Success" && (
