@@ -11,6 +11,7 @@ from typing import Dict
 
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
 
+import HuntMode
 import RedeemAutofill
 import RetryHelper
 from DataHandler import load_shopping_data, save_shopping_data
@@ -167,7 +168,7 @@ def _extract_current_points(page: Page) -> int:
         # Wait for non-empty text content instead of fixed timeout
         page.wait_for_function(
             f"document.querySelector('{CURRENT_POINT_SELECTOR}')?.innerText?.trim().length > 0",
-            timeout=5000
+            timeout=5000,
         )
 
         # Get the text content
@@ -211,6 +212,7 @@ def gather_data(page: Page, point: int) -> Dict:
     """
     logger.info("Gathering shopping item data...")
     items = {}
+    purchased_items = []  # Track items with "Limit Reached" status
 
     # Count and process all items
     item_locators = page.locator(ITEM_SELECTOR)
@@ -218,7 +220,7 @@ def gather_data(page: Page, point: int) -> Dict:
 
     if item_count == 0:
         logger.warning("No shopping items found")
-        return {"Point": point, "Duration": {}, "Item's list": {}}
+        return {"Point": point, "Duration": {}, "Item's list": {}, "Purchased": []}
 
     logger.info(f"Processing {item_count} items...")
 
@@ -234,6 +236,11 @@ def gather_data(page: Page, point: int) -> Dict:
                 continue
 
             items[item_name] = item_data
+
+            # Track items that have already been purchased (Limit Reached)
+            if item_data.get("Available") == "Limit Reached":
+                purchased_items.append(item_name)
+                logger.debug(f"Item '{item_name}' marked as purchased (Limit Reached)")
 
         except Exception as e:
             logger.error(f"Error processing item {i + 1}: {e}")
@@ -252,9 +259,14 @@ def gather_data(page: Page, point: int) -> Dict:
         "Point": point,
         "Duration": duration,
         "Item's list": items,
+        "Purchased": purchased_items,
     }
 
     logger.info(f"Gathered data for {len(items)} items")
+    if purchased_items:
+        logger.info(
+            f"Detected {len(purchased_items)} already purchased items: {purchased_items}"
+        )
     return shopping_data
 
 
@@ -301,8 +313,20 @@ def run(page: Page) -> None:
                 logger.info(
                     "Current time within event duration, updating existing data"
                 )
-                existing_data.update(gather_data(page, current_points))
+                # Gather new data
+                new_data = gather_data(page, current_points)
+
+                # Merge Purchased lists (keep old + add new)
+                old_purchased = set(existing_data.get("Purchased", []))
+                new_purchased = set(new_data.get("Purchased", []))
+                merged_purchased = list(old_purchased | new_purchased)
+
+                # Update existing data with new data
+                existing_data.update(new_data)
+                existing_data["Purchased"] = merged_purchased
                 shopping_data = existing_data
+
+                logger.debug(f"Merged purchased list: {merged_purchased}")
             else:
                 logger.info("Event duration expired, gathering fresh data")
                 shopping_data = gather_data(page, current_points)
@@ -417,6 +441,7 @@ def run_shopping(page: Page, shopping_data: Dict) -> None:
     logger.info("Starting shopping exchange process...")
 
     selected_items = shopping_data.get("Selected", [])
+    purchased_items = shopping_data.get("Purchased", [])
 
     if not selected_items:
         logger.info("No items selected for exchange")
@@ -430,6 +455,7 @@ def run_shopping(page: Page, shopping_data: Dict) -> None:
 
     successful_exchanges = 0
     failed_exchanges = 0
+    successful_items = []  # Track successfully exchanged items
 
     for item_name in items_to_process:
         # Find item data
@@ -445,19 +471,34 @@ def run_shopping(page: Page, shopping_data: Dict) -> None:
         if not item_data:
             logger.warning(f"Item '{item_name}' not found in shopping data, skipping")
             failed_exchanges += 1
-            if settings.stop_on_failed_exchange:
-                logger.info("stop_on_failed_exchange enabled, stopping shopping")
+            # Only stop if item is not already purchased
+            if settings.stop_on_failed_exchange and item_name not in purchased_items:
+                logger.info(
+                    "stop_on_failed_exchange enabled and item not previously purchased, stopping shopping"
+                )
                 break
+            elif item_name in purchased_items:
+                logger.info(
+                    f"Item '{item_name}' already purchased, ignoring failure"
+                )
             continue
 
         # Process exchange
         if _process_single_item(page, item_name, item_data):
             successful_exchanges += 1
+            successful_items.append(item_name)
         else:
             failed_exchanges += 1
-            if settings.stop_on_failed_exchange:
-                logger.info("stop_on_failed_exchange enabled, stopping shopping")
+            # Only stop if item is not already purchased
+            if settings.stop_on_failed_exchange and item_name not in purchased_items:
+                logger.info(
+                    "stop_on_failed_exchange enabled and item not previously purchased, stopping shopping"
+                )
                 break
+            elif item_name in purchased_items:
+                logger.info(
+                    f"Item '{item_name}' already purchased, ignoring failure"
+                )
 
         # Brief pause between exchanges
         page.wait_for_timeout(1000)
@@ -466,3 +507,17 @@ def run_shopping(page: Page, shopping_data: Dict) -> None:
         f"Shopping exchange completed: {successful_exchanges} successful, "
         f"{failed_exchanges} failed"
     )
+
+    # Update Purchased list and save
+    if successful_items:
+        # Add successful items to purchased list
+        updated_purchased = list(set(purchased_items) | set(successful_items))
+        shopping_data["Purchased"] = updated_purchased
+
+        # Save updated shopping data
+        file_path = Path(CONFIG["SHOPPING_FILE"])
+        save_shopping_data(file_path, shopping_data)
+        logger.info(f"Added {len(successful_items)} items to purchased list")
+
+        # Remove successfully purchased items from hunt list
+        HuntMode.remove_items_from_hunt_list(successful_items)

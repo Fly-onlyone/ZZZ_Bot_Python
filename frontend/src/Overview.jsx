@@ -4,11 +4,12 @@ import Mission from "./content/Mission";
 import RunningStatus from "./content/RunningStatus";
 import Hunt from "./content/Hunt";
 import { IconActivity, IconReportAnalytics, IconTarget } from "@tabler/icons-react";
-import { ALPHA, COLORS, GRADIENTS } from "./theme/colors";
-import { cardStyles } from "./theme/styles";
+import { COMMON_COLORS } from "./theme/colors";
+import { TRANSITIONS } from "./theme/styles";
+import { useThemeContext } from "./theme/ThemeContext";
 
 // Memoized icon badge component to prevent unnecessary re-renders
-const IconBadge = memo(({ icon, gradient }) => (
+const IconBadge = memo(({ icon, gradient, themeColors }) => (
   <Box
     sx={{
       width: 40,
@@ -18,7 +19,7 @@ const IconBadge = memo(({ icon, gradient }) => (
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      boxShadow: "0 4px 14px rgba(139, 92, 246, 0.4)",
+      boxShadow: `0 4px 14px ${themeColors.alpha.hover}`,
     }}
   >
     {icon}
@@ -26,43 +27,53 @@ const IconBadge = memo(({ icon, gradient }) => (
 ));
 
 export default function Overview() {
+  const { themeColors } = useThemeContext();
 
   // Section card component
   const SectionCard = ({ title, icon, children, colorScheme = "primary" }) => {
     const isPrimary = colorScheme === "primary";
     const cardBg = isPrimary
-      ? GRADIENTS.backgroundSubtle
+      ? themeColors.gradients.backgroundSubtle
       : "linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%)";
     const headerBg = isPrimary
-      ? GRADIENTS.header
+      ? themeColors.gradients.header
       : "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)";
     const borderColor = isPrimary
-      ? ALPHA.cardBorder
+      ? themeColors.alpha.cardBorder
       : "rgba(16, 185, 129, 0.2)";
     const iconGradient = isPrimary
-      ? GRADIENTS.primary
+      ? themeColors.gradients.primary
       : "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)";
 
     return (
       <Paper
         elevation={0}
         sx={{
-          ...cardStyles.default,
+          borderRadius: "16px",
           background: cardBg,
           border: `1px solid ${borderColor}`,
+          overflow: "hidden",
+          transition: TRANSITIONS.default,
+          "&:hover": {
+            boxShadow: `0 8px 32px ${themeColors.alpha.hover}`,
+            transform: "translateY(-2px)",
+          },
         }}
       >
         <Box
           sx={{
-            ...cardStyles.header,
             background: headerBg,
             borderBottom: `1px solid ${borderColor}`,
+            padding: "20px 24px",
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
           }}
         >
-          <IconBadge icon={icon} gradient={iconGradient} />
+          <IconBadge icon={icon} gradient={iconGradient} themeColors={themeColors} />
           <Typography
             variant="h5"
-            sx={{ fontWeight: 700, color: COLORS.text.primary }}
+            sx={{ fontWeight: 700, color: COMMON_COLORS.text.primary }}
           >
             {title}
           </Typography>
