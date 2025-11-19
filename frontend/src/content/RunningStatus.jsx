@@ -1,4 +1,4 @@
-import { BACKEND_URL, DataLoader } from "../DataLoader";
+import { BACKEND_URL, DataLoader } from "../services/DataLoader";
 import { Alert, Typography } from "@mui/material";
 import React from "react";
 import { DateTimeField } from "@mui/x-date-pickers";

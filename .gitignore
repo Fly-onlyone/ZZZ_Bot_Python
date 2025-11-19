@@ -2,7 +2,7 @@ product/build/
 product/dist/
 product/ZZZ Bot Installer.exe
 
-src/playwright-browsers/
+backend/playwright-browsers/
 
 __pycache__/
 *.pyc

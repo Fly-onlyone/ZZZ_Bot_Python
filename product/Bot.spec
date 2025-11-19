@@ -16,12 +16,12 @@ datas += [
     ("./../images", "images"),
     ("./../sample", "sample"),
     ("./../reward image", "reward image"),
-    ("./../src/message", "message"),
-    ("./../src/playwright-browsers", "playwright-browsers"),
+    ("./../backend/message", "message"),
+    ("./../backend/playwright-browsers", "playwright-browsers"),
 ]
 
 a = Analysis(
-    ["..\\src\\Bot.py"],
+    ["..\\backend\\core\\Bot.py"],
     pathex=[],
     binaries=binaries,
     datas=datas,

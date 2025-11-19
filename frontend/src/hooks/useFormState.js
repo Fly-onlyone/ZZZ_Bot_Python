@@ -1,0 +1,72 @@
+import { useState } from "react";
+import { useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { DataLoader } from "../services";
+
+/**
+ * useFormState Hook
+ *
+ * Manages form state for route-based data editing.
+ * Handles data fetching, mutations, and optimistic updates via React Query.
+ *
+ * @returns {Object} Form state and handlers
+ *   - value: Current form data
+ *   - error: Fetch error if any
+ *   - handleChange: Update a single field
+ *   - handleSubmit: Save changes to backend
+ *   - mutation: React Query mutation object
+ *   - route: Current route name
+ */
+export function useFormState() {
+  const [alert, setAlert] = useState({
+    open: false,
+    type: "success",
+    message: "",
+  });
+
+  const location = useLocation();
+  const route = location.pathname.replace("/", "");
+  const queryClient = useQueryClient();
+
+  const { useRouteData, useSaveData } = DataLoader();
+  const { data: value = {}, error } = useRouteData(route);
+  const mutation = useSaveData(route);
+
+  const handleChange = (key, newValue) => {
+    queryClient.setQueryData([route], (prev) => ({
+      ...prev,
+      [key]: newValue,
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    mutation.mutate(value, {
+      onSuccess: () => {
+        setAlert({
+          open: true,
+          type: "success",
+          message: "Data saved successfully!",
+        });
+      },
+      onError: () => {
+        setAlert({
+          open: true,
+          type: "error",
+          message: "Failed to save data.",
+        });
+      },
+    });
+  };
+
+  return {
+    value,
+    error,
+    handleChange,
+    handleSubmit,
+    mutation,
+    route,
+    alert,
+    setAlert,
+  };
+}
