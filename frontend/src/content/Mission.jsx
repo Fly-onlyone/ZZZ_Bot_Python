@@ -1,6 +1,6 @@
 import React from "react";
 import { Alert, Box, Chip, Paper, Typography } from "@mui/material";
-import { BACKEND_URL, DataLoader } from "../DataLoader";
+import { BACKEND_URL, DataLoader } from "../services/DataLoader";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 

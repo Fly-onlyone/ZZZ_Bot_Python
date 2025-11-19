@@ -1,0 +1,22 @@
+/**
+ * Components Index
+ *
+ * Central export point for all reusable components.
+ * Enables clean imports: import { SaveButton, ArrayField } from '@/components';
+ */
+
+// Common Components
+export { default as SaveButton } from "./common/SaveButton.jsx";
+
+// Field Components
+export { default as ArrayField } from "./fields/ArrayField.jsx";
+export { default as BooleanField } from "./fields/BooleanField.jsx";
+export { default as SelectField } from "./fields/SelectField.jsx";
+export { default as TextField } from "./fields/TextField.jsx";
+
+// Layout Components
+export { default as AppHeader } from "./layout/AppHeader.jsx";
+export { default as NavigationDrawer } from "./layout/NavigationDrawer.jsx";
+
+// Form Components
+export { default as ValueAdapter } from "./forms/ValueAdapter.jsx";

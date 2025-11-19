@@ -19,14 +19,15 @@ from pathlib import Path
 
 class Colors:
     """ANSI color codes for terminal output"""
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
+
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
 
 
 def print_header(msg):
@@ -60,7 +61,7 @@ def get_current_version():
     """Read current version from Bot version.txt"""
     version_file = Path(__file__).parent / "Bot version.txt"
 
-    with open(version_file, 'r') as f:
+    with open(version_file, "r") as f:
         content = f.read()
 
     # Extract version from ProductVersion
@@ -73,7 +74,7 @@ def get_current_version():
 
 def increment_version(version_str):
     """Increment the minor version number (e.g., 1.5 -> 1.6)"""
-    parts = version_str.split('.')
+    parts = version_str.split(".")
     if len(parts) >= 2:
         major = int(parts[0])
         minor = int(parts[1])
@@ -86,57 +87,49 @@ def update_version_files(new_version):
     print_info(f"Updating version to {new_version}...")
 
     # Convert version string to tuple (e.g., "1.5" -> (1, 5, 0, 0))
-    parts = new_version.split('.')
+    parts = new_version.split(".")
     major = int(parts[0]) if len(parts) > 0 else 1
     minor = int(parts[1]) if len(parts) > 1 else 0
     version_tuple = f"({major}, {minor}, 0, 0)"
 
     # Update Bot version.txt
     version_file = Path(__file__).parent / "Bot version.txt"
-    with open(version_file, 'r') as f:
+    with open(version_file, "r") as f:
         content = f.read()
 
     # Update filevers and prodvers tuples
-    content = re.sub(
-        r'filevers=\([^)]+\)',
-        f'filevers={version_tuple}',
-        content
-    )
-    content = re.sub(
-        r'prodvers=\([^)]+\)',
-        f'prodvers={version_tuple}',
-        content
-    )
+    content = re.sub(r"filevers=\([^)]+\)", f"filevers={version_tuple}", content)
+    content = re.sub(r"prodvers=\([^)]+\)", f"prodvers={version_tuple}", content)
 
     # Update ProductVersion and FileVersion strings
     content = re.sub(
         r"StringStruct\('ProductVersion',\s*'[^']+'\)",
         f"StringStruct('ProductVersion', '{new_version}')",
-        content
+        content,
     )
     content = re.sub(
         r"StringStruct\('FileVersion',\s*'[^']+'\)",
         f"StringStruct('FileVersion', '{new_version}')",
-        content
+        content,
     )
 
-    with open(version_file, 'w') as f:
+    with open(version_file, "w") as f:
         f.write(content)
 
     print_success(f"Updated {version_file.name}")
 
     # Update installer.iss
     installer_file = Path(__file__).parent.parent / "installer.iss"
-    with open(installer_file, 'r') as f:
+    with open(installer_file, "r") as f:
         content = f.read()
 
     content = re.sub(
         r'#define MyAppVersion\s+"[^"]+"',
         f'#define MyAppVersion "{new_version}"',
-        content
+        content,
     )
 
-    with open(installer_file, 'w') as f:
+    with open(installer_file, "w") as f:
         f.write(content)
 
     print_success(f"Updated {installer_file.name}")
@@ -162,7 +155,7 @@ def build_frontend():
             check=True,
             capture_output=True,
             text=True,
-            shell=True
+            shell=True,
         )
 
         print_success("Frontend build completed successfully!")
@@ -198,7 +191,7 @@ def build_executable():
     try:
         # Run BuildExe.py without MODE env var to ensure onefile build
         env = os.environ.copy()
-        env.pop('MODE', None)  # Remove MODE if it exists to ensure onefile
+        env.pop("MODE", None)  # Remove MODE if it exists to ensure onefile
 
         result = subprocess.run(
             [sys.executable, "BuildExe.py"],
@@ -206,7 +199,7 @@ def build_executable():
             check=True,
             capture_output=True,
             text=True,
-            env=env
+            env=env,
         )
 
         print_success("Executable build completed successfully!")
@@ -274,7 +267,7 @@ def build_installer():
             [str(iscc_path), str(installer_script)],
             check=True,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         print_success("Installer build completed successfully!")
@@ -283,7 +276,9 @@ def build_installer():
         installer_file = Path(__file__).parent / "ZZZ Bot Installer.exe"
         if installer_file.exists():
             size_mb = installer_file.stat().st_size / (1024 * 1024)
-            print_success(f"Installer created: {installer_file.name} ({size_mb:.1f} MB)")
+            print_success(
+                f"Installer created: {installer_file.name} ({size_mb:.1f} MB)"
+            )
         else:
             print_warning("Installer not found after build")
 
@@ -305,15 +300,25 @@ def main():
     print_info(f"Current version: {current_version}")
 
     # Ask about version increment
-    increment = input(f"\n{Colors.BOLD}Increment version? (y/N): {Colors.ENDC}").strip().lower()
+    increment = (
+        input(f"\n{Colors.BOLD}Increment version? (y/N): {Colors.ENDC}").strip().lower()
+    )
 
-    if increment == 'y' or increment == 'yes':
+    if increment == "y" or increment == "yes":
         new_version = increment_version(current_version)
         print_info(f"New version will be: {new_version}")
 
-        confirm = input(f"{Colors.BOLD}Proceed with version {new_version}? (Y/n): {Colors.ENDC}").strip().lower()
-        if confirm == 'n' or confirm == 'no':
-            custom = input(f"{Colors.BOLD}Enter custom version (or press Enter to skip): {Colors.ENDC}").strip()
+        confirm = (
+            input(
+                f"{Colors.BOLD}Proceed with version {new_version}? (Y/n): {Colors.ENDC}"
+            )
+            .strip()
+            .lower()
+        )
+        if confirm == "n" or confirm == "no":
+            custom = input(
+                f"{Colors.BOLD}Enter custom version (or press Enter to skip): {Colors.ENDC}"
+            ).strip()
             if custom:
                 new_version = custom
             else:
@@ -333,25 +338,43 @@ def main():
     print("  3. Installer (Inno Setup)")
     print()
 
-    build_choice = input(f"{Colors.BOLD}Run all steps or choose specific ones? (All/choose): {Colors.ENDC}").strip().lower()
+    build_choice = (
+        input(
+            f"{Colors.BOLD}Run all steps or choose specific ones? (All/choose): {Colors.ENDC}"
+        )
+        .strip()
+        .lower()
+    )
 
     # Determine which steps to run
     run_frontend = True
     run_executable = True
     run_installer = True
 
-    if build_choice in ['choose', 'c', 'select', 's']:
+    if build_choice in ["choose", "c", "select", "s"]:
         print()
         print_info("Select which steps to run:")
 
-        frontend_choice = input(f"{Colors.BOLD}  Build frontend? (Y/n): {Colors.ENDC}").strip().lower()
-        run_frontend = frontend_choice not in ['n', 'no']
+        frontend_choice = (
+            input(f"{Colors.BOLD}  Build frontend? (Y/n): {Colors.ENDC}")
+            .strip()
+            .lower()
+        )
+        run_frontend = frontend_choice not in ["n", "no"]
 
-        executable_choice = input(f"{Colors.BOLD}  Build executable? (Y/n): {Colors.ENDC}").strip().lower()
-        run_executable = executable_choice not in ['n', 'no']
+        executable_choice = (
+            input(f"{Colors.BOLD}  Build executable? (Y/n): {Colors.ENDC}")
+            .strip()
+            .lower()
+        )
+        run_executable = executable_choice not in ["n", "no"]
 
-        installer_choice = input(f"{Colors.BOLD}  Build installer? (Y/n): {Colors.ENDC}").strip().lower()
-        run_installer = installer_choice not in ['n', 'no']
+        installer_choice = (
+            input(f"{Colors.BOLD}  Build installer? (Y/n): {Colors.ENDC}")
+            .strip()
+            .lower()
+        )
+        run_installer = installer_choice not in ["n", "no"]
 
         print()
 
@@ -374,8 +397,10 @@ def main():
         print_info("Running all steps\n")
 
     # Final confirmation
-    proceed = input(f"{Colors.BOLD}Start build process? (Y/n): {Colors.ENDC}").strip().lower()
-    if proceed == 'n' or proceed == 'no':
+    proceed = (
+        input(f"{Colors.BOLD}Start build process? (Y/n): {Colors.ENDC}").strip().lower()
+    )
+    if proceed == "n" or proceed == "no":
         print_info("Build cancelled")
         return 0
 
@@ -395,8 +420,12 @@ def main():
             failed_steps.append(step_name)
 
             # Ask if we should continue after failure
-            cont = input(f"\n{Colors.WARNING}Continue to next step? (y/N): {Colors.ENDC}").strip().lower()
-            if cont != 'y' and cont != 'yes':
+            cont = (
+                input(f"\n{Colors.WARNING}Continue to next step? (y/N): {Colors.ENDC}")
+                .strip()
+                .lower()
+            )
+            if cont != "y" and cont != "yes":
                 print_error("Build process aborted")
                 return 1
 
@@ -406,7 +435,9 @@ def main():
     completed_steps = [name for name, _ in steps if name not in failed_steps]
 
     if not failed_steps:
-        print_success(f"All {len(completed_steps)} build step(s) completed successfully!")
+        print_success(
+            f"All {len(completed_steps)} build step(s) completed successfully!"
+        )
         print()
         print_info("Completed steps:")
         for step in completed_steps:
@@ -421,7 +452,9 @@ def main():
             print(f"  • Installer: product/ZZZ Bot Installer.exe")
         return 0
     else:
-        print_warning(f"Build completed: {len(completed_steps)} succeeded, {len(failed_steps)} failed")
+        print_warning(
+            f"Build completed: {len(completed_steps)} succeeded, {len(failed_steps)} failed"
+        )
         print()
         if completed_steps:
             print_success("Completed steps:")
@@ -443,5 +476,6 @@ if __name__ == "__main__":
     except Exception as e:
         print_error(f"Unexpected error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

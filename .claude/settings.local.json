@@ -13,7 +13,16 @@
       "Bash(taskkill:*)",
       "Bash(python src/Bot.py:*)",
       "Bash(python Bot.py:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(dir:*)",
+      "Bash(git mv:*)",
+      "Bash(python:*)",
+      "Bash(timeout 5 python:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 10 npm run dev:*)",
+      "Bash(move:*)",
+      "Bash(mv:*)",
+      "Bash(timeout 3 sleep:*)"
     ],
     "deny": [],
     "ask": []

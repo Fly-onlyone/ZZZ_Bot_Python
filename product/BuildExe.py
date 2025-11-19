@@ -23,12 +23,18 @@ def grant_permissions(directory_path):
     for root, dirs, files in os.walk(directory_path):
         for dir_name in dirs:
             dir_path = os.path.join(root, dir_name)
-            os.chmod(dir_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)  # Full permissions
+            os.chmod(
+                dir_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+            )  # Full permissions
         for file_name in files:
             file_path = os.path.join(root, file_name)
-            os.chmod(file_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)  # Full permissions
+            os.chmod(
+                file_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+            )  # Full permissions
 
-    os.chmod(directory_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)  # Root directory
+    os.chmod(
+        directory_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+    )  # Root directory
     print(f"Full permissions granted to {directory_path}")
 
 
@@ -46,7 +52,9 @@ def process_directory(base_dir, directories_to_copy):
         # Copy the specified directories to the same relative path as the exe
         for directory in directories_to_copy:
             src = os.path.abspath(directory)
-            dst = os.path.join(exe_dir, os.path.basename(directory))  # Match relative path to exe
+            dst = os.path.join(
+                exe_dir, os.path.basename(directory)
+            )  # Match relative path to exe
             if os.path.exists(src):
                 shutil.copytree(src, dst, dirs_exist_ok=True)
                 print(f"Copied {src} to {dst}")
@@ -60,7 +68,9 @@ mode = get_environment()
 
 # Paths to the directories you want to copy
 directories_to_copy = ["./../authentication data", "./../screenshot", "./../output"]
-spec_file_path="SpecStandalone.py" if mode =="MAKE_EXE_STANDALONE" else "SpecOnefile.py"
+spec_file_path = (
+    "SpecStandalone.py" if mode == "MAKE_EXE_STANDALONE" else "SpecOnefile.py"
+)
 # Read Spec.py and write its content to Bot.spec
 with open(spec_file_path, "r") as spec_file:
     spec_content = spec_file.read()
