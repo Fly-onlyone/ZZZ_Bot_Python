@@ -1,0 +1,17 @@
+{
+    "schedule_times": [
+        "08:00",
+        "20:00"
+    ],
+    "exit_after_run": false,
+    "open_web_ui": true,
+    "hide_browser": false,
+    "run_task": true,
+    "gather_shopping_data": true,
+    "exchange_good": false,
+    "buy_all": false,
+    "draw_item": false,
+    "enable_hunt_mode": false,
+    "stop_on_failed_exchange": false,
+    "theme": "purple"
+}

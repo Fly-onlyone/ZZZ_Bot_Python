@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_submodules
 
 datas = []
 binaries = []
@@ -53,6 +53,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon="../images/Qingyi02.ico",
-    version='Bot version.txt',
+    version="Bot version.txt",
 )
-
