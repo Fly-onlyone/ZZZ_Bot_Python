@@ -28,13 +28,15 @@ def resource_path(relative_path, outside_path=False):
         if os.getenv("SIMULATE_EXE", "0") == "1":
             return relative_path
         if outside_path:
+            # For user data that persists outside the exe (output, screenshots, etc.)
             final_path = os.path.abspath(
                 os.path.join(os.path.dirname(sys.executable), normalized_path)
             )
         else:
-            final_path = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), normalized_path)
-            )
+            # For bundled resources inside the exe (frontend, images, etc.)
+            # Use sys._MEIPASS which points to the PyInstaller temporary folder
+            base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+            final_path = os.path.abspath(os.path.join(base_path, normalized_path))
 
         return final_path
     else:
@@ -47,7 +49,7 @@ def generate_config(outside_folder, exclude_keys=None):
 
     base_config = {
         "FRONTEND_BUILD": "./frontend/dist",
-        "BROWSER": "./backend/playwright-browsers",
+        "BROWSER": "./playwright-browsers",
         "ICON_PATH": "./images/Qingyi02.ico",
         "SAD_ICON": "./images/Qingyi01.ico",
         "STORAGE_PATH": "./authentication data/hoyo.json",
@@ -57,7 +59,7 @@ def generate_config(outside_folder, exclude_keys=None):
         "SAMPLE_FOLDER": "./sample",
         "REWARD_FOLDER": "./reward image",
         "MISSION_BUTTON_FOLDER": "./mission button",
-        "MISSION_NOTIFICATION": "./backend/message/mission.html.jinja",
+        "MISSION_NOTIFICATION": "./message/mission.html.jinja",
         "ZZZ_ICON": "./sample/ZZZ Avatar.png",
         "OUTPUT_FILE": "./output/missions.json",
         "LAST_RUN_FILE": "./output/last_run.json",
@@ -154,10 +156,6 @@ CONFIG = generate_config(
         "STORAGE_PATH",
         "OUTPUT_FOLDER",
         "SCREENSHOT_FOLDER",
-        "ICON_FOLDER",
-        "SAMPLE_FOLDER",
-        "REWARD_FOLDER",
-        "MISSION_BUTTON_FOLDER",
     ],
     ["WEB_UI_URL"],
 )
@@ -184,6 +182,11 @@ app.add_middleware(
     allow_methods=["GET", "POST"],  # Only allow needed methods
     allow_headers=["Content-Type"],  # Only allow needed headers
 )
+
+# Ensure screenshot directory exists (it's an outside path that needs creation)
+os.makedirs(CONFIG["SCREENSHOT_FOLDER"], exist_ok=True)
+
+# ICON_FOLDER is bundled with the exe, no need to create it
 app.mount("/images", StaticFiles(directory=CONFIG["ICON_FOLDER"]), name="images")
 app.mount(
     "/screenshot",
