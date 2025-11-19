@@ -19,7 +19,7 @@ HoYoLab event website including check-ins, shopping, redemptions, and prize draw
 ### Hybrid Desktop Application
 
 - **Development Mode:**
-    - Backend: `python src/Bot.py` (FastAPI on port 8000)
+    - Backend: `python backend/core/Bot.py` (FastAPI on port 8000)
     - Frontend: `cd frontend && npm run dev` (Vite dev server on port 3000)
 - **Production Mode:**
     - Single executable serving both backend and built frontend on port 8000
@@ -29,9 +29,10 @@ HoYoLab event website including check-ins, shopping, redemptions, and prize draw
 
 ```
 Bot.py (scheduler) → playwright_task()
-  ├─→ Mission.run()        # Daily missions
-  ├─→ ShoppingHandler.run() # Shopping automation
-  └─→ DrawHandler.run()     # Prize draws
+  ├─→ MissionHandler.run()        # Daily missions
+  ├─→ ShoppingHandler.run()       # Shopping automation
+  ├─→ DrawHandler.run()           # Prize draws
+  └─→ HuntModeHandler.run_hunt()  # Hunt mode (timed item purchases)
        ↓
   Save session state → Send email notification
 ```
@@ -55,32 +56,127 @@ Key module: `ImageProcessor.py` with `RetryHelper.py` for element polling.
 
 ## Key Modules
 
-### Core Backend (`src/`)
+### Core Backend (`backend/`)
+
+The backend follows a layered architecture with clear separation of concerns:
+
+**Core (`backend/core/`):**
 
 - **Bot.py:** Main entry, scheduler, FastAPI server, system tray
 - **GlobalVar.py:** Global config, settings dataclass, shared app instance
-- **Mission.py:** Daily mission automation
+- **ManualLogin.py:** Thread-safe manual browser session control
+- **Notification.py:** Email reports via Apprise with Jinja2 templates
+- **constants.py:** Application constants
+
+**Handlers (`backend/handlers/`):**
+
+- **MissionHandler.py:** Daily mission automation
 - **ShoppingHandler.py:** Item shopping and code generation
 - **DrawHandler.py:** Prize draw automation
-- **RedeemAutofill.py:** Redemption code submission
+- **HuntModeHandler.py:** Automated item purchasing when shop renews
+
+**Automation (`backend/automation/`):**
+
 - **ImageProcessor.py:** OpenCV-based UI detection
-- **ManualLogin.py:** Thread-safe manual browser session control
+- **RedeemAutofill.py:** Redemption code submission
+- **AutoLogin.py:** Automated login handling
+- **RetryHelper.py:** Element polling and retry logic
+- **Selectors.py:** Web element selectors
+
+**Services (`backend/services/`):**
+
+- **BrowserService.py:** Browser management and session handling
+
+**Repositories (`backend/repositories/`):**
+
+- **DataRepository.py:** Data persistence layer
+
+**Strategies (`backend/strategies/`):**
+
+- **ImageComparisonStrategy.py:** Image matching algorithms
+
+**Domain (`backend/domain/`):**
+
+- **models.py:** Domain models and data classes
+
+**API (`backend/api/`):**
+
+- **routes.py:** REST API endpoint definitions
+
+**Utils (`backend/utils/`):**
+
 - **DataHandler.py:** JSON serialization utilities
-- **Notification.py:** Email reports via Apprise with Jinja2 templates
+- **Logger.py:** Logging configuration
+- **NotificationHelper.py:** Desktop notification helper
+- **StringUtil.py:** String manipulation utilities
+- **Win32Icon.py:** Windows icon handling
 
 ### Frontend (`frontend/src/`)
 
+The frontend follows a modular component architecture:
+
+**Entry Point:**
+
 - **main.jsx:** React app entry with MUI theme configuration
-- **PermanentDrawer.jsx:** Navigation drawer component
-- **ValueAdapter.jsx:** Dynamic settings form generator (detects types, renders appropriate inputs)
+
+**Pages (`pages/`):**
+
+- **Overview.jsx:** Dashboard with mission reports and hunt status
+- **Shopping.jsx:** Shopping management with hunt mode configuration
+- **Redeem.jsx:** Redemption code management
+- **ManualLogin.jsx:** Manual login interface
+- **index.js:** Page exports
+
+**Components:**
+
+- **common/** - Shared components (SaveButton)
+- **layout/** - Layout components (AppHeader, NavigationDrawer)
+- **forms/** - Form utilities (ValueAdapter - dynamic form generator)
+- **fields/** - Field components (ArrayField, BooleanField, SelectField, TextField)
+- **index.js:** Component exports
+
+**Routes (`routes/`):**
+
+- **PermanentDrawer.jsx:** Main navigation and routing component
+
+**Content (`content/`):**
+
+- **Mission.jsx:** Mission history and reports
+- **Hunt.jsx:** Hunt mode status and next scheduled hunt
+- **RunningStatus.jsx:** Real-time bot status display
+
+**Services (`services/`):**
+
 - **DataLoader.jsx:** API client with TanStack Query integration
-- **Overview/Shopping/Redeem/ManualLogin.jsx:** Feature pages
+- **index.js:** Service exports
+
+**Hooks (`hooks/`):**
+
+- **useFormState.js:** Form state management
+- **useShoppingState.js:** Shopping data state management
+- **usePriorityManagement.js:** Item priority handling
+- **useFieldRenderer.jsx:** Dynamic field rendering
+- **index.js:** Hook exports
+
+**Theme (`theme/`):**
+
+- **muiTheme.js:** Material-UI theme configuration
+- **ThemeContext.jsx:** Theme context provider
+- **colors.js:** Color palette definitions
+- **themes.js:** Theme variants
+- **styles.js:** Common styles
+
+**Config (`config/`):**
+
+- **constants.js:** Frontend constants
+- **index.js:** Config exports
 
 ### REST API Endpoints
 
 - `/shopping`, `/redeem`, `/account`, `/settings` - CRUD operations
 - `/manual` - Manual browser control (open/close/status)
 - `/overview/mission` - Mission reports with date filtering
+- `/overview/hunt` - Hunt mode status and next scheduled hunt time
 - `/routes` - Dynamic route listing
 
 ## Path Resolution Strategy
@@ -102,7 +198,7 @@ When testing exe behavior in dev: `set SIMULATE_EXE=1` environment variable.
 
 ```bash
 # Run backend (auto-opens web UI at http://localhost:8000)
-python src/Bot.py
+python backend/core/Bot.py
 
 # Run frontend dev server
 cd frontend
@@ -128,7 +224,7 @@ iscc installer.iss
 ### Testing
 
 ```bash
-pytest src/test/
+pytest backend/test/
 ```
 
 ## Configuration Files
@@ -146,15 +242,47 @@ pytest src/test/
   "hide_browser": true,
   "run_task": false,
   "gather_shopping_data": true,
-  "redeem_after_gather_data": true,
+  "exchange_good": true,
   "buy_all": true,
-  "draw_item": true
+  "draw_item": true,
+  "enable_hunt_mode": true
 }
 ```
 
 ### `output/account.json`
 
 Stores email credentials for Gmail notifications.
+
+### `output/shopping.json`
+
+Stores shopping data including item selection and hunt mode configuration:
+
+```json
+{
+  "Selected": [
+    "Item 1",
+    "Item 2",
+    "Item 3"
+  ],
+  "Hunt": [
+    "Item 2"
+  ],
+  "Item's list": {
+    "Item 1": {
+      "Available": "Yes",
+      "Point": 100
+    },
+    "Item 2": {
+      "Available": "14:30 20/01/25",
+      "Point": 150
+    }
+  }
+}
+```
+
+- **Selected:** Items to purchase, ordered by priority
+- **Hunt:** Items to hunt when shop renews (subset of Selected)
+- **Item's list:** Item details including availability and cost
 
 ## Important Patterns
 
@@ -184,13 +312,45 @@ This handles dynamic web content and layout changes gracefully.
 
 ### 4. React Dynamic Forms
 
-`ValueAdapter.jsx` generates forms from JSON structure:
+`components/forms/ValueAdapter.jsx` generates forms from JSON structure:
 
 - Automatically detects types (bool → switch, array → multi-input, string → text field)
 - Custom rendering via `typeConfig` prop
 - Synchronized with backend via API calls
 
-### 5. PyInstaller Packaging
+### 5. Hunt Mode
+
+Hunt Mode automates purchasing specific items when the shop renews. Key features:
+
+**Workflow:**
+
+1. User marks items for "hunting" in the Shopping page
+2. Bot calculates next hunt time based on item availability
+3. Bot opens shopping screen 2 minutes before item becomes available
+4. Polls item button every second, waiting for "Exchange" status
+5. Exchanges all hunt items and collects redemption codes
+6. Redeems all codes after exchanges complete
+7. Removes successfully hunted items from hunt list
+
+**Implementation Details:**
+
+- Priority-based: Items are hunted in the order they appear in the Selected list
+- Two-phase execution: Exchange all items first, then redeem all codes
+- Automatic cleanup: Successfully hunted items are removed from hunt list
+- Visual monitoring: Logs button status changes during polling
+- Configurable timeouts: Max 3-minute wait per item
+- Desktop notifications: Reports hunt results with success/failure counts
+
+**Key Functions:**
+
+- `get_hunt_items()` - Returns hunt items sorted by shopping priority
+- `get_next_hunt_time()` - Calculates earliest item availability time
+- `wait_for_exchange_button()` - Polls item until Exchange button appears
+- `exchange_item_only()` - Exchanges item without immediate redemption
+- `redeem_all_codes()` - Bulk redeems all collected codes
+- `run_hunt()` - Main hunt mode orchestrator
+
+### 6. PyInstaller Packaging
 
 `Bot.spec` includes:
 
@@ -203,36 +363,49 @@ This handles dynamic web content and layout changes gracefully.
 ## Module Dependencies
 
 ```
-Bot.py
-  ├─→ GlobalVar (config, FastAPI app)
-  ├─→ Mission
-  │    ├─→ ImageProcessor
-  │    ├─→ RetryHelper
-  │    └─→ DataHandler
-  ├─→ ShoppingHandler
-  │    ├─→ RedeemAutofill
-  │    │    └─→ AutoLogin
-  │    └─→ ImageProcessor
-  ├─→ DrawHandler
-  │    ├─→ RedeemAutofill
-  │    └─→ ImageProcessor
-  ├─→ ManualLogin
-  └─→ Notification (Jinja2 templates in src/message/)
+Bot.py (core/)
+  ├─→ GlobalVar (core/, config, FastAPI app)
+  ├─→ ManualLogin (core/)
+  ├─→ Notification (core/, Jinja2 templates in backend/message/)
+  ├─→ MissionHandler (handlers/)
+  │    ├─→ ImageProcessor (automation/)
+  │    ├─→ RetryHelper (automation/)
+  │    └─→ DataHandler (utils/)
+  ├─→ ShoppingHandler (handlers/)
+  │    ├─→ RedeemAutofill (automation/)
+  │    │    └─→ AutoLogin (automation/)
+  │    ├─→ ImageProcessor (automation/)
+  │    └─→ DataHandler (utils/)
+  ├─→ DrawHandler (handlers/)
+  │    ├─→ RedeemAutofill (automation/)
+  │    ├─→ ImageProcessor (automation/)
+  │    └─→ DataHandler (utils/)
+  └─→ HuntModeHandler (handlers/)
+       ├─→ ShoppingHandler (handlers/)
+       ├─→ RedeemAutofill (automation/)
+       ├─→ ImageProcessor (automation/)
+       ├─→ RetryHelper (automation/)
+       ├─→ DataHandler (utils/)
+       ├─→ NotificationHelper (utils/)
+       └─→ StringUtil (utils/)
 ```
 
 ## Logging
 
-- Uses `TimedRotatingFileHandler` (7-day retention) in `src/logs/`
+- Uses `TimedRotatingFileHandler` (7-day retention) in `backend/logs/`
 - Custom `NoImportFilter` to reduce noise
 - In exe mode: stdout/stderr redirected to log file
 
 ## Code Style Notes
 
-- File paths: Always use `resource_path()` for cross-mode compatibility
-- Error handling: Graceful degradation with logging, avoid crashing on missing elements
-- API responses: Use Pydantic models for validation
-- Frontend state: TanStack Query for server state, React state for UI state
-- Image comparison: Always use absolute paths for OpenCV, log comparison percentages
+- **File paths:** Always use `resource_path()` for cross-mode compatibility
+- **Error handling:** Graceful degradation with logging, avoid crashing on missing elements
+- **API responses:** Use Pydantic models for validation
+- **Backend architecture:** Follow layered structure - handlers use services/automation, utilities remain isolated
+- **Frontend organization:** Use barrel exports (index.js) for clean imports, keep components modular
+- **Frontend state:** TanStack Query for server state, React state for UI state
+- **Image comparison:** Always use absolute paths for OpenCV, log comparison percentages
+- **Hunt mode:** Always use two-phase execution (exchange all, then redeem all) to avoid session issues
 
 ## Commit Message Style
 
@@ -245,6 +418,7 @@ When writing commit messages for this project, follow these guidelines:
 - **No detailed explanations** - Save details for PR descriptions
 
 **Examples:**
+
 - `Add hunt overview. Fix countdown regex. Improve hunt scheduling. Fix icon colors.`
 - `Add hunt mode`
 - `Fix draw handler`

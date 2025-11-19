@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_submodules
 
 datas = []
 binaries = []
@@ -16,12 +16,12 @@ datas += [
     ("./../images", "images"),
     ("./../sample", "sample"),
     ("./../reward image", "reward image"),
-    ("./../src/message", "message"),
-    ("./../src/playwright-browsers", "playwright-browsers"),
+    ("./../backend/message", "message"),
+    ("./../backend/playwright-browsers", "playwright-browsers"),
 ]
 
 a = Analysis(
-    ["..\\src\\Bot.py"],
+    ["..\\backend\\core\\Bot.py"],
     pathex=[],
     binaries=binaries,
     datas=datas,
@@ -52,7 +52,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon="../images/Qingyi02.ico",
-    version='Bot version.txt',
+    version="Bot version.txt",
 )
 coll = COLLECT(
     exe,
@@ -63,4 +63,3 @@ coll = COLLECT(
     upx_exclude=[],
     name="ZZZ Bot",
 )
-

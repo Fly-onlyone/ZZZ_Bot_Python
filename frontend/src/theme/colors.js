@@ -2,7 +2,7 @@
 // NOTE: This file now re-exports from themes.js for backward compatibility
 // For new code, import directly from './themes'
 
-import { THEME_COLORS, COMMON_COLORS, getThemeColors } from "./themes";
+import { COMMON_COLORS, getThemeColors, THEME_COLORS } from "./themes";
 
 // Export default purple theme colors for backward compatibility
 const purpleTheme = THEME_COLORS.purple;
