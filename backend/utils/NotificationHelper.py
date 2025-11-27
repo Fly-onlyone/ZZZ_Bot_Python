@@ -38,7 +38,7 @@ def notify(
     app_icon: Optional[str] = None,
     app_id: str = "ZZZ Bot",
     duration: str = "long",
-    timeout: int = 10,
+    timeout: int = 5,
 ) -> None:
     """Send a notification that persists in Windows notification center.
 
