@@ -1,5 +1,6 @@
 import React from "react";
 import { Alert, Button, Snackbar } from "@mui/material";
+import { motion } from "framer-motion";
 import SaveIcon from "@mui/icons-material/Save";
 import { TRANSITIONS } from "../../theme/styles";
 import { useThemeContext } from "../../theme/ThemeContext";
@@ -9,6 +10,20 @@ const SaveButton = ({ onSave, alert, setAlert }) => {
 
   const handleCloseAlert = () => {
     setAlert({ ...alert, open: false });
+  };
+
+  // Animation variants
+  const buttonVariants = {
+    initial: { scale: 1 },
+    hover: { scale: 1.05 },
+    tap: { scale: 0.95 },
+  };
+
+  const iconVariants = {
+    hover: {
+      rotate: [0, -10, 10, -10, 0],
+      transition: { duration: 0.5 },
+    },
   };
 
   // Choose your preferred style by uncommenting one:
@@ -142,22 +157,22 @@ const SaveButton = ({ onSave, alert, setAlert }) => {
   // STYLE 6: Neon Glow (Vibrant & Eye-catching)
   const neonStyle = {
     mt: 2,
-    px: 4,
-    py: 1.5,
+    px: 2.5,
+    py: 1,
     background: "transparent",
     border: `2px solid ${themeColors.primary.main}`,
     color: themeColors.primary.light,
-    fontWeight: 700,
+    fontWeight: 600,
     borderRadius: "8px",
-    textShadow: `0 0 10px ${themeColors.primary.light}`,
-    boxShadow: `0 0 10px ${themeColors.primary.main}, inset 0 0 10px ${themeColors.alpha.card}`,
+    textShadow: `0 0 5px ${themeColors.primary.light}40`,
+    boxShadow: `0 0 6px ${themeColors.primary.main}60, inset 0 0 6px ${themeColors.alpha.card}`,
     transition: TRANSITIONS.default,
     "&:hover": {
       background: themeColors.primary.main,
       color: "#ffffff",
       border: `2px solid ${themeColors.secondary.light}`,
       textShadow: "none",
-      boxShadow: `0 0 20px ${themeColors.secondary.main}, 0 0 40px ${themeColors.secondary.main}, inset 0 0 20px ${themeColors.alpha.hover}`,
+      boxShadow: `0 0 12px ${themeColors.secondary.main}70, 0 0 20px ${themeColors.secondary.main}40, inset 0 0 10px ${themeColors.alpha.hover}`,
       transform: "translateY(-2px)",
     },
   };
@@ -170,14 +185,29 @@ const SaveButton = ({ onSave, alert, setAlert }) => {
       <div
         style={{ display: "flex", justifyContent: "center", marginTop: "2rem" }}
       >
-        <Button
-          variant="contained"
-          onClick={onSave}
-          startIcon={<SaveIcon />}
-          sx={selectedStyle}
+        <motion.div
+          variants={buttonVariants}
+          initial="initial"
+          whileHover="hover"
+          whileTap="tap"
         >
-          Save
-        </Button>
+          <Button
+            variant="contained"
+            onClick={onSave}
+            startIcon={
+              <motion.div
+                variants={iconVariants}
+                whileHover="hover"
+                style={{ display: "flex", alignItems: "center" }}
+              >
+                <SaveIcon />
+              </motion.div>
+            }
+            sx={selectedStyle}
+          >
+            Save
+          </Button>
+        </motion.div>
       </div>
 
       <Snackbar
@@ -186,9 +216,16 @@ const SaveButton = ({ onSave, alert, setAlert }) => {
         onClose={handleCloseAlert}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert severity={alert.type} variant="outlined">
-          {alert.message}
-        </Alert>
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 50 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Alert severity={alert.type} variant="outlined">
+            {alert.message}
+          </Alert>
+        </motion.div>
       </Snackbar>
     </>
   );

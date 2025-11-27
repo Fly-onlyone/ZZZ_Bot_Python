@@ -20,22 +20,44 @@ def grant_permissions(directory_path):
         print(f"Directory does not exist: {directory_path}")
         return
 
+    # Windows reserved device names that should be skipped
+    reserved_names = {"con", "prn", "aux", "nul", "com1", "com2", "com3", "com4",
+                      "com5", "com6", "com7", "com8", "com9", "lpt1", "lpt2",
+                      "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"}
+
     for root, dirs, files in os.walk(directory_path):
         for dir_name in dirs:
+            # Skip Windows reserved device names
+            if dir_name.lower() in reserved_names:
+                continue
             dir_path = os.path.join(root, dir_name)
-            os.chmod(
-                dir_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
-            )  # Full permissions
-        for file_name in files:
-            file_path = os.path.join(root, file_name)
-            os.chmod(
-                file_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
-            )  # Full permissions
+            try:
+                os.chmod(
+                    dir_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+                )  # Full permissions
+            except (OSError, PermissionError) as e:
+                print(f"Warning: Could not set permissions on {dir_path}: {e}")
 
-    os.chmod(
-        directory_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
-    )  # Root directory
-    print(f"Full permissions granted to {directory_path}")
+        for file_name in files:
+            # Skip Windows reserved device names
+            if file_name.lower() in reserved_names:
+                continue
+            file_path = os.path.join(root, file_name)
+            try:
+                os.chmod(
+                    file_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+                )  # Full permissions
+            except (OSError, PermissionError) as e:
+                print(f"Warning: Could not set permissions on {file_path}: {e}")
+
+    try:
+        os.chmod(
+            directory_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+        )  # Root directory
+    except (OSError, PermissionError) as e:
+        print(f"Warning: Could not set permissions on {directory_path}: {e}")
+
+    print(f"Permissions granted to {directory_path}")
 
 
 def process_directory(base_dir, directories_to_copy):

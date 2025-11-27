@@ -68,6 +68,11 @@ def handle_check_in(new_page: Page, todays_data: Dict) -> None:
         new_page: Playwright Page instance for check-in
         todays_data: Dictionary to store today's mission data
     """
+    # Skip if already checked in today
+    if todays_data.get("check_in") == STATUS_SUCCESS:
+        logger.info("Check-in already completed today, skipping")
+        return
+
     logger.info("Starting check-in process...")
     # Wait for page to be fully loaded instead of fixed timeout
     new_page.wait_for_load_state("networkidle", timeout=10000)
