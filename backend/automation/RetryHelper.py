@@ -70,7 +70,7 @@ def retry_until_screen_appears(
         page = button.page
 
         # Take screenshot for debugging
-        from GlobalVar import CONFIG
+        from core.GlobalVar import CONFIG
         import os
         from datetime import datetime
 

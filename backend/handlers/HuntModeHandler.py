@@ -16,8 +16,11 @@ from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
-from automation import RedeemAutofill, RetryHelper
-from automation.ImageProcessor import find_correct_avatar
+from automation import RedeemAutofill
+from automation.Selectors import (
+    SHOPPING_ITEM,
+    SHOPPING_ITEM_BUTTON,
+)
 from core.GlobalVar import CONFIG, settings
 from utils import NotificationHelper
 from utils.DataHandler import load_shopping_data, save_shopping_data
@@ -142,7 +145,7 @@ def wait_for_exchange_button(
     while time.time() - start_time < max_wait_seconds:
         try:
             # Locate the item on page
-            item_locator = page.locator(ShoppingHandler.ITEM_SELECTOR).filter(
+            item_locator = page.locator(SHOPPING_ITEM).filter(
                 has=page.get_by_text(item_name, exact=True)
             )
 
@@ -152,7 +155,7 @@ def wait_for_exchange_button(
                 continue
 
             # Get button text
-            button = item_locator.locator(ShoppingHandler.ITEM_BUTTON_SELECTOR)
+            button = item_locator.locator(SHOPPING_ITEM_BUTTON)
             button_text = button.inner_text()
 
             # Log status changes
@@ -189,7 +192,7 @@ def exchange_item_only(page: Page, item_name: str) -> Optional[str]:
     logger.info(f"Exchanging item: {item_name}")
 
     # Locate item on page
-    item_locator = page.locator(ShoppingHandler.ITEM_SELECTOR).filter(
+    item_locator = page.locator(SHOPPING_ITEM).filter(
         has=page.get_by_text(item_name, exact=True)
     )
 
@@ -199,7 +202,7 @@ def exchange_item_only(page: Page, item_name: str) -> Optional[str]:
 
     try:
         # Check exchange button
-        exchange_button = item_locator.locator(ShoppingHandler.ITEM_BUTTON_SELECTOR)
+        exchange_button = item_locator.locator(SHOPPING_ITEM_BUTTON)
         button_text = exchange_button.inner_text()
 
         if button_text != EXCHANGE_BUTTON_TEXT:
@@ -212,31 +215,11 @@ def exchange_item_only(page: Page, item_name: str) -> Optional[str]:
         exchange_button.click()
         logger.info(f"Clicked exchange button for '{item_name}'")
 
-        # Wait for and handle confirmation dialog
-        confirm_dialog = page.locator(ShoppingHandler.CONFIRM_DIALOG_SELECTOR)
-
-        if not confirm_dialog.is_visible(timeout=5000):
-            logger.warning("Confirmation dialog did not appear")
-            return None
-
-        logger.info("Confirmation dialog detected")
-        confirm_ok_button = page.locator(ShoppingHandler.CONFIRM_OK_SELECTOR)
-        confirm_ok_button.click()
-
-        # Extract redemption code
-        code_element = page.locator(ShoppingHandler.REDEEM_CODE_SELECTOR)
-        code_element.wait_for(state="visible", timeout=5000)
-        redeem_code = code_element.inner_text()
-
-        # Copy code to clipboard
-        copy_button = page.locator(ShoppingHandler.COPY_BUTTON_SELECTOR)
-        copy_button.click()
-        logger.info(f"Obtained redemption code for '{item_name}': {redeem_code}")
-
-        # Close dialog
-        close_button = page.locator(ShoppingHandler.CLOSE_BUTTON_SELECTOR)
-        close_button.click()
-        logger.info(f"Successfully exchanged '{item_name}'")
+        # Handle exchange dialog and get redemption code
+        redeem_code = ShoppingHandler.handle_exchange_dialog(page, item_name)
+        if redeem_code:
+            logger.info(f"Obtained redemption code for '{item_name}': {redeem_code}")
+            logger.info(f"Successfully exchanged '{item_name}'")
 
         return redeem_code
 
@@ -357,30 +340,14 @@ def run_hunt():
                     return
 
                 # Open shopping screen
-                shopping_button = page.get_by_role("img").nth(
-                    ShoppingHandler.SHOPPING_BUTTON_SELECTOR
-                )
-                shopping_screen = page.locator(ShoppingHandler.SHOPPING_SCREEN_SELECTOR)
-
-                if not RetryHelper.retry_until_screen_appears(
-                    shopping_screen, shopping_button
-                ):
-                    logger.error("Failed to open shopping screen")
+                if not ShoppingHandler.open_shopping_screen(page):
+                    logger.error("Failed to open shopping screen for hunt mode")
                     return
 
-                logger.info("Shopping screen opened for hunt mode")
-
-                # Navigate to ZZZ avatar
-                zzz_avatar = find_correct_avatar(page)
-                if not zzz_avatar:
-                    logger.error("ZZZ avatar not found, cannot proceed with hunting")
+                # Select ZZZ avatar
+                if not ShoppingHandler.select_zzz_avatar(page):
+                    logger.error("Cannot proceed with hunting")
                     return
-
-                zzz_avatar.click()
-                logger.info("Selected ZZZ avatar for hunting")
-
-                # Wait for page to load
-                page.wait_for_load_state("networkidle", timeout=5000)
 
                 # Load shopping data
                 file_path = Path(CONFIG["SHOPPING_FILE"])

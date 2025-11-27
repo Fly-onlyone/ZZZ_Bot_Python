@@ -33,6 +33,7 @@ export default function ValueAdapter({
    */
   const renderFieldRow = (fieldKey) => {
     const isArrayField = Array.isArray(value[fieldKey]);
+    const isThemeField = fieldKey === "theme";
 
     return (
       <div
@@ -55,7 +56,15 @@ export default function ValueAdapter({
           )}
           {fieldKey.replace(/_/g, " ")}:
         </label>
-        <div className={isArrayField ? "" : "flex w-3/4"}>
+        <div
+          className={
+            isArrayField
+              ? ""
+              : isThemeField
+              ? "flex w-3/4 justify-end"
+              : "flex w-3/4"
+          }
+        >
           {renderField(fieldKey, value[fieldKey], (newValue) =>
             handleChange(fieldKey, newValue)
           )}

@@ -29,12 +29,52 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
           },
           "&:hover .MuiOutlinedInput-notchedOutline": {
             borderColor: themeColors.secondary.main,
-            boxShadow: `0 0 10px ${themeColors.alpha.hover}`,
+            boxShadow: `
+              0 0 8px ${themeColors.alpha.hover},
+              0 0 16px ${themeColors.primary.main}40,
+              0 0 24px ${themeColors.secondary.main}20
+            `,
           },
           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
             borderColor: themeColors.secondary.light,
             borderWidth: 2,
-            boxShadow: `0 0 15px ${themeColors.alpha.hover}`,
+            boxShadow: `
+              0 0 10px ${themeColors.alpha.hover},
+              0 0 20px ${themeColors.primary.main}60,
+              0 0 30px ${themeColors.secondary.main}40,
+              inset 0 0 15px ${themeColors.alpha.card}
+            `,
+          },
+        },
+      },
+    },
+
+    MuiSelect: {
+      styleOverrides: {
+        root: {
+          transition: TRANSITIONS.cubic,
+          "& .MuiOutlinedInput-notchedOutline": {
+            borderColor: themeColors.primary.main,
+            borderWidth: 2,
+            transition: TRANSITIONS.cubic,
+          },
+          "&:hover .MuiOutlinedInput-notchedOutline": {
+            borderColor: themeColors.secondary.main,
+            boxShadow: `
+              0 0 8px ${themeColors.alpha.hover},
+              0 0 16px ${themeColors.primary.main}40,
+              0 0 24px ${themeColors.secondary.main}20
+            `,
+          },
+          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+            borderColor: themeColors.secondary.light,
+            borderWidth: 2,
+            boxShadow: `
+              0 0 10px ${themeColors.alpha.hover},
+              0 0 20px ${themeColors.primary.main}60,
+              0 0 30px ${themeColors.secondary.main}40,
+              inset 0 0 15px ${themeColors.alpha.card}
+            `,
           },
         },
       },

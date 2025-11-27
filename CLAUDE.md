@@ -19,7 +19,7 @@ HoYoLab event website including check-ins, shopping, redemptions, and prize draw
 ### Hybrid Desktop Application
 
 - **Development Mode:**
-    - Backend: `python backend/core/Bot.py` (FastAPI on port 8000)
+    - Backend: `python backend/Bot.py` (FastAPI on port 8000)
     - Frontend: `cd frontend && npm run dev` (Vite dev server on port 3000)
 - **Production Mode:**
     - Single executable serving both backend and built frontend on port 8000
@@ -198,7 +198,7 @@ When testing exe behavior in dev: `set SIMULATE_EXE=1` environment variable.
 
 ```bash
 # Run backend (auto-opens web UI at http://localhost:8000)
-python backend/core/Bot.py
+python backend/Bot.py
 
 # Run frontend dev server
 cd frontend
