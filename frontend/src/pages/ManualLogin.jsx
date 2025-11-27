@@ -10,12 +10,13 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
 
 export default function ManualLogin() {
-  const [url, setUrl] = useState(""); // Initialize with a string for controlled Select
-  const [playState, setPlayState] = useState(false);
   const BACKEND_URL = "http://127.0.0.1:8000";
   const MINO_URL =
     "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...";
   const REDEEM_URL = "https://zenless.hoyoverse.com/redemption";
+
+  const [url, setUrl] = useState(MINO_URL); // Default to MINO_URL
+  const [playState, setPlayState] = useState(false);
 
   const handleIconClick = (e) => {
     e.preventDefault();
@@ -39,13 +40,20 @@ export default function ManualLogin() {
         // Periodically check the backend playState
         if (updatedPlayState) {
           const intervalId = setInterval(async () => {
-            const stateResponse = await fetch(`${BACKEND_URL}/playstate`);
-            const { playState: backendPlayState } = await stateResponse.json();
-            if (!backendPlayState) {
-              setPlayState(false); // Update the frontend playState
-              clearInterval(intervalId); // Stop checking
+            try {
+              const stateResponse = await fetch(`${BACKEND_URL}/playstate`);
+              const { playState: backendPlayState } = await stateResponse.json();
+              if (!backendPlayState) {
+                setPlayState(false); // Update the frontend playState
+                clearInterval(intervalId); // Stop checking
+                console.log("Browser session ended");
+              }
+            } catch (error) {
+              console.error("Error checking playState:", error);
+              setPlayState(false);
+              clearInterval(intervalId);
             }
-          }, 1000);
+          }, 500); // Check every 500ms for faster response
         }
       } else {
         console.error("Failed to fetch data:", response.statusText);

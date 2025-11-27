@@ -259,27 +259,71 @@ async def manual_task(request: Request, background_tasks: BackgroundTasks):
         background_tasks: FastAPI background task manager
 
     Returns:
-        Status message
+        Status message with current state
     """
+    from core.ManualLogin import get_manager
+
     data = await request.json()
     url = data.get("url")
     play_state = data.get("playState")
 
-    with playState_lock:
-        ManualLogin.playState = play_state
+    manager = get_manager()
 
-    if ManualLogin.playState:
-        background_tasks.add_task(run, url)
-        return {"message": "Task started"}
+    if play_state:
+        # Start session
+        if not url:
+            return {"message": "URL is required", "success": False}
+
+        if manager.is_running:
+            return {
+                "message": "Session already running",
+                "success": False,
+                "state": manager.state.value,
+            }
+
+        if manager.start_session(url):
+            background_tasks.add_task(run, url)
+            return {
+                "message": "Manual login session started",
+                "success": True,
+                "state": manager.state.value,
+            }
+        else:
+            return {
+                "message": "Failed to start session (invalid URL or already running)",
+                "success": False,
+                "state": manager.state.value,
+            }
     else:
-        return {"message": "Task stopped"}
+        # Stop session
+        if manager.stop_session():
+            return {
+                "message": "Stop signal sent",
+                "success": True,
+                "state": manager.state.value,
+            }
+        else:
+            return {
+                "message": "No active session to stop",
+                "success": False,
+                "state": manager.state.value,
+            }
 
 
 @router.get("/playstate")
 async def get_play_state():
-    """Get current manual browser control state."""
-    with playState_lock:
-        return {"playState": ManualLogin.playState}
+    """Get current manual browser control state.
+
+    Returns:
+        Current session state and whether it's running
+    """
+    from core.ManualLogin import get_manager
+
+    manager = get_manager()
+    return {
+        "playState": manager.is_running,
+        "state": manager.state.value,
+    }
 
 
 # ============================================================================

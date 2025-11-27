@@ -4,7 +4,7 @@ from datetime import datetime
 import apprise
 from jinja2 import Template
 
-from .GlobalVar import accounts, CONFIG
+from .GlobalVar import accounts, CONFIG, settings
 
 
 def send_mission_data_via_email_html(todays_data):
@@ -24,6 +24,7 @@ def send_mission_data_via_email_html(todays_data):
         check_in=todays_data["check_in"],
         missions=todays_data["missions"],
         login_reward_image=f"data:image/png;base64,{encoded_image}",
+        theme=settings.theme,  # Pass current theme setting
     )
 
     send_mail(mission_summary_html, todays_data)
