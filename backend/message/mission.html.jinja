@@ -11,18 +11,18 @@
   <style>
       body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-          background-color: #0f172a !important;
+          background-color: #e8ecf0;
           margin: 0;
           padding: 20px;
           line-height: 1.6;
-          color: #e2e8f0;
+          color: #1a1a1a;
       }
 
       /* Main container */
       .container {
           max-width: 650px;
           margin: 0 auto;
-          background-color: #1e293b !important;
+          background-color: #c8d0d8;
           border-radius: 12px;
           overflow: hidden;
           border: 2px solid {{ current_theme.secondary }};
@@ -30,8 +30,8 @@
 
       /* Header section */
       .header {
-          background-color: {{ current_theme.secondary }} !important;
-          color: #ffffff !important;
+          background-color: {{ current_theme.secondary }};
+          color: #ffffff;
           padding: 35px;
           text-align: center;
       }
@@ -40,21 +40,21 @@
           margin: 0;
           font-size: 32px;
           font-weight: 700;
-          color: #ffffff !important;
+          color: #ffffff;
       }
 
       .header .date {
           margin-top: 12px;
           font-size: 18px;
-          color: #f1f5f9 !important;
+          color: #f1f5f9;
           font-weight: 600;
       }
 
       /* Content section */
       .content {
           padding: 30px;
-          background-color: #1e293b !important;
-          color: #e2e8f0 !important;
+          background-color: #c8d0d8;
+          color: #1a1a1a;
       }
 
       /* Section with flex for title and badge */
@@ -77,15 +77,15 @@
       }
 
       .status-success {
-          background-color: #10b981;
-          color: #ffffff;
-          border: 2px solid #059669;
+          background-color: #4ade80;
+          color: #1a1a1a;
+          border: 2px solid #22c55e;
       }
 
       .status-warning {
-          background-color: #ef4444;
-          color: #ffffff;
-          border: 2px solid #dc2626;
+          background-color: #fb7185;
+          color: #1a1a1a;
+          border: 2px solid #f43f5e;
       }
 
       /* Section */
@@ -96,7 +96,7 @@
       .section-title {
           font-size: 22px;
           font-weight: 700;
-          color: #cbd5e1 !important;
+          color: #1a1a1a;
           margin: 0;
       }
 
@@ -109,7 +109,7 @@
       }
 
       .stat-card {
-          background-color: #0f172a !important;
+          background-color: #b8c0c8;
           padding: 25px;
           border-radius: 12px;
           border: 2px solid {{ current_theme.secondary }};
@@ -118,7 +118,7 @@
 
       .stat-label {
           font-size: 14px;
-          color: #94a3b8 !important;
+          color: #6c757d;
           text-transform: uppercase;
           letter-spacing: 1px;
           font-weight: 700;
@@ -129,17 +129,17 @@
       .stat-value {
           font-size: 42px;
           font-weight: 700;
-          color: {{ current_theme.light }} !important;
+          color: {{ current_theme.secondary }};
           margin-top: 8px;
       }
 
       /* Table */
       table {
           width: 100%;
-          border-collapse: collapse;
+          border-collapse: separate;
+          border-spacing: 0;
           margin: 15px 0;
           border-radius: 12px;
-          overflow: hidden;
           border: 2px solid {{ current_theme.secondary }};
       }
 
@@ -152,10 +152,14 @@
           font-size: 17px;
       }
 
+      tbody {
+          background-color: #b8c0c8;
+      }
+
       td {
           padding: 18px 20px;
-          border-bottom: 1px solid #334155;
-          color: #cbd5e1 !important;
+          border-bottom: 1px solid #dee2e6;
+          color: #1a1a1a;
           font-size: 17px;
           font-weight: 500;
       }
@@ -164,21 +168,21 @@
           border-bottom: none;
       }
 
-      /* Mission status colors */
+      /* Mission status colors - subtle overlays */
       .finished {
-          background-color: rgba(16, 185, 129, 0.1) !important;
+          background-color: rgba(200, 210, 220, 0.05);
       }
 
       .finished td {
-          color: #cbd5e1 !important;
+          color: #1a1a1a;
       }
 
       .unfinished {
-          background-color: rgba(239, 68, 68, 0.1) !important;
+          background-color: rgba(200, 210, 220, 0.05);
       }
 
       .unfinished td {
-          color: #cbd5e1 !important;
+          color: #1a1a1a;
       }
 
       /* Status chip in table */
@@ -193,15 +197,15 @@
       }
 
       .status-chip.finished {
-          background-color: #10b981;
-          color: #ffffff;
-          border: 2px solid #059669;
+          background-color: #4ade80;
+          color: #1a1a1a;
+          border: 2px solid #22c55e;
       }
 
       .status-chip.unfinished {
-          background-color: #ef4444;
-          color: #ffffff;
-          border: 2px solid #dc2626;
+          background-color: #fb7185;
+          color: #1a1a1a;
+          border: 2px solid #f43f5e;
       }
 
       /* Image section */
@@ -222,16 +226,16 @@
 
       /* Footer */
       .footer {
-          background-color: #0f172a !important;
+          background-color: #e5eaef;
           padding: 25px 30px;
           text-align: center;
-          color: #94a3b8 !important;
+          color: #6c757d;
           font-size: 14px;
           border-top: 2px solid {{ current_theme.secondary }};
       }
 
       .footer a {
-          color: {{ current_theme.light }} !important;
+          color: {{ current_theme.secondary }};
           text-decoration: none;
           font-weight: 600;
       }
@@ -251,17 +255,17 @@
       }
 
       .icon-success {
-          color: #ffffff;
+          color: #1a1a1a;
       }
 
       .icon-error {
-          color: #ffffff;
+          color: #1a1a1a;
       }
   </style>
   <title></title>
 </head>
-<body style="background-color: #0f172a; margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #e2e8f0;">
-<div class="container" style="max-width: 650px; margin: 0 auto; background-color: #1e293b; border-radius: 12px; border: 2px solid {{ current_theme.secondary }};">
+<body style="background-color: #e8ecf0; margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a1a;">
+<div class="container" style="max-width: 650px; margin: 0 auto; background-color: #c8d0d8; border-radius: 12px; border: 2px solid {{ current_theme.secondary }};">
   <!-- Header -->
   <div class="header" style="background-color: {{ current_theme.secondary }}; color: #ffffff; padding: 35px; text-align: center;">
     <h1 style="margin: 0; font-size: 32px; font-weight: 700; color: #ffffff;">ZZZ Bot Daily Report</h1>
@@ -269,13 +273,13 @@
   </div>
 
   <!-- Content -->
-  <div class="content" style="padding: 30px; background-color: #1e293b; color: #e2e8f0;">
+  <div class="content" style="padding: 30px; background-color: #c8d0d8; color: #1a1a1a;">
     <!-- Check-in Status -->
     <div class="section">
       <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <div class="section-title" style="font-size: 22px; font-weight: 700; color: #cbd5e1; margin: 0;">Check-in Status</div>
-        <span class="status-badge {{ 'status-success' if check_in == 'Login Success' else 'status-warning' }}" style="display: inline-block; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 15px; margin: 0; white-space: nowrap; background-color: {{ '#10b981' if check_in == 'Login Success' else '#ef4444' }}; color: #ffffff; border: 2px solid {{ '#059669' if check_in == 'Login Success' else '#dc2626' }};">
-          <span class="icon {{ 'icon-success' if check_in == 'Login Success' else 'icon-error' }}" style="font-size: 16px; font-weight: bold; margin-right: 6px; display: inline-block; vertical-align: middle; line-height: 1; color: #ffffff;">
+        <div class="section-title" style="font-size: 22px; font-weight: 700; color: #1a1a1a; margin: 0;">Check-in Status</div>
+        <span class="status-badge {{ 'status-success' if check_in == 'Login Success' else 'status-warning' }}" style="display: inline-block; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 15px; margin: 0; white-space: nowrap; background-color: {{ '#4ade80' if check_in == 'Login Success' else '#fb7185' }}; color: #1a1a1a; border: 2px solid {{ '#22c55e' if check_in == 'Login Success' else '#f43f5e' }};">
+          <span class="icon {{ 'icon-success' if check_in == 'Login Success' else 'icon-error' }}" style="font-size: 16px; font-weight: bold; margin-right: 6px; display: inline-block; vertical-align: middle; line-height: 1; color: #1a1a1a;">
             {{ '&#10004;' if check_in == 'Login Success' else '&#10006;' | safe }}
           </span>
           {{ check_in }}
@@ -294,36 +298,36 @@
 
     <!-- Mission Statistics -->
     <div class="section" style="margin: 30px 0;">
-      <div class="section-title" style="font-size: 22px; font-weight: 700; color: #cbd5e1; margin-bottom: 20px;">Mission Statistics</div>
+      <div class="section-title" style="font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 20px;">Mission Statistics</div>
       <div class="stats-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 20px 0;">
-        <div class="stat-card" style="background-color: #0f172a; padding: 25px; border-radius: 12px; border: 2px solid {{ current_theme.secondary }}; text-align: center;">
-          <span class="stat-label" style="font-size: 14px; color: #94a3b8; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 10px; letter-spacing: 1px;">Total Missions</span>
-          <div class="stat-value" style="font-size: 42px; font-weight: 700; color: {{ current_theme.light }}; margin-top: 8px;">{{ missions|length }}</div>
+        <div class="stat-card" style="background-color: #b8c0c8; padding: 25px; border-radius: 12px; border: 2px solid {{ current_theme.secondary }}; text-align: center;">
+          <span class="stat-label" style="font-size: 14px; color: #6c757d; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 10px; letter-spacing: 1px;">Total Missions</span>
+          <div class="stat-value" style="font-size: 42px; font-weight: 700; color: {{ current_theme.secondary }}; margin-top: 8px;">{{ missions|length }}</div>
         </div>
-        <div class="stat-card" style="background-color: #0f172a; padding: 25px; border-radius: 12px; border: 2px solid {{ current_theme.secondary }}; text-align: center;">
-          <span class="stat-label" style="font-size: 14px; color: #94a3b8; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 10px; letter-spacing: 1px;">Completed</span>
-          <div class="stat-value" style="font-size: 42px; font-weight: 700; color: {{ current_theme.light }}; margin-top: 8px;">{{ missions|selectattr('state', 'equalto', 'Finished')|list|length }}</div>
+        <div class="stat-card" style="background-color: #b8c0c8; padding: 25px; border-radius: 12px; border: 2px solid {{ current_theme.secondary }}; text-align: center;">
+          <span class="stat-label" style="font-size: 14px; color: #6c757d; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 10px; letter-spacing: 1px;">Completed</span>
+          <div class="stat-value" style="font-size: 42px; font-weight: 700; color: {{ current_theme.secondary }}; margin-top: 8px;">{{ missions|selectattr('state', 'equalto', 'Finished')|list|length }}</div>
         </div>
       </div>
     </div>
 
     <!-- Mission Details -->
     <div class="section" style="margin: 30px 0;">
-      <div class="section-title" style="font-size: 22px; font-weight: 700; color: #cbd5e1; margin: 0 0 15px 0;">Mission Status</div>
-      <table style="width: 100%; border-collapse: collapse; border: 2px solid {{ current_theme.secondary }}; border-radius: 12px;">
+      <div class="section-title" style="font-size: 22px; font-weight: 700; color: #1a1a1a; margin: 0 0 15px 0;">Mission Status</div>
+      <table style="width: 100%; border-collapse: separate; border-spacing: 0; border: 2px solid {{ current_theme.secondary }}; border-radius: 12px;">
         <thead>
         <tr>
           <th style="background-color: {{ current_theme.secondary }}; color: #ffffff; padding: 18px 20px; text-align: left; font-weight: 700; font-size: 17px;">Mission</th>
           <th style="background-color: {{ current_theme.secondary }}; color: #ffffff; padding: 18px 20px; text-align: left; font-weight: 700; font-size: 17px;">Status</th>
         </tr>
         </thead>
-        <tbody style="background-color: #1e293b;">
+        <tbody style="background-color: #b8c0c8;">
         {% for mission in missions %}
-          <tr class="{{ 'finished' if mission.state == 'Finished' else 'unfinished' }}" style="background-color: {{ 'rgba(16, 185, 129, 0.1)' if mission.state == 'Finished' else 'rgba(239, 68, 68, 0.1)' }};">
-            <td style="padding: 18px 20px; color: #cbd5e1; font-size: 17px; font-weight: 500; border-bottom: 1px solid #334155;">{{ mission.name }}</td>
-            <td style="padding: 18px 20px; color: #cbd5e1; font-size: 17px; border-bottom: 1px solid #334155;">
-              <span class="status-chip {{ 'finished' if mission.state == 'Finished' else 'unfinished' }}" style="display: inline-flex; align-items: center; padding: 8px 16px; border-radius: 6px; font-weight: 700; font-size: 16px; line-height: 1; background-color: {{ '#10b981' if mission.state == 'Finished' else '#ef4444' }}; color: #ffffff; border: 2px solid {{ '#059669' if mission.state == 'Finished' else '#dc2626' }};">
-                <span class="icon {{ 'icon-success' if mission.state == 'Finished' else 'icon-error' }}" style="font-size: 16px; font-weight: bold; margin-right: 6px; display: inline-block; vertical-align: middle; line-height: 1; color: #ffffff;">
+          <tr class="{{ 'finished' if mission.state == 'Finished' else 'unfinished' }}" style="background-color: rgba(200, 210, 220, 0.05);">
+            <td style="padding: 18px 20px; color: #1a1a1a; font-size: 17px; font-weight: 500; border-bottom: 1px solid #dee2e6;">{{ mission.name }}</td>
+            <td style="padding: 18px 20px; color: #1a1a1a; font-size: 17px; border-bottom: 1px solid #dee2e6;">
+              <span class="status-chip {{ 'finished' if mission.state == 'Finished' else 'unfinished' }}" style="display: inline-flex; align-items: center; padding: 8px 16px; border-radius: 6px; font-weight: 700; font-size: 16px; line-height: 1; background-color: {{ '#4ade80' if mission.state == 'Finished' else '#fb7185' }}; color: #1a1a1a; border: 2px solid {{ '#22c55e' if mission.state == 'Finished' else '#f43f5e' }};">
+                <span class="icon {{ 'icon-success' if mission.state == 'Finished' else 'icon-error' }}" style="font-size: 16px; font-weight: bold; margin-right: 6px; display: inline-block; vertical-align: middle; line-height: 1; color: #1a1a1a;">
                   {{ '&#10004;' if mission.state == 'Finished' else '&#10006;' | safe }}
                 </span>
                 {{ mission.state }}
