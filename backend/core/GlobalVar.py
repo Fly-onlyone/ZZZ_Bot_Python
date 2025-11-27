@@ -26,7 +26,9 @@ def resource_path(relative_path, outside_path=False):
 
     if is_exe:
         if os.getenv("SIMULATE_EXE", "0") == "1":
-            return relative_path
+            # In SIMULATE_EXE mode, use absolute paths from current directory
+            # This simulates exe behavior in dev environment
+            return os.path.abspath(relative_path)
         if outside_path:
             # For user data that persists outside the exe (output, screenshots, etc.)
             final_path = os.path.abspath(
@@ -58,8 +60,7 @@ def generate_config(outside_folder, exclude_keys=None):
         "SCREENSHOT_FOLDER": "./screenshot",
         "SAMPLE_FOLDER": "./sample",
         "REWARD_FOLDER": "./reward image",
-        "MISSION_BUTTON_FOLDER": "./mission button",
-        "MISSION_NOTIFICATION": "./message/mission.html.jinja",
+        "MISSION_NOTIFICATION": "./backend/message/mission.html.jinja",
         "ZZZ_ICON": "./sample/ZZZ Avatar.png",
         "OUTPUT_FILE": "./output/missions.json",
         "LAST_RUN_FILE": "./output/last_run.json",

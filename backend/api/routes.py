@@ -94,7 +94,7 @@ def update_shopping_data(selected: dict):
         json.dump(shopping_data, file, indent=4, ensure_ascii=False)
 
     # Reschedule hunt tasks to reflect updated items
-    from core.Bot import schedule_hunt_tasks
+    from Bot import schedule_hunt_tasks
 
     schedule_hunt_tasks()
 
@@ -303,7 +303,7 @@ async def update_settings(request: Request):
     Returns:
         Success message
     """
-    from core.Bot import schedule_tasks, update_tray_menu, calculate_next_run
+    from Bot import schedule_tasks, update_tray_menu, calculate_next_run
 
     data = await request.json()
     for key, value in data.items():
@@ -335,7 +335,7 @@ async def update_settings(request: Request):
 @router.get("/check-run-status")
 def check_run_status():
     """Check last run status with dynamically calculated next run."""
-    from core.Bot import calculate_next_run
+    from Bot import calculate_next_run
 
     last_run = None
     if os.path.exists(CONFIG["LAST_RUN_FILE"]):

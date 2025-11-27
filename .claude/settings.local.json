@@ -22,7 +22,11 @@
       "Bash(timeout 10 npm run dev:*)",
       "Bash(move:*)",
       "Bash(mv:*)",
-      "Bash(timeout 3 sleep:*)"
+      "Bash(timeout 3 sleep:*)",
+      "Bash(timeout:*)",
+      "Bash(start \"\" \"ZZZ Bot.exe\")",
+      "Skill(frontend-design:frontend-design)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

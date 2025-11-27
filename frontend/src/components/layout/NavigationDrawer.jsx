@@ -4,11 +4,12 @@ import {
   Box,
   Drawer,
   List,
-  ListItem,
+  ListItemButton,
   ListItemIcon,
   ListItemText,
   Toolbar,
 } from "@mui/material";
+import { motion } from "framer-motion";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -31,6 +32,32 @@ const tabs = [
   { label: "Manual Login", icon: <IconLogin2 />, path: "/manual" },
   { label: "Setting", icon: <SettingsIcon />, path: "/settings" },
 ];
+
+/**
+ * Animation variants for list items
+ */
+const listItemVariants = {
+  hidden: { opacity: 0, x: -20 },
+  visible: (i) => ({
+    opacity: 1,
+    x: 0,
+    transition: {
+      delay: i * 0.1,
+      duration: 0.4,
+      ease: [0.4, 0, 0.2, 1],
+    },
+  }),
+  hover: {
+    scale: 1.02,
+    transition: {
+      duration: 0.2,
+      ease: "easeOut",
+    },
+  },
+  tap: {
+    scale: 0.98,
+  },
+};
 
 /**
  * NavigationDrawer Component
@@ -121,22 +148,30 @@ const NavigationDrawer = memo(function NavigationDrawer() {
       <Toolbar />
       <Box className="overflow-auto">
         <List sx={{ px: 1 }}>
-          {tabs.map((tab) => (
-            <ListItem
-              button
+          {tabs.map((tab, index) => (
+            <motion.div
               key={tab.label}
-              onClick={() => navigate(tab.path)}
-              sx={getListItemStyles(tab.path)}
+              custom={index}
+              variants={listItemVariants}
+              initial="hidden"
+              animate="visible"
+              whileHover="hover"
+              whileTap="tap"
             >
-              <ListItemIcon sx={getIconStyles(tab.path)}>
-                {tab.icon}
-              </ListItemIcon>
-              <ListItemText
-                primary={tab.label}
-                sx={getTextStyles(tab.path)}
-                className="overflow-hidden text-ellipsis whitespace-nowrap"
-              />
-            </ListItem>
+              <ListItemButton
+                onClick={() => navigate(tab.path)}
+                sx={getListItemStyles(tab.path)}
+              >
+                <ListItemIcon sx={getIconStyles(tab.path)}>
+                  {tab.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={tab.label}
+                  sx={getTextStyles(tab.path)}
+                  className="overflow-hidden text-ellipsis whitespace-nowrap"
+                />
+              </ListItemButton>
+            </motion.div>
           ))}
         </List>
       </Box>

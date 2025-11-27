@@ -7,12 +7,27 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
 
 from automation import RedeemAutofill, RetryHelper
 from automation.ImageProcessor import find_correct_avatar
+from automation.Selectors import (
+    SHOPPING_SCREEN,
+    SHOPPING_CURRENT_POINTS,
+    SHOPPING_ITEM,
+    SHOPPING_ITEM_NAME,
+    SHOPPING_ITEM_PRICE,
+    SHOPPING_ITEM_BUTTON,
+    SHOPPING_ITEM_COUNT,
+    SHOPPING_DURATION,
+    SHOPPING_CONFIRM_DIALOG,
+    SHOPPING_CONFIRM_OK,
+    SHOPPING_REDEEM_CODE,
+    SHOPPING_COPY_BUTTON,
+    SHOPPING_CLOSE_BUTTON,
+)
 from core.GlobalVar import CONFIG, settings
 from utils.DataHandler import load_shopping_data, save_shopping_data
 from utils.StringUtil import (
@@ -24,25 +39,148 @@ from . import HuntModeHandler as HuntMode
 
 logger = logging.getLogger(__name__)
 
-# Selector constants
-SHOPPING_BUTTON_SELECTOR = 1  # nth image role
-SHOPPING_SCREEN_SELECTOR = ".wrapper-O3T67n"
-CURRENT_POINT_SELECTOR = ".bubbleCnt-hsQFy-"
-ITEM_SELECTOR = ".item-6Owrjq"
-ITEM_NAME_SELECTOR = ".itemName-NypcHW"
-ITEM_PRICE_SELECTOR = ".itemPriceNum-cd1EE-"
-ITEM_BUTTON_SELECTOR = ".itemBtn-gTL1Rd"
-ITEM_COUNT_SELECTOR = ".itemCnt-7wIR4D"
-DURATION_SELECTOR = ".bubbleExpire-L4jUSs"
-CONFIRM_DIALOG_SELECTOR = ".confirm-5fGU8Q"
-CONFIRM_OK_SELECTOR = ".confirmOk-vBKGy6"
-REDEEM_CODE_SELECTOR = "div.gainCodeCopyInput-QcgdvD"
-COPY_BUTTON_SELECTOR = "div.gainCodeCopyBtn-Lwk9eR"
-CLOSE_BUTTON_SELECTOR = ".gainClose-7Q0hz8"
-
 # Constants
+SHOPPING_BUTTON_SELECTOR = 1  # nth image role for shopping button
 TIME_PATTERN = re.compile(r"^\d+:\d{2}:\d{2}$")  # Allow any number of digits for hours
 EXCHANGE_BUTTON_TEXT = "Exchange"
+
+
+# ===== UTILITY FUNCTIONS =====
+
+
+def open_shopping_screen(page: Page) -> bool:
+    """Open the shopping screen and return success status.
+
+    Args:
+        page: Playwright Page instance
+
+    Returns:
+        True if shopping screen opened successfully, False otherwise
+    """
+    shopping_button = page.get_by_role("img").nth(SHOPPING_BUTTON_SELECTOR)
+    shopping_screen = page.locator(SHOPPING_SCREEN)
+
+    if not RetryHelper.retry_until_screen_appears(shopping_screen, shopping_button):
+        logger.error("Failed to open shopping screen")
+        return False
+
+    logger.info("Shopping screen opened")
+    return True
+
+
+def select_zzz_avatar(page: Page) -> bool:
+    """Select the ZZZ avatar and wait for page load.
+
+    Args:
+        page: Playwright Page instance
+
+    Returns:
+        True if avatar selected successfully, False otherwise
+    """
+    zzz_avatar = find_correct_avatar(page)
+    if not zzz_avatar:
+        logger.error("ZZZ avatar not found")
+        return False
+
+    zzz_avatar.click()
+    logger.info("Selected ZZZ avatar")
+    # Wait for DOM to be loaded instead of networkidle for more reliability
+    # networkidle can timeout on pages with continuous network activity
+    page.wait_for_load_state("domcontentloaded", timeout=10000)
+    # Add a small delay to ensure content is rendered
+    page.wait_for_timeout(1000)
+    return True
+
+
+def load_or_gather_shopping_data(page: Page, current_points: int) -> Dict:
+    """Load existing shopping data or gather fresh data based on duration.
+
+    Args:
+        page: Playwright Page instance
+        current_points: Current point balance
+
+    Returns:
+        Shopping data dictionary
+    """
+    file_path = Path(CONFIG["SHOPPING_FILE"])
+    existing_data = load_shopping_data(file_path)
+
+    if existing_data:
+        duration = existing_data.get("Duration", {})
+        if is_current_time_in_duration(duration):
+            logger.info("Current time within event duration, updating existing data")
+            # Gather new data
+            new_data = gather_data(page, current_points)
+
+            # Merge Purchased lists (keep old + add new)
+            old_purchased = set(existing_data.get("Purchased", []))
+            new_purchased = set(new_data.get("Purchased", []))
+            merged_purchased = list(old_purchased | new_purchased)
+
+            # Update existing data with new data
+            existing_data.update(new_data)
+            existing_data["Purchased"] = merged_purchased
+            shopping_data = existing_data
+
+            logger.debug(f"Merged purchased list: {merged_purchased}")
+        else:
+            logger.info("Event duration expired, gathering fresh data")
+            shopping_data = gather_data(page, current_points)
+    else:
+        logger.info("No existing data found, gathering fresh data")
+        shopping_data = gather_data(page, current_points)
+
+    return shopping_data
+
+
+def handle_exchange_dialog(page: Page, item_name: str) -> Optional[str]:
+    """Handle the exchange confirmation dialog and return redemption code.
+
+    Args:
+        page: Playwright Page instance
+        item_name: Name of the item being exchanged
+
+    Returns:
+        Redemption code if successful, None if failed
+    """
+    try:
+        # Wait for and handle confirmation dialog
+        confirm_dialog = page.locator(SHOPPING_CONFIRM_DIALOG)
+
+        if not confirm_dialog.is_visible(timeout=5000):
+            logger.warning("Confirmation dialog did not appear")
+            return None
+
+        logger.info("Confirmation dialog detected")
+        confirm_ok_button = page.locator(SHOPPING_CONFIRM_OK)
+        confirm_ok_button.click()
+
+        # Extract redemption code
+        code_element = page.locator(SHOPPING_REDEEM_CODE)
+        code_element.wait_for(state="visible", timeout=5000)
+        redeem_code = code_element.inner_text()
+
+        # Copy code to clipboard
+        copy_button = page.locator(SHOPPING_COPY_BUTTON)
+        copy_button.click()
+        logger.info(f"Copied redemption code for '{item_name}'")
+
+        # Close dialog
+        close_button = page.locator(SHOPPING_CLOSE_BUTTON)
+        close_button.click()
+        logger.info(f"Closed exchange dialog for '{item_name}'")
+
+        return redeem_code
+
+    except PlaywrightTimeoutError as e:
+        logger.error(f"Timeout while handling dialog for '{item_name}': {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Error handling dialog for '{item_name}': {e}")
+        return None
+
+
+# ===== END UTILITY FUNCTIONS =====
 
 
 def is_current_time_in_duration(duration: Dict[str, str]) -> bool:
@@ -90,7 +228,7 @@ def _extract_item_availability(item_locator: Locator) -> tuple[int, str]:
     Returns:
         Tuple of (inventory_count, availability_status)
     """
-    button_text = item_locator.locator(ITEM_BUTTON_SELECTOR).inner_text()
+    button_text = item_locator.locator(SHOPPING_ITEM_BUTTON).inner_text()
 
     # Check if button shows countdown timer
     if TIME_PATTERN.match(button_text):
@@ -99,7 +237,7 @@ def _extract_item_availability(item_locator: Locator) -> tuple[int, str]:
         return 0, return_time
     else:
         # Item is available, get inventory count
-        inventory_text = item_locator.locator(ITEM_COUNT_SELECTOR).inner_text()
+        inventory_text = item_locator.locator(SHOPPING_ITEM_COUNT).inner_text()
         inventory = extract_number_from_string(inventory_text)
         return inventory, button_text
 
@@ -115,10 +253,10 @@ def check_and_process_item(item_locator: Locator) -> Dict[str, any]:
     """
     try:
         # Extract item name
-        item_name = item_locator.locator(ITEM_NAME_SELECTOR).inner_text()
+        item_name = item_locator.locator(SHOPPING_ITEM_NAME).inner_text()
 
         # Extract and parse price
-        price_text = item_locator.locator(ITEM_PRICE_SELECTOR).inner_text()
+        price_text = item_locator.locator(SHOPPING_ITEM_PRICE).inner_text()
         item_price = int(price_text.replace(",", ""))
 
         # Extract availability
@@ -160,13 +298,13 @@ def _extract_current_points(page: Page) -> int:
     logger.info("Extracting current points...")
 
     try:
-        point_element = page.locator(CURRENT_POINT_SELECTOR)
+        point_element = page.locator(SHOPPING_CURRENT_POINTS)
 
         # Wait for element to be visible and have content
         point_element.wait_for(state="visible", timeout=5000)
         # Wait for non-empty text content instead of fixed timeout
         page.wait_for_function(
-            f"document.querySelector('{CURRENT_POINT_SELECTOR}')?.innerText?.trim().length > 0",
+            f"document.querySelector('{SHOPPING_CURRENT_POINTS}')?.innerText?.trim().length > 0",
             timeout=5000,
         )
 
@@ -195,7 +333,7 @@ def _extract_current_points(page: Page) -> int:
             f"Point text was: '{point_text if 'point_text' in locals() else 'N/A'}'"
         )
         raise ValueError(
-            f"Could not parse point balance from element {CURRENT_POINT_SELECTOR}"
+            f"Could not parse point balance from element {SHOPPING_CURRENT_POINTS}"
         ) from e
 
 
@@ -214,7 +352,7 @@ def gather_data(page: Page, point: int) -> Dict:
     purchased_items = []  # Track items with "Limit Reached" status
 
     # Count and process all items
-    item_locators = page.locator(ITEM_SELECTOR)
+    item_locators = page.locator(SHOPPING_ITEM)
     item_count = RetryHelper.retry_until_non_zero_count(item_locators)
 
     if item_count == 0:
@@ -247,7 +385,7 @@ def gather_data(page: Page, point: int) -> Dict:
 
     # Extract event duration
     try:
-        duration_text = page.locator(DURATION_SELECTOR).inner_text()
+        duration_text = page.locator(SHOPPING_DURATION).inner_text()
         duration = extract_and_convert_duration(duration_text)
         logger.info(f"Event duration: {duration}")
     except Exception as e:
@@ -278,62 +416,23 @@ def run(page: Page) -> None:
     logger.info("Starting shopping automation...")
 
     try:
-        # Initialize shopping screen (opens the shopping panel)
-        shopping_button = page.get_by_role("img").nth(SHOPPING_BUTTON_SELECTOR)
-        shopping_screen = page.locator(SHOPPING_SCREEN_SELECTOR)
-
-        if not RetryHelper.retry_until_screen_appears(shopping_screen, shopping_button):
-            logger.error("Failed to open shopping screen")
+        # Open shopping screen
+        if not open_shopping_screen(page):
             return
 
-        logger.info("Shopping screen opened")
-
-        # Navigate to ZZZ avatar FIRST
-        zzz_avatar = find_correct_avatar(page)
-        if not zzz_avatar:
-            logger.error("ZZZ avatar not found, cannot proceed with shopping")
+        # Select ZZZ avatar
+        if not select_zzz_avatar(page):
+            logger.error("Cannot proceed with shopping")
             return
 
-        zzz_avatar.click()
-        logger.info("Selected ZZZ avatar")
-
-        # NOW extract points after selecting the game
-        # Wait for network activity to settle after avatar selection
-        page.wait_for_load_state("networkidle", timeout=5000)
+        # Extract current points after selecting the game
         current_points = _extract_current_points(page)
 
         # Load or gather shopping data
-        file_path = Path(CONFIG["SHOPPING_FILE"])
-        existing_data = load_shopping_data(file_path)
-
-        if existing_data:
-            duration = existing_data.get("Duration", {})
-            if is_current_time_in_duration(duration):
-                logger.info(
-                    "Current time within event duration, updating existing data"
-                )
-                # Gather new data
-                new_data = gather_data(page, current_points)
-
-                # Merge Purchased lists (keep old + add new)
-                old_purchased = set(existing_data.get("Purchased", []))
-                new_purchased = set(new_data.get("Purchased", []))
-                merged_purchased = list(old_purchased | new_purchased)
-
-                # Update existing data with new data
-                existing_data.update(new_data)
-                existing_data["Purchased"] = merged_purchased
-                shopping_data = existing_data
-
-                logger.debug(f"Merged purchased list: {merged_purchased}")
-            else:
-                logger.info("Event duration expired, gathering fresh data")
-                shopping_data = gather_data(page, current_points)
-        else:
-            logger.info("No existing data found, gathering fresh data")
-            shopping_data = gather_data(page, current_points)
+        shopping_data = load_or_gather_shopping_data(page, current_points)
 
         # Save data
+        file_path = Path(CONFIG["SHOPPING_FILE"])
         save_shopping_data(file_path, shopping_data)
         shopping_data = load_shopping_data(file_path)
 
@@ -364,7 +463,7 @@ def _process_single_item(page: Page, item_name: str, item_data: Dict) -> bool:
     logger.info(f"Processing item: {item_name}")
 
     # Locate item on page
-    item_locator = page.locator(ITEM_SELECTOR).filter(
+    item_locator = page.locator(SHOPPING_ITEM).filter(
         has=page.get_by_text(item_name, exact=True)
     )
 
@@ -374,7 +473,7 @@ def _process_single_item(page: Page, item_name: str, item_data: Dict) -> bool:
 
     # Check exchange button
     try:
-        exchange_button = item_locator.locator(ITEM_BUTTON_SELECTOR)
+        exchange_button = item_locator.locator(SHOPPING_ITEM_BUTTON)
         button_text = exchange_button.inner_text()
 
         if button_text != EXCHANGE_BUTTON_TEXT:
@@ -387,31 +486,10 @@ def _process_single_item(page: Page, item_name: str, item_data: Dict) -> bool:
         exchange_button.click()
         logger.info(f"Clicked exchange button for '{item_name}'")
 
-        # Wait for and handle confirmation dialog
-        confirm_dialog = page.locator(CONFIRM_DIALOG_SELECTOR)
-
-        if not confirm_dialog.is_visible(timeout=5000):
-            logger.warning("Confirmation dialog did not appear")
+        # Handle exchange dialog and get redemption code
+        redeem_code = handle_exchange_dialog(page, item_name)
+        if not redeem_code:
             return False
-
-        logger.info("Confirmation dialog detected")
-        confirm_ok_button = page.locator(CONFIRM_OK_SELECTOR)
-        confirm_ok_button.click()
-
-        # Extract and process redemption code
-        code_element = page.locator(REDEEM_CODE_SELECTOR)
-        code_element.wait_for(state="visible", timeout=5000)
-        redeem_code = code_element.inner_text()
-
-        # Copy code to clipboard
-        copy_button = page.locator(COPY_BUTTON_SELECTOR)
-        copy_button.click()
-        logger.info(f"Copied redemption code for '{item_name}'")
-
-        # Close dialog BEFORE redeeming to avoid context issues
-        close_button = page.locator(CLOSE_BUTTON_SELECTOR)
-        close_button.click()
-        logger.info(f"Closed exchange dialog for '{item_name}'")
 
         # Brief pause to ensure dialog is fully closed
         page.wait_for_timeout(500)
@@ -533,24 +611,13 @@ def execute_shopping_with_existing_data(page: Page) -> bool:
 
     try:
         # Open shopping screen
-        shopping_button = page.get_by_role("img").nth(SHOPPING_BUTTON_SELECTOR)
-        shopping_screen = page.locator(SHOPPING_SCREEN_SELECTOR)
-
-        if not RetryHelper.retry_until_screen_appears(shopping_screen, shopping_button):
+        if not open_shopping_screen(page):
             logger.error("Failed to open shopping screen for execution")
             return False
 
-        logger.info("Shopping screen opened for execution")
-
-        # Navigate to ZZZ avatar
-        zzz_avatar = find_correct_avatar(page)
-        if not zzz_avatar:
-            logger.error("ZZZ avatar not found")
+        # Select ZZZ avatar
+        if not select_zzz_avatar(page):
             return False
-
-        zzz_avatar.click()
-        logger.info("Selected ZZZ avatar")
-        page.wait_for_load_state("networkidle", timeout=5000)
 
         # Load existing shopping data
         file_path = Path(CONFIG["SHOPPING_FILE"])
@@ -589,58 +656,22 @@ def gather_shopping_data_only(page: Page) -> bool:
 
     try:
         # Open shopping screen
-        shopping_button = page.get_by_role("img").nth(SHOPPING_BUTTON_SELECTOR)
-        shopping_screen = page.locator(SHOPPING_SCREEN_SELECTOR)
-
-        if not RetryHelper.retry_until_screen_appears(shopping_screen, shopping_button):
+        if not open_shopping_screen(page):
             logger.error("Failed to open shopping screen for data gathering")
             return False
 
-        logger.info("Shopping screen opened for data gathering")
-
-        # Navigate to ZZZ avatar
-        zzz_avatar = find_correct_avatar(page)
-        if not zzz_avatar:
-            logger.error("ZZZ avatar not found")
+        # Select ZZZ avatar
+        if not select_zzz_avatar(page):
             return False
-
-        zzz_avatar.click()
-        logger.info("Selected ZZZ avatar")
-        page.wait_for_load_state("networkidle", timeout=5000)
 
         # Extract current points
         current_points = _extract_current_points(page)
 
-        # Load existing data to preserve certain fields
-        file_path = Path(CONFIG["SHOPPING_FILE"])
-        existing_data = load_shopping_data(file_path)
-
-        if existing_data:
-            duration = existing_data.get("Duration", {})
-            if is_current_time_in_duration(duration):
-                logger.info("Current time within event duration, updating existing data")
-                # Gather new data
-                new_data = gather_data(page, current_points)
-
-                # Merge Purchased lists (keep old + add new)
-                old_purchased = set(existing_data.get("Purchased", []))
-                new_purchased = set(new_data.get("Purchased", []))
-                merged_purchased = list(old_purchased | new_purchased)
-
-                # Update existing data with new data
-                existing_data.update(new_data)
-                existing_data["Purchased"] = merged_purchased
-                shopping_data = existing_data
-
-                logger.debug(f"Merged purchased list: {merged_purchased}")
-            else:
-                logger.info("Event duration expired, gathering fresh data")
-                shopping_data = gather_data(page, current_points)
-        else:
-            logger.info("No existing data found, gathering fresh data")
-            shopping_data = gather_data(page, current_points)
+        # Load or gather shopping data
+        shopping_data = load_or_gather_shopping_data(page, current_points)
 
         # Save data
+        file_path = Path(CONFIG["SHOPPING_FILE"])
         save_shopping_data(file_path, shopping_data)
         logger.info("Shopping data gathering phase completed")
 

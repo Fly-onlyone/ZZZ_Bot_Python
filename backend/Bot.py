@@ -71,9 +71,17 @@ def _close_shopping_screen_helper(page):
                 logger.info(f"Close button visible: {is_visible}")
 
                 if is_visible:
-                    close_button.click(force=True)
+                    # Click without force to trigger proper event handlers
+                    close_button.click()
                     logger.info("Clicked shopping close button")
-                    page.wait_for_timeout(500)
+                    # Wait longer for page transition/animation to complete
+                    page.wait_for_timeout(1500)
+                    # Wait for any network activity to settle
+                    try:
+                        page.wait_for_load_state("domcontentloaded", timeout=3000)
+                    except Exception:
+                        # Ignore timeout, continue anyway
+                        pass
                 else:
                     logger.warning("Close button exists but not visible")
             else:
@@ -81,7 +89,7 @@ def _close_shopping_screen_helper(page):
 
             # Try Escape key as well
             page.keyboard.press("Escape")
-            page.wait_for_timeout(500)
+            page.wait_for_timeout(1000)
 
             # Check if screen disappeared
             if not shopping_screen.is_visible(timeout=2000):
@@ -145,15 +153,15 @@ def playwright_task():
             logger.info("Task cancelled due to setting.")
 
         # Phase 1: Execute shopping with existing data (before draw)
-        shopping_execution_success = True
         if settings.gather_shopping_data and settings.exchange_good:
             logger.info("=== PHASE 1: Shopping Execution (Before Draw) ===")
             shopping_execution_success = ShoppingHandler.execute_shopping_with_existing_data(mino_page)
 
-            if shopping_execution_success:
-                # Close shopping screen
-                _close_shopping_screen_helper(mino_page)
-            else:
+            # Always close shopping screen whether execution succeeded or failed
+            # to prevent interference with subsequent tasks (draw, etc.)
+            _close_shopping_screen_helper(mino_page)
+
+            if not shopping_execution_success:
                 logger.warning("Shopping execution phase failed, continuing anyway")
 
         if settings.draw_item:
@@ -177,9 +185,11 @@ def playwright_task():
             logger.info("=== PHASE 2: Shopping Data Gathering (After Draw) ===")
             gathering_success = ShoppingHandler.gather_shopping_data_only(mino_page)
 
+            # Always close shopping screen whether gathering succeeded or failed
+            # to ensure browser state is clean for future operations
+            _close_shopping_screen_helper(mino_page)
+
             if gathering_success:
-                # Close shopping screen
-                _close_shopping_screen_helper(mino_page)
                 # Reschedule hunt tasks after shopping data is updated
                 schedule_hunt_tasks()
             else:
