@@ -7,3 +7,6 @@ backend/playwright-browsers/
 __pycache__/
 *.pyc
 *.pyo
+
+# Windows null device file created by subprocess
+nul

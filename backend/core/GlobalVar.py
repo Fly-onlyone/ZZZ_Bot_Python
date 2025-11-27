@@ -1,6 +1,7 @@
 import os
 import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import List
 
 from fastapi import FastAPI
@@ -42,7 +43,16 @@ def resource_path(relative_path, outside_path=False):
 
         return final_path
     else:
-        return relative_path
+        # Development mode: resolve paths relative to project root
+        if outside_path:
+            # For user data (output, screenshots, etc.)
+            # Get project root: __file__ is backend/core/GlobalVar.py
+            # .parent = backend/core, .parent.parent = backend, .parent.parent.parent = project root
+            project_root = Path(__file__).parent.parent.parent
+            return str(project_root / normalized_path)
+        else:
+            # For bundled resources, keep relative to allow normal imports
+            return relative_path
 
 
 def generate_config(outside_folder, exclude_keys=None):

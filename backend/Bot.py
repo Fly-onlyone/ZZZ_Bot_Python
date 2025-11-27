@@ -424,8 +424,24 @@ if __name__ == "__main__":
         sys.stdout = Logger(app_log, logging.INFO)
         sys.stderr = Logger(app_log, logging.ERROR)
     else:
-        # Development mode - log to console
+        # Development mode - log to both console and file
         print("Running in normal Python process (dev mode)")
+
+        # Ensure logs directory exists
+        os.makedirs("backend/logs", exist_ok=True)
+
+        # Configure file logging for development
+        file_handler = TimedRotatingFileHandler(
+            filename="backend/logs/app.log",
+            when="D",  # rollover every day
+            interval=1,  # 1-day interval
+            backupCount=7,  # Keep only 7 days of logs
+            encoding="utf-8",
+        )
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
+        file_handler.addFilter(NoImportFilter())
 
         # Configure console logging for development
         console_handler = logging.StreamHandler()
@@ -434,9 +450,10 @@ if __name__ == "__main__":
         )
         console_handler.addFilter(NoImportFilter())
 
-        # Attach handler to root logger
+        # Attach both handlers to root logger
         root = logging.getLogger()
         root.setLevel(logging.DEBUG)
+        root.addHandler(file_handler)
         root.addHandler(console_handler)
 
     # === 2. Start React Dev Server (non-exe mode) ===
@@ -444,7 +461,11 @@ if __name__ == "__main__":
         try:
             print("Starting React dev server...")
             react_server = subprocess.Popen(
-                ["npm", "run", "dev"], cwd="./frontend", shell=True
+                ["npm", "run", "dev"],
+                cwd="./frontend",
+                shell=True,
+                stdout=sys.__stdout__,  # Use original stdout to see dev server output
+                stderr=sys.__stderr__   # Use original stderr
             )
         except Exception as e:
             print(f"Error starting React server: {e}")
