@@ -13,9 +13,8 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from core import ManualLogin
 from core.GlobalVar import accounts, CONFIG, settings, RedeemItem
-from core.ManualLogin import run, playState_lock
+from core.ManualLogin import run
 from utils.DataHandler import load_shopping_data, prepare_mission_data, load_redeem_data
 
 logger = logging.getLogger(__name__)
