@@ -7,6 +7,7 @@
 
 // Common Components
 export { default as SaveButton } from "./common/SaveButton.jsx";
+export { default as SectionCard } from "./common/SectionCard.jsx";
 
 // Field Components
 export { default as ArrayField } from "./fields/ArrayField.jsx";

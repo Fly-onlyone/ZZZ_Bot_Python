@@ -157,23 +157,51 @@ const SaveButton = ({ onSave, alert, setAlert }) => {
   // STYLE 6: Neon Glow (Vibrant & Eye-catching)
   const neonStyle = {
     mt: 2,
-    px: 2.5,
-    py: 1,
-    background: "transparent",
-    border: `2px solid ${themeColors.primary.main}`,
-    color: themeColors.primary.light,
+    px: 3,
+    py: 1.2,
+    background: "rgba(15, 23, 42, 0.4)",
+    border: `1px solid ${themeColors.primary.main}60`, // Even softer border
+    color: themeColors.primary.main,
     fontWeight: 600,
     borderRadius: "8px",
-    textShadow: `0 0 5px ${themeColors.primary.light}40`,
-    boxShadow: `0 0 6px ${themeColors.primary.main}60, inset 0 0 6px ${themeColors.alpha.card}`,
-    transition: TRANSITIONS.default,
+    position: "relative",
+    backdropFilter: "blur(10px)",
+    // Minimal initial shadow
+    boxShadow: `0 0 5px ${themeColors.primary.main}10`,
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderRadius: "8px",
+      // Very subtle hover glow
+      boxShadow: `0 0 10px ${themeColors.primary.main}20`,
+      opacity: 0,
+      transition: "opacity 0.3s ease",
+    },
     "&:hover": {
-      background: themeColors.primary.main,
-      color: "#ffffff",
-      border: `2px solid ${themeColors.secondary.light}`,
-      textShadow: "none",
-      boxShadow: `0 0 12px ${themeColors.secondary.main}70, 0 0 20px ${themeColors.secondary.main}40, inset 0 0 10px ${themeColors.alpha.hover}`,
-      transform: "translateY(-2px)",
+      background: `${themeColors.primary.main}40`, // 40% opacity instead of solid
+      color: themeColors.primary.light, // Use light primary instead of pure white
+      border: `1px solid ${themeColors.primary.main}`,
+      transform: "translateY(-1px)",
+      // dim hover shadow
+      boxShadow: `
+        0 2px 10px ${themeColors.primary.main}10,
+        0 1px 5px ${themeColors.primary.main}05
+      `,
+      "&::before": {
+        opacity: 0.5, // Reduced opacity
+      },
+      "& .MuiButton-startIcon": {
+        color: themeColors.primary.light,
+      },
+    },
+    "&:active": {
+      transform: "scale(0.99)",
+      boxShadow: `0 0 5px ${themeColors.primary.main}10`,
     },
   };
 

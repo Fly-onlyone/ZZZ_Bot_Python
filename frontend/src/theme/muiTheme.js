@@ -18,32 +18,40 @@ import { TRANSITIONS } from "./styles";
  */
 function createComponentOverrides(prefersDarkMode, themeColors) {
   return {
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: {
+          scrollbarColor: prefersDarkMode
+            ? "#334155 #0f172a"
+            : "#cbd5e1 #f1f5f9",
+          "&::-webkit-scrollbar, & *::-webkit-scrollbar": {
+            width: "8px",
+            height: "8px",
+          },
+          "&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb": {
+            borderRadius: 8,
+            minHeight: 24,
+          },
+        },
+      },
+    },
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
           transition: TRANSITIONS.cubic,
           "& .MuiOutlinedInput-notchedOutline": {
-            borderColor: themeColors.primary.main,
-            borderWidth: 2,
+            borderColor: themeColors.alpha.cardBorder,
+            borderWidth: 1,
             transition: TRANSITIONS.cubic,
           },
           "&:hover .MuiOutlinedInput-notchedOutline": {
-            borderColor: themeColors.secondary.main,
-            boxShadow: `
-              0 0 8px ${themeColors.alpha.hover},
-              0 0 16px ${themeColors.primary.main}40,
-              0 0 24px ${themeColors.secondary.main}20
-            `,
+            borderColor: themeColors.primary.main,
+            boxShadow: `0 0 12px ${themeColors.alpha.hover}`,
           },
           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-            borderColor: themeColors.secondary.light,
+            borderColor: themeColors.primary.main,
             borderWidth: 2,
-            boxShadow: `
-              0 0 10px ${themeColors.alpha.hover},
-              0 0 20px ${themeColors.primary.main}60,
-              0 0 30px ${themeColors.secondary.main}40,
-              inset 0 0 15px ${themeColors.alpha.card}
-            `,
+            boxShadow: `0 0 16px ${themeColors.alpha.hover}`,
           },
         },
       },
@@ -54,27 +62,18 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
         root: {
           transition: TRANSITIONS.cubic,
           "& .MuiOutlinedInput-notchedOutline": {
-            borderColor: themeColors.primary.main,
-            borderWidth: 2,
+            borderColor: themeColors.alpha.cardBorder,
+            borderWidth: 1,
             transition: TRANSITIONS.cubic,
           },
           "&:hover .MuiOutlinedInput-notchedOutline": {
-            borderColor: themeColors.secondary.main,
-            boxShadow: `
-              0 0 8px ${themeColors.alpha.hover},
-              0 0 16px ${themeColors.primary.main}40,
-              0 0 24px ${themeColors.secondary.main}20
-            `,
+            borderColor: themeColors.primary.main,
+            boxShadow: `0 0 12px ${themeColors.alpha.hover}`,
           },
           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-            borderColor: themeColors.secondary.light,
+            borderColor: themeColors.primary.main,
             borderWidth: 2,
-            boxShadow: `
-              0 0 10px ${themeColors.alpha.hover},
-              0 0 20px ${themeColors.primary.main}60,
-              0 0 30px ${themeColors.secondary.main}40,
-              inset 0 0 15px ${themeColors.alpha.card}
-            `,
+            boxShadow: `0 0 16px ${themeColors.alpha.hover}`,
           },
         },
       },
@@ -84,9 +83,10 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
       styleOverrides: {
         root: {
           color: COMMON_COLORS.text.muted,
+          fontFamily: '"Outfit", sans-serif',
           transition: TRANSITIONS.cubic,
           "&.Mui-focused": {
-            color: themeColors.secondary.light,
+            color: themeColors.primary.main,
           },
         },
       },
@@ -95,7 +95,8 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
     MuiInputBase: {
       styleOverrides: {
         root: {
-          color: COMMON_COLORS.text.secondary,
+          color: COMMON_COLORS.text.primary,
+          fontFamily: '"Inter", sans-serif',
           transition: TRANSITIONS.cubic,
         },
       },
@@ -115,10 +116,10 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
           background: prefersDarkMode
             ? themeColors.gradients.background
             : "#ffffff",
-          borderRadius: "0 16px 16px 0",
+          borderRadius: "0 24px 24px 0",
           border: "none",
-          borderRight: `1px solid ${prefersDarkMode ? "#334155" : "#e2e8f0"}`,
-          boxShadow: "4px 0 24px rgba(0, 0, 0, 0.15)",
+          borderRight: `1px solid ${themeColors.alpha.divider}`,
+          boxShadow: `4px 0 24px ${themeColors.alpha.hover}`,
           transition: TRANSITIONS.cubic,
         },
       },
@@ -127,14 +128,10 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
     MuiAppBar: {
       styleOverrides: {
         root: {
-          background: prefersDarkMode
-            ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
-            : themeColors.gradients.primary,
-          backdropFilter: "blur(10px)",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.2)",
-          borderBottom: `1px solid ${
-            prefersDarkMode ? "#334155" : "rgba(255,255,255,0.1)"
-          }`,
+          background: themeColors.gradients.header, // Use theme gradient
+          backdropFilter: "blur(12px)",
+          boxShadow: "none",
+          borderBottom: `1px solid ${themeColors.alpha.divider}`,
           transition: TRANSITIONS.cubic,
         },
       },
@@ -143,13 +140,21 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: "8px",
+          borderRadius: "12px",
           textTransform: "none",
+          fontFamily: '"Outfit", sans-serif',
           fontWeight: 600,
           transition: TRANSITIONS.cubic,
           "&:hover": {
             transform: "translateY(-2px)",
-            boxShadow: `0 6px 20px ${themeColors.alpha.hover}`,
+            boxShadow: `0 4px 12px ${themeColors.alpha.hover}`,
+          },
+        },
+        contained: {
+          background: themeColors.gradients.primary,
+          boxShadow: `0 4px 12px ${themeColors.alpha.hover}`,
+          "&:hover": {
+            background: themeColors.gradients.primaryLight,
           },
         },
       },
@@ -160,6 +165,62 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
         root: {
           backgroundImage: "none",
           transition: TRANSITIONS.cubic,
+          "&.MuiMenu-paper": {
+            background: prefersDarkMode
+              ? "rgba(30, 41, 59, 0.9)"
+              : "rgba(255, 255, 255, 0.9)",
+            backdropFilter: "blur(12px)",
+            border: `1px solid ${themeColors.alpha.divider}`,
+            borderRadius: "16px",
+            boxShadow: `0 8px 32px ${themeColors.alpha.cardBorder}`,
+          },
+        },
+      },
+    },
+
+    MuiDataGrid: {
+      styleOverrides: {
+        root: {
+          border: `1px solid ${themeColors.alpha.cardBorder}`,
+          borderRadius: "16px",
+          background: themeColors.alpha.card,
+          backdropFilter: "blur(12px)",
+          color: COMMON_COLORS.text.primary,
+          "& .MuiDataGrid-cell": {
+            borderBottom: `1px solid ${themeColors.alpha.divider}`,
+          },
+          "& .MuiDataGrid-columnHeaders": {
+            backgroundColor: `${themeColors.alpha.card} !important`,
+            borderBottom: `1px solid ${themeColors.alpha.divider}`,
+            color: themeColors.primary.light,
+            fontSize: "0.95rem",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            "& > div": {
+              backgroundColor: `${themeColors.alpha.card} !important`,
+            },
+          },
+          "& .MuiDataGrid-footerContainer": {
+            borderTop: `1px solid ${themeColors.alpha.divider}`,
+            backgroundColor: `${themeColors.alpha.card} !important`,
+            color: COMMON_COLORS.text.secondary,
+          },
+          "& .MuiDataGrid-row:hover": {
+            background: themeColors.alpha.hover,
+          },
+          "& .MuiDataGrid-row.Mui-selected": {
+            background: `${themeColors.primary.main}1A`, // 10% opacity
+            "&:hover": {
+              background: `${themeColors.primary.main}26`, // 15% opacity
+            },
+          },
+          "& .MuiCheckbox-root": {
+            color: themeColors.alpha.divider,
+            "&.Mui-checked": {
+              color: themeColors.primary.main,
+            },
+          },
         },
       },
     },
@@ -168,8 +229,27 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
       styleOverrides: {
         root: {
           transition: TRANSITIONS.cubic,
-          borderRadius: "8px",
+          borderRadius: "12px",
           margin: "4px 8px",
+          "&:hover": {
+            background: themeColors.alpha.hover,
+          },
+        },
+      },
+    },
+
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: "12px",
+          transition: TRANSITIONS.cubic,
+          "&.Mui-selected": {
+            background: themeColors.alpha.hover,
+            border: `1px solid ${themeColors.alpha.divider}`,
+            "&:hover": {
+              background: themeColors.alpha.hover,
+            },
+          },
         },
       },
     },
@@ -183,20 +263,30 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
 function createTypography() {
   return {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h1: { fontFamily: '"Outfit", sans-serif', fontWeight: 700 },
+    h2: { fontFamily: '"Outfit", sans-serif', fontWeight: 700 },
+    h3: { fontFamily: '"Outfit", sans-serif', fontWeight: 600 },
+    h4: { fontFamily: '"Outfit", sans-serif', fontWeight: 600 },
     h5: {
-      fontWeight: 700,
-      letterSpacing: "-0.02em",
-    },
-    h6: {
+      fontFamily: '"Outfit", sans-serif',
       fontWeight: 600,
       letterSpacing: "-0.01em",
+    },
+    h6: {
+      fontFamily: '"Outfit", sans-serif',
+      fontWeight: 600,
+      letterSpacing: "0.01em",
+    },
+    button: {
+      fontFamily: '"Outfit", sans-serif',
+      fontWeight: 600,
     },
   };
 }
 
 /**
  * Create complete MUI theme
- * @param {string} themeName - Theme name (purple, green, blue)
+ * @param {string} themeName - Theme name (purple, green, blue, cyber)
  * @param {boolean} prefersDarkMode - System dark mode preference
  * @param {object} themeColors - Current theme color palette
  * @returns {object} Complete MUI theme
@@ -206,5 +296,8 @@ export function createMuiTheme(themeName, prefersDarkMode, themeColors) {
     palette: createThemePalette(themeName, prefersDarkMode),
     components: createComponentOverrides(prefersDarkMode, themeColors),
     typography: createTypography(),
+    shape: {
+      borderRadius: 12,
+    },
   });
 }

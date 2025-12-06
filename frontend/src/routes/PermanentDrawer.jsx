@@ -1,7 +1,13 @@
 import React, { useEffect } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import { Box, CssBaseline, Toolbar } from "@mui/material";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import PersonIcon from "@mui/icons-material/Person";
 import PasswordIcon from "@mui/icons-material/Password";
 import AppRegistrationIcon from "@mui/icons-material/AppRegistration";
@@ -13,6 +19,7 @@ import { IconCards } from "@tabler/icons-react";
 import { AppHeader, NavigationDrawer, ValueAdapter } from "../components";
 import { ManualLogin, Overview, Redeem, Shopping } from "../pages";
 import { DataLoader } from "../services";
+import { useThemeContext } from "../theme/ThemeContext";
 
 /**
  * Page transition animation variants
@@ -20,22 +27,27 @@ import { DataLoader } from "../services";
 const pageVariants = {
   initial: {
     opacity: 0,
-    y: 20,
+    y: 10,
+    scale: 0.98,
   },
   animate: {
     opacity: 1,
     y: 0,
+    scale: 1,
     transition: {
-      duration: 0.4,
-      ease: [0.4, 0, 0.2, 1],
+      type: "spring",
+      stiffness: 100,
+      damping: 20,
+      mass: 1,
     },
   },
   exit: {
     opacity: 0,
-    y: -20,
+    y: -10,
+    scale: 0.98,
     transition: {
-      duration: 0.3,
-      ease: [0.4, 0, 0.2, 1],
+      duration: 0.2,
+      ease: "easeInOut",
     },
   },
 };
@@ -165,9 +177,10 @@ function AnimatedRoutes() {
                   theme: {
                     type: "select",
                     options: [
-                      { value: "purple", label: "Purple" },
-                      { value: "green", label: "Green" },
-                      { value: "blue", label: "Blue" },
+                      { value: "nebula", label: "Nebula" },
+                      { value: "venom", label: "Venom" },
+                      { value: "glacier", label: "Glacier" },
+                      { value: "cyber", label: "Cyber" },
                     ],
                   },
                 }}
@@ -181,14 +194,14 @@ function AnimatedRoutes() {
   );
 }
 
-/**
- * PermanentDrawer Component
- *
- * Main application layout with persistent navigation drawer and header.
- * Manages routing and data prefetching.
- */
+// PermanentDrawer Component
+//
+// Main application layout with persistent navigation drawer and header.
+// Manages routing and data prefetching.
+//
 export default function PermanentDrawer() {
   const { prefetchAllRoutes } = DataLoader();
+  const { themeColors } = useThemeContext(); // Get theme colors
 
   useEffect(() => {
     prefetchAllRoutes(); // Prefetch routes on load
@@ -196,7 +209,15 @@ export default function PermanentDrawer() {
 
   return (
     <BrowserRouter>
-      <Box className="flex bg-fixed">
+      <Box
+        className="flex"
+        sx={{
+          minHeight: "100vh",
+          background: themeColors.gradients.background,
+          backgroundAttachment: "fixed",
+          backgroundSize: "cover",
+        }}
+      >
         <CssBaseline />
         <AppHeader />
         <NavigationDrawer />

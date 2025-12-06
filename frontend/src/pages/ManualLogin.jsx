@@ -42,7 +42,8 @@ export default function ManualLogin() {
           const intervalId = setInterval(async () => {
             try {
               const stateResponse = await fetch(`${BACKEND_URL}/playstate`);
-              const { playState: backendPlayState } = await stateResponse.json();
+              const { playState: backendPlayState } =
+                await stateResponse.json();
               if (!backendPlayState) {
                 setPlayState(false); // Update the frontend playState
                 clearInterval(intervalId); // Stop checking

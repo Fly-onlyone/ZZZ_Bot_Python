@@ -12,7 +12,13 @@ import { useThemeContext } from "../../theme/ThemeContext";
  * Enhanced text field with optional password visibility toggle and copy-to-clipboard functionality.
  * Automatically handles password fields with show/hide toggle.
  */
-export default function TextField({ id, value, onChange, isPassword = false, sx = {} }) {
+export default function TextField({
+  id,
+  value,
+  onChange,
+  isPassword = false,
+  sx = {},
+}) {
   const { themeColors } = useThemeContext();
   const [passwordVisible, setPasswordVisible] = useState(false);
 
