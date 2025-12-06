@@ -96,9 +96,7 @@ def _close_shopping_screen_helper(page):
                 logger.info("Shopping screen closed successfully")
                 return True
             else:
-                logger.warning(
-                    f"Shopping screen still visible after attempt {attempt}"
-                )
+                logger.warning(f"Shopping screen still visible after attempt {attempt}")
                 # Take screenshot for debugging
                 if attempt == max_close_attempts:
                     screenshot_path = os.path.join(
@@ -155,7 +153,9 @@ def playwright_task():
         # Phase 1: Execute shopping with existing data (before draw)
         if settings.gather_shopping_data and settings.exchange_good:
             logger.info("=== PHASE 1: Shopping Execution (Before Draw) ===")
-            shopping_execution_success = ShoppingHandler.execute_shopping_with_existing_data(mino_page)
+            shopping_execution_success = (
+                ShoppingHandler.execute_shopping_with_existing_data(mino_page)
+            )
 
             # Always close shopping screen whether execution succeeded or failed
             # to prevent interference with subsequent tasks (draw, etc.)
@@ -465,7 +465,7 @@ if __name__ == "__main__":
                 cwd="./frontend",
                 shell=True,
                 stdout=sys.__stdout__,  # Use original stdout to see dev server output
-                stderr=sys.__stderr__   # Use original stderr
+                stderr=sys.__stderr__,  # Use original stderr
             )
         except Exception as e:
             print(f"Error starting React server: {e}")

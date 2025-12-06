@@ -38,7 +38,7 @@ def resource_path(relative_path, outside_path=False):
         else:
             # For bundled resources inside the exe (frontend, images, etc.)
             # Use sys._MEIPASS which points to the PyInstaller temporary folder
-            base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+            base_path = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
             final_path = os.path.abspath(os.path.join(base_path, normalized_path))
 
         return final_path

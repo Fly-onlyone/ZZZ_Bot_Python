@@ -26,7 +26,22 @@
       "Bash(timeout:*)",
       "Bash(start \"\" \"ZZZ Bot.exe\")",
       "Skill(frontend-design:frontend-design)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_close",
+      "mcp__pycharm__get_file_problems",
+      "mcp__pycharm__find_files_by_glob",
+      "mcp__pycharm__reformat_file",
+      "Bash(find:*)",
+      "Bash(set:*)",
+      "Bash(powershell -Command \"Get-Item ''C:\\Users\\PC\\Documents\\Playwright\\ZZZ bot - Python\\product\\dist\\ZZZ Bot.exe'' | Select-Object Name, Length, LastWriteTime | Format-List\")",
+      "Bash(iscc:*)",
+      "Bash(powershell:*)",
+      "Bash(\"C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe\" installer.iss)"
     ],
     "deny": [],
     "ask": []

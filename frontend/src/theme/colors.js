@@ -4,13 +4,13 @@
 
 import { COMMON_COLORS, getThemeColors, THEME_COLORS } from "./themes";
 
-// Export default purple theme colors for backward compatibility
-const purpleTheme = THEME_COLORS.purple;
+// Export default nebula theme colors for backward compatibility
+const defaultTheme = THEME_COLORS.nebula;
 
 export const COLORS = {
-  // Primary - from selected theme (defaults to purple)
-  primary: purpleTheme.primary,
-  secondary: purpleTheme.secondary,
+  // Primary - from selected theme (defaults to nebula)
+  primary: defaultTheme.primary,
+  secondary: defaultTheme.secondary,
 
   // Semantic colors (common across all themes)
   success: COMMON_COLORS.success,
@@ -25,11 +25,11 @@ export const COLORS = {
   background: COMMON_COLORS.background,
 };
 
-// Gradient definitions (defaults to purple theme)
-export const GRADIENTS = purpleTheme.gradients;
+// Gradient definitions (defaults to nebula theme)
+export const GRADIENTS = defaultTheme.gradients;
 
 // Common alpha values for transparency
-export const ALPHA = purpleTheme.alpha;
+export const ALPHA = defaultTheme.alpha;
 
 // Re-export theme utilities
 export { THEME_COLORS, COMMON_COLORS, getThemeColors } from "./themes";

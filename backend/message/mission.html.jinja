@@ -1,9 +1,13 @@
 {% set theme_colors = {
-  'purple': {'primary': '#6366f1', 'secondary': '#8b5cf6', 'light': '#a78bfa'},
-  'green': {'primary': '#10b981', 'secondary': '#14b8a6', 'light': '#5eead4'},
-  'blue': {'primary': '#3b82f6', 'secondary': '#06b6d4', 'light': '#22d3ee'}
+  'venom': {'primary': '#10b981', 'secondary': '#059669', 'light': '#34d399', 'alpha': 'rgba(16, 185, 129, 0.12)'},
+  'nebula': {'primary': '#8b5cf6', 'secondary': '#7c3aed', 'light': '#a78bfa', 'alpha': 'rgba(139, 92, 246, 0.12)'},
+  'glacier': {'primary': '#3b82f6', 'secondary': '#2563eb', 'light': '#60a5fa', 'alpha': 'rgba(59, 130, 246, 0.12)'},
+  'cyber': {'primary': '#ec4899', 'secondary': '#db2777', 'light': '#f472b6', 'alpha': 'rgba(236, 72, 153, 0.12)'},
+  'green': {'primary': '#10b981', 'secondary': '#059669', 'light': '#34d399', 'alpha': 'rgba(16, 185, 129, 0.12)'},
+  'purple': {'primary': '#8b5cf6', 'secondary': '#7c3aed', 'light': '#a78bfa', 'alpha': 'rgba(139, 92, 246, 0.12)'},
+  'blue': {'primary': '#3b82f6', 'secondary': '#2563eb', 'light': '#60a5fa', 'alpha': 'rgba(59, 130, 246, 0.12)'}
 } %}
-{% set current_theme = theme_colors[theme] if theme in theme_colors else theme_colors['purple'] %}
+{% set current_theme = theme_colors[theme] if theme in theme_colors else theme_colors['nebula'] %}
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -25,7 +29,7 @@
           background-color: #c8d0d8;
           border-radius: 12px;
           overflow: hidden;
-          border: 2px solid {{ current_theme.secondary }};
+          border: 2px solid{{ current_theme.secondary }};
       }
 
       /* Header section */
@@ -112,7 +116,7 @@
           background-color: #b8c0c8;
           padding: 25px;
           border-radius: 12px;
-          border: 2px solid {{ current_theme.secondary }};
+          border: 2px solid{{ current_theme.secondary }};
           text-align: center;
       }
 
@@ -140,25 +144,27 @@
           border-spacing: 0;
           margin: 15px 0;
           border-radius: 12px;
-          border: 2px solid {{ current_theme.secondary }};
+          border: 2px solid{{ current_theme.secondary }};
       }
 
       th {
-          background-color: {{ current_theme.secondary }} !important;
-          color: #ffffff !important;
+          background-color: {{ current_theme.alpha }} !important;
+          color: {{ current_theme.light }} !important;
           padding: 18px 20px;
           text-align: left;
           font-weight: 700;
           font-size: 17px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
       }
 
       tbody {
-          background-color: #90a8b0;
+          background-color: {{ current_theme.alpha }};
       }
 
       td {
           padding: 18px 20px;
-          border-bottom: 1px solid #dee2e6;
+          border-bottom: 1px solid{{ current_theme.alpha }};
           color: #1a1a1a;
           font-size: 17px;
           font-weight: 500;
@@ -168,9 +174,9 @@
           border-bottom: none;
       }
 
-      /* Mission status colors - subtle overlays */
+      /* Mission status colors - uniform with tbody */
       .finished {
-          background-color: rgba(200, 210, 220, 0.05);
+          background-color: {{ current_theme.alpha }};
       }
 
       .finished td {
@@ -178,7 +184,7 @@
       }
 
       .unfinished {
-          background-color: rgba(200, 210, 220, 0.05);
+          background-color: {{ current_theme.alpha }};
       }
 
       .unfinished td {
@@ -213,9 +219,9 @@
           text-align: center;
           margin: 25px 0;
           padding: 25px;
-          background-color: rgba(16, 185, 129, 0.1) !important;
+          background-color: {{ current_theme.alpha }} !important;
           border-radius: 12px;
-          border: 2px solid #10b981;
+          border: 2px solid{{ current_theme.primary }};
       }
 
       .reward-image img {
@@ -231,7 +237,7 @@
           text-align: center;
           color: #6c757d;
           font-size: 14px;
-          border-top: 2px solid {{ current_theme.secondary }};
+          border-top: 2px solid{{ current_theme.secondary }};
       }
 
       .footer a {
@@ -289,11 +295,11 @@
 
     <!-- Login Reward Screenshot -->
     {% if check_in == "Login Success" %}
-    <div class="section">
-      <div class="reward-image">
-        <img src="{{ login_reward_image }}" alt="Login Reward">
+      <div class="section">
+        <div class="reward-image">
+          <img src="{{ login_reward_image }}" alt="Login Reward">
+        </div>
       </div>
-    </div>
     {% endif %}
 
     <!-- Mission Statistics -->
@@ -306,7 +312,8 @@
         </div>
         <div class="stat-card" style="background-color: #90a8b0;">
           <span class="stat-label" style="color: #1a1a1a;">Completed</span>
-          <div class="stat-value" style="color: {{ current_theme.secondary }};">{{ missions|selectattr('state', 'equalto', 'Finished')|list|length }}</div>
+          <div class="stat-value"
+               style="color: {{ current_theme.secondary }};">{{ missions|selectattr('state', 'equalto', 'Finished')|list|length }}</div>
         </div>
       </div>
     </div>
