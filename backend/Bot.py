@@ -62,6 +62,18 @@ def _close_shopping_screen_helper(page):
                 f"Attempting to close shopping screen (attempt {attempt}/{max_close_attempts})"
             )
 
+            # First, try to dismiss any lingering modals/dialogs that might block clicks
+            try:
+                draw_dialog_close = page.locator(".gainClose-7Q0hz8")
+                if draw_dialog_close.count() > 0 and draw_dialog_close.is_visible(
+                    timeout=1000
+                ):
+                    logger.info("Found open draw dialog, closing it first")
+                    draw_dialog_close.click(force=True, timeout=2000)
+                    page.wait_for_timeout(500)
+            except Exception as modal_error:
+                logger.debug(f"No draw dialog to dismiss: {modal_error}")
+
             # Check close button status
             close_button_count = close_button.count()
             logger.info(f"Close button count: {close_button_count}")
@@ -71,9 +83,17 @@ def _close_shopping_screen_helper(page):
                 logger.info(f"Close button visible: {is_visible}")
 
                 if is_visible:
-                    # Click without force to trigger proper event handlers
-                    close_button.click()
-                    logger.info("Clicked shopping close button")
+                    # Try normal click first
+                    try:
+                        close_button.click(timeout=5000)
+                        logger.info("Clicked shopping close button")
+                    except Exception as click_error:
+                        # If normal click fails (e.g., element intercepted), use force
+                        logger.warning(
+                            f"Normal click failed ({click_error}), trying force click"
+                        )
+                        close_button.click(force=True, timeout=2000)
+                        logger.info("Force-clicked shopping close button")
                     # Wait longer for page transition/animation to complete
                     page.wait_for_timeout(1500)
                     # Wait for any network activity to settle
