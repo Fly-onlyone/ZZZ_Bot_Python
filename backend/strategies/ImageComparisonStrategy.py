@@ -11,7 +11,8 @@ from typing import Union
 
 import cv2
 import numpy as np
-from constants import IMAGE_MATCH_THRESHOLD, IMAGE_BINARY_THRESHOLD
+
+from core.constants import IMAGE_MATCH_THRESHOLD, IMAGE_BINARY_THRESHOLD
 
 logger = logging.getLogger(__name__)
 

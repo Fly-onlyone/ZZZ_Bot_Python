@@ -6,7 +6,7 @@ Handles automated prize draws, reward detection, and redemption code processing.
 import logging
 from typing import Optional
 
-from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, Locator
 
 from automation import RedeemAutofill, RetryHelper
 from automation.ImageProcessor import find_correct_lottery_logo, detect_reward
@@ -26,6 +26,8 @@ DRAW_LIMIT_SELECTOR = ".lotteryLimitCount-fqLQOi"
 DRAW_BUTTON_SELECTOR = ".lotteryBtnCover-xI-MlR"
 SUCCESS_DIALOG_TEXT = "Congratulations, you've"
 REWARD_IMAGE_SELECTOR = ".gainPrizeImage-FqEqMM"
+REWARD_IMAGE_SELECTOR_ALT = ".gainPrizeImage-FqEqMM img"  # Alternative: img inside container
+SUCCESS_DIALOG_SELECTOR = ".customModal-JTvCMP"  # Container for success dialog
 REDEEM_CODE_SELECTOR = "div.gainCodeCopyInput-QcgdvD"  # More specific with tag
 REDEEM_CODE_SELECTOR_ALT = ".gainCodeCopyInput-QcgdvD"  # Fallback selector
 CLOSE_DIALOG_SELECTOR = ".gainClose-7Q0hz8"
@@ -37,6 +39,61 @@ REDEEM_CODE_WAIT = 3000  # Wait for redemption code element
 
 # Reward constants
 UNKNOWN_REWARD = "Unknown reward"
+
+
+def _find_reward_image(page: Page, draw_number: int) -> Optional[Locator]:
+    """Find the reward image element using multiple selectors.
+
+    Args:
+        page: Playwright Page instance
+        draw_number: Current draw number for logging
+
+    Returns:
+        Locator for the reward image if found, None otherwise
+    """
+    # Try multiple selectors in order of preference
+    selectors_to_try = [
+        REWARD_IMAGE_SELECTOR,
+        REWARD_IMAGE_SELECTOR_ALT,
+        f"{SUCCESS_DIALOG_SELECTOR} img",  # Any img in success dialog
+    ]
+
+    for selector_idx, selector in enumerate(selectors_to_try):
+        try:
+            reward_image = page.locator(selector)
+
+            # Wait for element with short timeout
+            if reward_image.count() > 0:
+                # Element exists, wait for it to be visible
+                try:
+                    reward_image.first.wait_for(state="visible", timeout=3000)
+                    logger.debug(
+                        f"Draw {draw_number}: Found reward image with selector '{selector}'"
+                    )
+                    return reward_image.first
+                except PlaywrightTimeoutError:
+                    logger.debug(
+                        f"Draw {draw_number}: Reward image exists but not visible with selector '{selector}'"
+                    )
+                    # Continue to next selector
+                    continue
+            else:
+                logger.debug(
+                    f"Draw {draw_number}: No reward image found with selector '{selector}'"
+                )
+                # Try next selector
+                continue
+
+        except Exception as e:
+            logger.debug(
+                f"Draw {draw_number}: Error with selector '{selector}': {e}"
+            )
+            continue
+
+    logger.warning(
+        f"Draw {draw_number}: Could not find reward image after trying all selectors"
+    )
+    return None
 
 
 def _extract_redemption_code(page: Page, draw_number: int) -> Optional[str]:
@@ -238,9 +295,16 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
                 )
             return False
 
-        # Detect reward from image
-        reward_image = page.locator(REWARD_IMAGE_SELECTOR)
-        reward_name = detect_reward(page, reward_image)
+        # Find and detect reward from image
+        reward_image = _find_reward_image(page, draw_number)
+
+        if reward_image is None:
+            logger.error(
+                f"Draw {draw_number}: Could not locate reward image - skipping reward detection"
+            )
+            reward_name = UNKNOWN_REWARD
+        else:
+            reward_name = detect_reward(page, reward_image)
 
         if reward_name == UNKNOWN_REWARD:
             logger.warning(
@@ -281,9 +345,33 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
 
     except PlaywrightTimeoutError as e:
         logger.error(f"Timeout during draw {draw_number}: {e}")
+
+        # Try to close any open dialog before returning
+        try:
+            logger.debug("Attempting to close any open dialog after timeout")
+            close_button = page.locator(CLOSE_DIALOG_SELECTOR)
+            if close_button.count() > 0:
+                close_button.click(force=True, timeout=2000)
+                logger.debug("Closed dialog after timeout")
+                page.wait_for_timeout(500)
+        except Exception as cleanup_error:
+            logger.debug(f"Could not close dialog after timeout: {cleanup_error}")
+
         return False
     except Exception as e:
         logger.error(f"Error during draw {draw_number}: {e}")
+
+        # Try to close any open dialog before returning
+        try:
+            logger.debug("Attempting to close any open dialog after error")
+            close_button = page.locator(CLOSE_DIALOG_SELECTOR)
+            if close_button.count() > 0:
+                close_button.click(force=True, timeout=2000)
+                logger.debug("Closed dialog after error")
+                page.wait_for_timeout(500)
+        except Exception as cleanup_error:
+            logger.debug(f"Could not close dialog after error: {cleanup_error}")
+
         return False
 
 
