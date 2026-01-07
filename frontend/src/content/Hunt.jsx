@@ -1,10 +1,61 @@
 import React from "react";
 import { Alert, Box, Chip, Paper, Typography } from "@mui/material";
+import { motion, AnimatePresence } from "framer-motion";
 import { DataLoader } from "../services";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import { DateTimeField } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      when: "beforeChildren",
+    },
+  },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: "spring", stiffness: 100, damping: 15 },
+  },
+};
+
+const tableRowVariants = {
+  hidden: { opacity: 0, x: -20 },
+  visible: (index) => ({
+    opacity: 1,
+    x: 0,
+    transition: {
+      delay: index * 0.05,
+      type: "spring",
+      stiffness: 100,
+      damping: 15,
+    },
+  }),
+};
+
+const scheduleBoxVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 100, damping: 15 },
+  },
+  exit: {
+    opacity: 0,
+    y: -10,
+    transition: { duration: 0.2 },
+  },
+};
 
 export default function Hunt() {
   const { useRouteData } = DataLoader();
@@ -45,11 +96,15 @@ export default function Hunt() {
   }
 
   return (
-    <div>
+    <motion.div initial="hidden" animate="visible" variants={containerVariants}>
       <Box
+        component={motion.div}
+        variants={containerVariants}
         sx={{ mb: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}
       >
         <Paper
+          component={motion.div}
+          variants={cardVariants}
           elevation={2}
           sx={{
             p: 3,
@@ -73,6 +128,8 @@ export default function Hunt() {
           </Typography>
         </Paper>
         <Paper
+          component={motion.div}
+          variants={cardVariants}
           elevation={2}
           sx={{
             p: 3,
@@ -95,32 +152,45 @@ export default function Hunt() {
         </Paper>
       </Box>
 
-      {next_hunt_time && (
-        <Box
-          sx={{
-            mb: 3,
-            p: 3,
-            borderRadius: "12px",
-            background:
-              "linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)",
-            border: "1px solid rgba(139, 92, 246, 0.2)",
-            display: "flex",
-            alignItems: "center",
-            gap: 2,
-          }}
-        >
-          <AccessTimeIcon sx={{ color: "#8b5cf6", fontSize: 28 }} />
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, color: "#cbd5e1" }}>
-              Next Hunt Scheduled:
-            </Typography>
-            <DateTimeField
-              defaultValue={dayjs(next_hunt_time, "HH:mm DD/MM/YY")}
-              format="DD/MM/YYYY - hh:mm A"
-            />
+      <AnimatePresence mode="wait">
+        {next_hunt_time && (
+          <Box
+            component={motion.div}
+            key="next-hunt-time"
+            variants={scheduleBoxVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            sx={{
+              mb: 3,
+              p: 3,
+              borderRadius: "12px",
+              background:
+                "linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)",
+              border: "1px solid rgba(139, 92, 246, 0.2)",
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            <AccessTimeIcon sx={{ color: "#8b5cf6", fontSize: 28 }} />
+            <Box
+              sx={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}
+            >
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 600, color: "#cbd5e1" }}
+              >
+                Next Hunt Scheduled:
+              </Typography>
+              <DateTimeField
+                defaultValue={dayjs(next_hunt_time, "HH:mm DD/MM/YY")}
+                format="DD/MM/YYYY - hh:mm A"
+              />
+            </Box>
           </Box>
-        </Box>
-      )}
+        )}
+      </AnimatePresence>
 
       <Typography
         variant="h6"
@@ -198,8 +268,12 @@ export default function Hunt() {
           <Box component="tbody">
             {hunt_items.map((item, index) => (
               <Box
-                component="tr"
+                component={motion.tr}
                 key={index}
+                custom={index}
+                variants={tableRowVariants}
+                initial="hidden"
+                animate="visible"
                 sx={{
                   background: "rgba(139, 92, 246, 0.05)",
                   transition: "all 0.2s ease-in-out",
@@ -241,41 +315,49 @@ export default function Hunt() {
                     py: 2,
                   }}
                 >
-                  <Chip
-                    label={item.scheduled_time}
-                    size="small"
-                    icon={
-                      item.scheduled_time !== "Not scheduled" &&
-                      item.scheduled_time !== "Invalid time" ? (
-                        <AccessTimeIcon sx={{ color: "#8b5cf6 !important" }} />
-                      ) : null
-                    }
-                    sx={{
-                      background:
-                        item.scheduled_time === "Not scheduled" ||
-                        item.scheduled_time === "Invalid time"
-                          ? "rgba(107, 114, 128, 0.2)"
-                          : "rgba(139, 92, 246, 0.2)",
-                      color:
-                        item.scheduled_time === "Not scheduled" ||
-                        item.scheduled_time === "Invalid time"
-                          ? "#9ca3af"
-                          : "#a78bfa",
-                      fontWeight: 600,
-                      border: `1px solid ${
-                        item.scheduled_time === "Not scheduled" ||
-                        item.scheduled_time === "Invalid time"
-                          ? "rgba(107, 114, 128, 0.3)"
-                          : "rgba(139, 92, 246, 0.3)"
-                      }`,
-                    }}
-                  />
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                    style={{ display: "inline-block" }}
+                  >
+                    <Chip
+                      label={item.scheduled_time}
+                      size="small"
+                      icon={
+                        item.scheduled_time !== "Not scheduled" &&
+                        item.scheduled_time !== "Invalid time" ? (
+                          <AccessTimeIcon
+                            sx={{ color: "#8b5cf6 !important" }}
+                          />
+                        ) : null
+                      }
+                      sx={{
+                        background:
+                          item.scheduled_time === "Not scheduled" ||
+                          item.scheduled_time === "Invalid time"
+                            ? "rgba(107, 114, 128, 0.2)"
+                            : "rgba(139, 92, 246, 0.2)",
+                        color:
+                          item.scheduled_time === "Not scheduled" ||
+                          item.scheduled_time === "Invalid time"
+                            ? "#9ca3af"
+                            : "#a78bfa",
+                        fontWeight: 600,
+                        border: `1px solid ${
+                          item.scheduled_time === "Not scheduled" ||
+                          item.scheduled_time === "Invalid time"
+                            ? "rgba(107, 114, 128, 0.3)"
+                            : "rgba(139, 92, 246, 0.3)"
+                        }`,
+                      }}
+                    />
+                  </motion.div>
                 </Box>
               </Box>
             ))}
           </Box>
         </Box>
       </Box>
-    </div>
+    </motion.div>
   );
 }

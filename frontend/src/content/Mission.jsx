@@ -1,8 +1,59 @@
 import React from "react";
 import { Alert, Box, Chip, Paper, Typography } from "@mui/material";
+import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL, DataLoader } from "../services/DataLoader";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      when: "beforeChildren",
+    },
+  },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: "spring", stiffness: 100, damping: 15 },
+  },
+};
+
+const tableRowVariants = {
+  hidden: { opacity: 0, x: -20 },
+  visible: (index) => ({
+    opacity: 1,
+    x: 0,
+    transition: {
+      delay: index * 0.05,
+      type: "spring",
+      stiffness: 100,
+      damping: 15,
+    },
+  }),
+};
+
+const imageVariants = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { type: "spring", stiffness: 100, damping: 15 },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.9,
+    transition: { duration: 0.2 },
+  },
+};
 
 export default function Mission() {
   const { useRouteData } = DataLoader();
@@ -26,11 +77,15 @@ export default function Mission() {
   }
 
   return (
-    <div>
+    <motion.div initial="hidden" animate="visible" variants={containerVariants}>
       <Box
+        component={motion.div}
+        variants={containerVariants}
         sx={{ mb: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}
       >
         <Paper
+          component={motion.div}
+          variants={cardVariants}
           elevation={2}
           sx={{
             p: 3,
@@ -52,6 +107,8 @@ export default function Mission() {
           </Typography>
         </Paper>
         <Paper
+          component={motion.div}
+          variants={cardVariants}
           elevation={2}
           sx={{
             p: 3,
@@ -89,31 +146,39 @@ export default function Mission() {
         </Paper>
       </Box>
 
-      {check_in === "Login Success" && (
-        <Box
-          sx={{
-            my: 3,
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          <Paper
-            elevation={0}
+      <AnimatePresence mode="wait">
+        {check_in === "Login Success" && (
+          <Box
+            component={motion.div}
+            key="login-reward"
+            variants={imageVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             sx={{
-              borderRadius: "12px",
-              overflow: "hidden",
-              border: "1px solid rgba(16, 185, 129, 0.2)",
-              boxShadow: "0 4px 20px rgba(16, 185, 129, 0.15)",
+              my: 3,
+              display: "flex",
+              justifyContent: "center",
             }}
           >
-            <img
-              src={`${BACKEND_URL}/screenshot/login_reward.png`}
-              alt="Login Reward"
-              style={{ display: "block", maxWidth: "100%" }}
-            />
-          </Paper>
-        </Box>
-      )}
+            <Paper
+              elevation={0}
+              sx={{
+                borderRadius: "12px",
+                overflow: "hidden",
+                border: "1px solid rgba(16, 185, 129, 0.2)",
+                boxShadow: "0 4px 20px rgba(16, 185, 129, 0.15)",
+              }}
+            >
+              <img
+                src={`${BACKEND_URL}/screenshot/login_reward.png`}
+                alt="Login Reward"
+                style={{ display: "block", maxWidth: "100%" }}
+              />
+            </Paper>
+          </Box>
+        )}
+      </AnimatePresence>
 
       <Typography
         variant="h6"
@@ -178,8 +243,12 @@ export default function Mission() {
           <Box component="tbody">
             {missions.map((mission, index) => (
               <Box
-                component="tr"
+                component={motion.tr}
                 key={index}
+                custom={index}
+                variants={tableRowVariants}
+                initial="hidden"
+                animate="visible"
                 sx={{
                   background:
                     mission.state === "Finished"
@@ -246,6 +315,6 @@ export default function Mission() {
           </Box>
         </Box>
       </Box>
-    </div>
+    </motion.div>
   );
 }

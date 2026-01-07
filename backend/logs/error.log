@@ -1,0 +1,49 @@
+2026-01-06 18:31:28,912 - __main__ - INFO - === PHASE 1: Shopping Execution (Before Draw) ===
+2026-01-06 18:31:28,912 - handlers.ShoppingHandler - INFO - Starting shopping execution phase (before draw)...
+2026-01-06 18:31:28,950 - automation.RetryHelper - DEBUG - Button clicked (attempt 1/10)
+2026-01-06 18:31:28,958 - automation.RetryHelper - INFO - Target screen appeared on attempt 1
+2026-01-06 18:31:28,958 - handlers.ShoppingHandler - INFO - Shopping screen opened
+2026-01-06 18:31:28,962 - automation.RetryHelper - INFO - Non-zero count found: 2 (attempt 1/10)
+2026-01-06 18:31:28,962 - automation.ImageProcessor - INFO - Found 2 avatars
+2026-01-06 18:31:28,987 - automation.ImageProcessor - DEBUG - Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
+2026-01-06 18:31:29,029 - urllib3.connectionpool - DEBUG - https://act.hoyolab.com:443 "GET /bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png HTTP/1.1" 200 48212
+2026-01-06 18:31:29,040 - automation.ImageProcessor - DEBUG - Avatar 1: 73.32% difference from ZZZ icon
+2026-01-06 18:31:29,069 - automation.ImageProcessor - DEBUG - Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
+2026-01-06 18:31:29,111 - urllib3.connectionpool - DEBUG - https://act.hoyolab.com:443 "GET /bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png HTTP/1.1" 200 57692
+2026-01-06 18:31:29,124 - automation.ImageProcessor - DEBUG - Avatar 2: 0.00% difference from ZZZ icon
+2026-01-06 18:31:29,125 - automation.ImageProcessor - INFO - ZZZ avatar found at position 2
+2026-01-06 18:31:30,030 - handlers.ShoppingHandler - INFO - Selected ZZZ avatar
+2026-01-06 18:31:31,045 - handlers.ShoppingHandler - INFO - Starting shopping exchange process...
+2026-01-06 18:31:31,046 - handlers.ShoppingHandler - INFO - Processing 4 item(s) (buy_all: True)
+2026-01-06 18:31:31,046 - handlers.ShoppingHandler - INFO - Processing item: Polychrome ×60
+2026-01-06 18:31:31,106 - handlers.ShoppingHandler - INFO - Clicked exchange button for 'Polychrome ×60'
+2026-01-06 18:31:31,111 - handlers.ShoppingHandler - INFO - Confirmation dialog detected
+2026-01-06 18:31:32,059 - handlers.ShoppingHandler - INFO - Copied redemption code for 'Polychrome ×60'
+2026-01-06 18:31:35,032 - handlers.ShoppingHandler - INFO - Closed exchange dialog for 'Polychrome ×60'
+2026-01-06 18:31:35,721 - handlers.MissionHandler - INFO - Closing unrelated popup: about:blank
+2026-01-06 18:31:35,735 - handlers.ShoppingHandler - ERROR - Error exchanging 'Polychrome ×60': Page.goto: Target page, context or browser has been closed
+Call log:
+  - navigating to "https://zenless.hoyoverse.com/redemption", waiting until "load"
+
+2026-01-06 18:31:36,740 - handlers.ShoppingHandler - INFO - Processing item: Polychrome ×30
+2026-01-06 18:31:36,754 - handlers.ShoppingHandler - INFO - Item 'Polychrome ×30' not available for exchange (status: Limit Reached)
+2026-01-06 18:31:37,761 - handlers.ShoppingHandler - INFO - Processing item: Polychrome ×10
+2026-01-06 18:31:37,821 - handlers.ShoppingHandler - INFO - Clicked exchange button for 'Polychrome ×10'
+2026-01-06 18:31:37,825 - handlers.ShoppingHandler - INFO - Confirmation dialog detected
+2026-01-06 18:31:39,028 - handlers.ShoppingHandler - INFO - Copied redemption code for 'Polychrome ×10'
+2026-01-06 18:31:42,039 - handlers.ShoppingHandler - INFO - Closed exchange dialog for 'Polychrome ×10'
+2026-01-06 18:31:42,725 - handlers.MissionHandler - INFO - Closing unrelated popup: about:blank
+2026-01-06 18:31:42,732 - handlers.ShoppingHandler - ERROR - Error exchanging 'Polychrome ×10': Page.goto: Target page, context or browser has been closed
+Call log:
+  - navigating to "https://zenless.hoyoverse.com/redemption", waiting until "load"
+
+2026-01-06 18:31:43,734 - handlers.ShoppingHandler - INFO - Processing item: Polychrome ×100
+2026-01-06 18:31:43,746 - handlers.ShoppingHandler - INFO - Item 'Polychrome ×100' not available for exchange (status: 167:28:18)
+2026-01-06 18:31:44,748 - handlers.ShoppingHandler - INFO - Shopping exchange completed: 0 successful, 4 failed
+2026-01-06 18:31:44,748 - handlers.ShoppingHandler - INFO - Shopping execution phase completed
+2026-01-06 18:31:44,749 - __main__ - INFO - Attempting to close shopping screen (attempt 1/3)
+2026-01-06 18:31:44,758 - __main__ - INFO - Close button count: 1
+2026-01-06 18:31:44,763 - __main__ - INFO - Close button visible: True
+2026-01-06 18:31:44,807 - __main__ - INFO - Clicked shopping close button
+2026-01-06 18:31:47,344 - __main__ - INFO - Shopping screen closed successfully
+2026-01-06 18:31:47,344 - __main__ - INFO - Draw data cancelled due to setting.
