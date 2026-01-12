@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Last Synced Commit:** `b5fbbe7` (2025-01-07)
+**Last Synced Commit:** `07562c2` (2025-01-12)
 
 ## Project Overview
 
@@ -31,31 +31,31 @@ HoYoLab event website including check-ins, shopping, redemptions, and prize draw
 
 ### Backend (`backend/`)
 
-| Directory | Purpose |
-|-----------|---------|
-| `core/` | App entry, scheduler, config, notifications |
-| `handlers/` | Task orchestration (Mission, Shopping, Draw, Hunt) |
-| `automation/` | Browser interaction, image recognition |
-| `services/` | Browser lifecycle management |
-| `repositories/` | Data persistence |
-| `domain/` | Data models |
-| `api/` | REST endpoint definitions |
-| `utils/` | Helpers (logging, data handling, strings) |
-| `strategies/` | Strategy patterns (image comparison) |
-| `message/` | Email templates (Jinja2) |
+| Directory       | Purpose                                            |
+|-----------------|----------------------------------------------------|
+| `core/`         | App entry, scheduler, config, notifications        |
+| `handlers/`     | Task orchestration (Mission, Shopping, Draw, Hunt) |
+| `automation/`   | Browser interaction, image recognition             |
+| `services/`     | Browser lifecycle management                       |
+| `repositories/` | Data persistence                                   |
+| `domain/`       | Data models                                        |
+| `api/`          | REST endpoint definitions                          |
+| `utils/`        | Helpers (logging, data handling, strings)          |
+| `strategies/`   | Strategy patterns (image comparison)               |
+| `message/`      | Email templates (Jinja2)                           |
 
 ### Frontend (`frontend/src/`)
 
-| Directory | Purpose |
-|-----------|---------|
-| `pages/` | Route components (Overview, Shopping, Redeem, ManualLogin) |
-| `components/` | UI components (common, layout, forms, fields) |
-| `content/` | Page sections (Mission, Hunt, RunningStatus) |
-| `hooks/` | Custom hooks (form state, shopping state) |
-| `services/` | API client with TanStack Query |
-| `theme/` | Theme system (4 themes: Nebula, Venom, Glacier, Cyber) |
-| `config/` | Frontend constants |
-| `routes/` | Route configuration and drawer |
+| Directory     | Purpose                                                    |
+|---------------|------------------------------------------------------------|
+| `pages/`      | Route components (Overview, Shopping, Redeem, ManualLogin) |
+| `components/` | UI components (common, layout, forms, fields)              |
+| `content/`    | Page sections (Mission, Hunt, RunningStatus)               |
+| `hooks/`      | Custom hooks (form state, shopping state)                  |
+| `services/`   | API client with TanStack Query                             |
+| `theme/`      | Theme system (4 themes: Nebula, Venom, Glacier, Cyber)     |
+| `config/`     | Frontend constants                                         |
+| `routes/`     | Route configuration and drawer                             |
 
 See `.claude/rules/architecture.md` for detailed file listings and module dependencies.
 
@@ -183,23 +183,25 @@ Stores shopping data including item selection and hunt mode configuration:
 ## Documentation
 
 Detailed guidelines are in `.claude/rules/`:
+
 - `architecture.md` - System architecture and design decisions
-- `patterns.md` - Code patterns with examples
-- `conventions.md` - Naming, style, and coding conventions
-- `commit-messages.md` - Commit message format
+- `code-guide.md` - Naming conventions, code patterns, and animation guidelines
 - `documentation-style.md` - Documentation guidelines
-- `animation-patterns.md` - MUI + Framer Motion integration patterns
+
+Custom commands are in `.claude/commands/`:
+
+- `commit.md` - Git commit message style (`/commit`)
 
 ## Context7 Library IDs
 
 For documentation lookup via Context7 MCP:
 
-| Library | Context7 ID |
-|---------|-------------|
-| React | `/facebook/react` |
-| MUI (Material UI) | `/mui/material-ui` |
-| MUI X (DataGrid, DatePickers) | `/mui/mui-x` |
-| Framer Motion | `/motiondivision/motion` |
-| FastAPI | `/websites/fastapi_tiangolo` |
-| Playwright Python | `/microsoft/playwright-python` |
-| TanStack Query | `/tanstack/query` |
+| Library                       | Context7 ID                    |
+|-------------------------------|--------------------------------|
+| React                         | `/facebook/react`              |
+| MUI (Material UI)             | `/mui/material-ui`             |
+| MUI X (DataGrid, DatePickers) | `/mui/mui-x`                   |
+| Framer Motion                 | `/motiondivision/motion`       |
+| FastAPI                       | `/websites/fastapi_tiangolo`   |
+| Playwright Python             | `/microsoft/playwright-python` |
+| TanStack Query                | `/tanstack/query`              |
