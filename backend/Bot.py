@@ -41,6 +41,9 @@ logger = logging.getLogger(__name__)
 # Include API routes from separate module
 app.include_router(router)
 
+# Hunt mode target date (used for date validation in run_hunt)
+_hunt_target_date: datetime | None = None
+
 
 # ============================================================================
 # Bot Logic
@@ -300,16 +303,20 @@ def schedule_hunt_tasks():
 
     This should only be called after shopping data has been refreshed.
     """
+    global _hunt_target_date
+
     # Clear existing hunt tasks before scheduling new ones
     schedule.clear("hunt")
     logger.info("Cleared old hunt schedules")
 
     if not settings.enable_hunt_mode:
+        _hunt_target_date = None
         logger.info("Hunt mode is disabled, skipping hunt scheduling")
         return
 
     next_hunt_time = HuntMode.get_next_hunt_time()
     if not next_hunt_time:
+        _hunt_target_date = None
         logger.info("No hunt items with return times, skipping hunt scheduling")
         return
 
@@ -326,6 +333,8 @@ def schedule_hunt_tasks():
 
         # Only schedule if the schedule time is in the future
         if schedule_datetime > now:
+            # Store target date for validation in run_hunt
+            _hunt_target_date = hunt_datetime
             # Schedule at specific date and time (with buffer)
             schedule_time = schedule_datetime.strftime("%H:%M")
             schedule.every().day.at(schedule_time).do(HuntMode.run_hunt).tag("hunt")
@@ -334,11 +343,13 @@ def schedule_hunt_tasks():
                 f"(target item time: {next_hunt_time})"
             )
         else:
+            _hunt_target_date = None
             logger.info(
                 f"Hunt schedule time {schedule_datetime.strftime('%H:%M %d/%m/%y')} is in the past, skipping"
             )
 
     except ValueError as e:
+        _hunt_target_date = None
         logger.error(f"Failed to parse hunt time '{next_hunt_time}': {e}")
 
 
