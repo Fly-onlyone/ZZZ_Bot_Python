@@ -294,6 +294,21 @@ def remove_items_from_hunt_list(item_names: List[str]):
 
 def run_hunt():
     """Execute hunt mode by waiting at shopping screen and purchasing items when available."""
+    # Import here to avoid circular import
+    from backend.Bot import _hunt_target_date
+
+    # Validate we're running on the correct date
+    # (schedule library fires daily, but we only want to run on the target date)
+    if _hunt_target_date:
+        today = datetime.now().date()
+        target_date = _hunt_target_date.date()
+        if today != target_date:
+            logger.info(
+                f"Hunt scheduled for {target_date.strftime('%d/%m/%y')}, "
+                f"but today is {today.strftime('%d/%m/%y')}. Skipping until correct date."
+            )
+            return
+
     logger.info("Starting hunt mode...")
 
     if not settings.enable_hunt_mode:
