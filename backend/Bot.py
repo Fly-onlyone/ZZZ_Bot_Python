@@ -366,6 +366,7 @@ def schedule_tasks():
 def run_scheduled_tasks():
     """Run scheduled tasks in a loop."""
     schedule_tasks()
+    schedule_hunt_tasks()  # Restore hunt schedule on startup
     check_missed_runs()
     while True:
         schedule.run_pending()
