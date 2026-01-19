@@ -4,13 +4,15 @@ Handles automated prize draws, reward detection, and redemption code processing.
 """
 
 import logging
+import os
+from datetime import datetime
 from typing import Optional
 
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, Locator
 
 from automation import RedeemAutofill, RetryHelper
 from automation.ImageProcessor import find_correct_lottery_logo, detect_reward
-from core.GlobalVar import CONFIG
+from core.GlobalVar import CONFIG, resource_path
 from utils import NotificationHelper
 from utils.StringUtil import extract_price, extract_number
 
@@ -26,7 +28,9 @@ DRAW_LIMIT_SELECTOR = ".lotteryLimitCount-fqLQOi"
 DRAW_BUTTON_SELECTOR = ".lotteryBtnCover-xI-MlR"
 SUCCESS_DIALOG_TEXT = "Congratulations, you've"
 REWARD_IMAGE_SELECTOR = ".gainPrizeImage-FqEqMM"
-REWARD_IMAGE_SELECTOR_ALT = ".gainPrizeImage-FqEqMM img"  # Alternative: img inside container
+REWARD_IMAGE_SELECTOR_ALT = (
+    ".gainPrizeImage-FqEqMM img"  # Alternative: img inside container
+)
 SUCCESS_DIALOG_SELECTOR = ".customModal-JTvCMP"  # Container for success dialog
 REDEEM_CODE_SELECTOR = "div.gainCodeCopyInput-QcgdvD"  # More specific with tag
 REDEEM_CODE_SELECTOR_ALT = ".gainCodeCopyInput-QcgdvD"  # Fallback selector
@@ -42,7 +46,7 @@ UNKNOWN_REWARD = "Unknown reward"
 
 
 def _find_reward_image(page: Page, draw_number: int) -> Optional[Locator]:
-    """Find the reward image element using multiple selectors.
+    """Find the reward image element using multiple selectors with escalating timeouts.
 
     Args:
         page: Playwright Page instance
@@ -58,22 +62,26 @@ def _find_reward_image(page: Page, draw_number: int) -> Optional[Locator]:
         f"{SUCCESS_DIALOG_SELECTOR} img",  # Any img in success dialog
     ]
 
+    # Escalating timeouts: 3s → 5s → 8s to handle animation + CDN load delays
+    timeouts = [3000, 5000, 8000]
+
     for selector_idx, selector in enumerate(selectors_to_try):
+        timeout = timeouts[min(selector_idx, len(timeouts) - 1)]
         try:
             reward_image = page.locator(selector)
 
-            # Wait for element with short timeout
+            # Wait for element with escalating timeout
             if reward_image.count() > 0:
                 # Element exists, wait for it to be visible
                 try:
-                    reward_image.first.wait_for(state="visible", timeout=3000)
+                    reward_image.first.wait_for(state="visible", timeout=timeout)
                     logger.debug(
-                        f"Draw {draw_number}: Found reward image with selector '{selector}'"
+                        f"Draw {draw_number}: Found reward image with selector '{selector}' (timeout={timeout}ms)"
                     )
                     return reward_image.first
                 except PlaywrightTimeoutError:
                     logger.debug(
-                        f"Draw {draw_number}: Reward image exists but not visible with selector '{selector}'"
+                        f"Draw {draw_number}: Reward image exists but not visible with selector '{selector}' after {timeout}ms"
                     )
                     # Continue to next selector
                     continue
@@ -85,15 +93,37 @@ def _find_reward_image(page: Page, draw_number: int) -> Optional[Locator]:
                 continue
 
         except Exception as e:
-            logger.debug(
-                f"Draw {draw_number}: Error with selector '{selector}': {e}"
-            )
+            logger.debug(f"Draw {draw_number}: Error with selector '{selector}': {e}")
             continue
 
     logger.warning(
-        f"Draw {draw_number}: Could not find reward image after trying all selectors"
+        f"Draw {draw_number}: Could not find reward image after trying all selectors with escalating timeouts"
     )
     return None
+
+
+def _save_debug_artifacts(page: Page, draw_number: int) -> None:
+    """Save screenshot and DOM snapshot for debugging reward detection failures."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    error_dir = resource_path("backend/logs/errors", outside=True)
+    os.makedirs(error_dir, exist_ok=True)
+
+    # Screenshot
+    screenshot_path = os.path.join(error_dir, f"draw_{draw_number}_{timestamp}.png")
+    try:
+        page.screenshot(path=screenshot_path)
+        logger.info(f"Debug screenshot saved: {screenshot_path}")
+    except Exception as e:
+        logger.error(f"Failed to save debug screenshot: {e}")
+
+    # DOM snapshot
+    dom_path = os.path.join(error_dir, f"draw_{draw_number}_{timestamp}_dom.html")
+    try:
+        with open(dom_path, "w", encoding="utf-8") as f:
+            f.write(page.content())
+        logger.info(f"Debug DOM snapshot saved: {dom_path}")
+    except Exception as e:
+        logger.error(f"Failed to save DOM snapshot: {e}")
 
 
 def _extract_redemption_code(page: Page, draw_number: int) -> Optional[str]:
@@ -295,6 +325,10 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
                 )
             return False
 
+        # Wait for draw animation to complete before detecting reward
+        logger.debug(f"Draw {draw_number}: Waiting for animation to complete...")
+        page.wait_for_timeout(2000)
+
         # Find and detect reward from image
         reward_image = _find_reward_image(page, draw_number)
 
@@ -302,6 +336,7 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
             logger.error(
                 f"Draw {draw_number}: Could not locate reward image - skipping reward detection"
             )
+            _save_debug_artifacts(page, draw_number)
             reward_name = UNKNOWN_REWARD
         else:
             reward_name = detect_reward(page, reward_image)
