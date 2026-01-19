@@ -6,6 +6,9 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import { DateTimeField } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
+import { useThemeContext } from "../theme/ThemeContext";
+import { COMMON_COLORS } from "../theme/colors";
+import { HuntSkeleton } from "../components";
 
 // Animation variants
 const containerVariants = {
@@ -59,6 +62,7 @@ const scheduleBoxVariants = {
 
 export default function Hunt() {
   const { useRouteData } = DataLoader();
+  const { themeColors } = useThemeContext();
 
   // Use the DataLoader's useRouteData hook
   const { data: huntInfo, error } = useRouteData("overview/hunt");
@@ -70,7 +74,7 @@ export default function Hunt() {
   }
 
   if (!huntInfo) {
-    return <Typography>Loading...</Typography>;
+    return <HuntSkeleton />;
   }
 
   const { enabled, hunt_items, next_hunt_time } = huntInfo;
@@ -109,9 +113,8 @@ export default function Hunt() {
           sx={{
             p: 3,
             borderRadius: "12px",
-            background:
-              "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)",
-            border: "1px solid rgba(16, 185, 129, 0.3)",
+            background: `linear-gradient(135deg, ${COMMON_COLORS.success.main}1A 0%, ${COMMON_COLORS.success.dark}1A 100%)`,
+            border: `1px solid ${COMMON_COLORS.success.main}4D`,
             textAlign: "center",
             display: "flex",
             flexDirection: "column",
@@ -119,10 +122,12 @@ export default function Hunt() {
             gap: 1,
           }}
         >
-          <CheckCircleIcon sx={{ color: "#10b981", fontSize: 32 }} />
+          <CheckCircleIcon
+            sx={{ color: COMMON_COLORS.success.main, fontSize: 32 }}
+          />
           <Typography
             variant="body1"
-            sx={{ fontWeight: 600, color: "#34d399" }}
+            sx={{ fontWeight: 600, color: COMMON_COLORS.success.light }}
           >
             Hunt Mode Active
           </Typography>
@@ -134,19 +139,26 @@ export default function Hunt() {
           sx={{
             p: 3,
             borderRadius: "12px",
-            background:
-              "linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)",
-            border: "1px solid rgba(245, 158, 11, 0.3)",
+            background: `linear-gradient(135deg, ${COMMON_COLORS.warning.main}1A 0%, ${COMMON_COLORS.warning.dark}1A 100%)`,
+            border: `1px solid ${COMMON_COLORS.warning.main}4D`,
             textAlign: "center",
           }}
         >
           <Typography
             variant="body2"
-            sx={{ color: "#94a3b8", fontWeight: 600, mb: 1, display: "block" }}
+            sx={{
+              color: COMMON_COLORS.text.muted,
+              fontWeight: 600,
+              mb: 1,
+              display: "block",
+            }}
           >
             Items Hunting
           </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: "#fbbf24" }}>
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 700, color: COMMON_COLORS.warning.light }}
+          >
             {hunt_items.length}
           </Typography>
         </Paper>
@@ -165,21 +177,22 @@ export default function Hunt() {
               mb: 3,
               p: 3,
               borderRadius: "12px",
-              background:
-                "linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)",
-              border: "1px solid rgba(139, 92, 246, 0.2)",
+              background: themeColors.gradients.backgroundSubtle,
+              border: `1px solid ${themeColors.alpha.divider}`,
               display: "flex",
               alignItems: "center",
               gap: 2,
             }}
           >
-            <AccessTimeIcon sx={{ color: "#8b5cf6", fontSize: 28 }} />
+            <AccessTimeIcon
+              sx={{ color: themeColors.primary.main, fontSize: 28 }}
+            />
             <Box
               sx={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}
             >
               <Typography
                 variant="h6"
-                sx={{ fontWeight: 600, color: "#cbd5e1" }}
+                sx={{ fontWeight: 600, color: COMMON_COLORS.text.tertiary }}
               >
                 Next Hunt Scheduled:
               </Typography>
@@ -197,7 +210,7 @@ export default function Hunt() {
         sx={{
           mb: 2,
           fontWeight: 600,
-          color: "#cbd5e1",
+          color: COMMON_COLORS.text.tertiary,
         }}
       >
         Items Being Hunted
@@ -206,7 +219,7 @@ export default function Hunt() {
         sx={{
           borderRadius: "12px",
           overflow: "hidden",
-          border: "1px solid rgba(139, 92, 246, 0.2)",
+          border: `1px solid ${themeColors.alpha.divider}`,
         }}
       >
         <Box
@@ -219,8 +232,7 @@ export default function Hunt() {
           <Box
             component="thead"
             sx={{
-              background:
-                "linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%)",
+              background: themeColors.gradients.header,
             }}
           >
             <Box component="tr">
@@ -231,8 +243,8 @@ export default function Hunt() {
                   py: 2,
                   textAlign: "left",
                   fontWeight: 600,
-                  color: "#e2e8f0",
-                  borderBottom: "1px solid rgba(139, 92, 246, 0.2)",
+                  color: COMMON_COLORS.text.secondary,
+                  borderBottom: `1px solid ${themeColors.alpha.divider}`,
                 }}
               >
                 #
@@ -244,8 +256,8 @@ export default function Hunt() {
                   py: 2,
                   textAlign: "left",
                   fontWeight: 600,
-                  color: "#e2e8f0",
-                  borderBottom: "1px solid rgba(139, 92, 246, 0.2)",
+                  color: COMMON_COLORS.text.secondary,
+                  borderBottom: `1px solid ${themeColors.alpha.divider}`,
                 }}
               >
                 Item Name
@@ -257,8 +269,8 @@ export default function Hunt() {
                   py: 2,
                   textAlign: "left",
                   fontWeight: 600,
-                  color: "#e2e8f0",
-                  borderBottom: "1px solid rgba(139, 92, 246, 0.2)",
+                  color: COMMON_COLORS.text.secondary,
+                  borderBottom: `1px solid ${themeColors.alpha.divider}`,
                 }}
               >
                 Scheduled Hunt Time
@@ -275,14 +287,14 @@ export default function Hunt() {
                 initial="hidden"
                 animate="visible"
                 sx={{
-                  background: "rgba(139, 92, 246, 0.05)",
+                  background: themeColors.alpha.card,
                   transition: "all 0.2s ease-in-out",
                   "&:hover": {
-                    background: "rgba(139, 92, 246, 0.12)",
+                    background: themeColors.alpha.hover,
                   },
                   borderBottom:
                     index !== hunt_items.length - 1
-                      ? "1px solid rgba(139, 92, 246, 0.1)"
+                      ? `1px solid ${themeColors.alpha.card}`
                       : "none",
                 }}
               >
@@ -291,7 +303,7 @@ export default function Hunt() {
                   sx={{
                     px: 3,
                     py: 2,
-                    color: "#94a3b8",
+                    color: COMMON_COLORS.text.muted,
                     fontWeight: 600,
                   }}
                 >
@@ -302,7 +314,7 @@ export default function Hunt() {
                   sx={{
                     px: 3,
                     py: 2,
-                    color: "#cbd5e1",
+                    color: COMMON_COLORS.text.tertiary,
                     fontWeight: 500,
                   }}
                 >
@@ -327,7 +339,9 @@ export default function Hunt() {
                         item.scheduled_time !== "Not scheduled" &&
                         item.scheduled_time !== "Invalid time" ? (
                           <AccessTimeIcon
-                            sx={{ color: "#8b5cf6 !important" }}
+                            sx={{
+                              color: `${themeColors.primary.main} !important`,
+                            }}
                           />
                         ) : null
                       }
@@ -336,18 +350,18 @@ export default function Hunt() {
                           item.scheduled_time === "Not scheduled" ||
                           item.scheduled_time === "Invalid time"
                             ? "rgba(107, 114, 128, 0.2)"
-                            : "rgba(139, 92, 246, 0.2)",
+                            : `${themeColors.primary.main}33`,
                         color:
                           item.scheduled_time === "Not scheduled" ||
                           item.scheduled_time === "Invalid time"
-                            ? "#9ca3af"
-                            : "#a78bfa",
+                            ? COMMON_COLORS.text.muted
+                            : themeColors.primary.light,
                         fontWeight: 600,
                         border: `1px solid ${
                           item.scheduled_time === "Not scheduled" ||
                           item.scheduled_time === "Invalid time"
                             ? "rgba(107, 114, 128, 0.3)"
-                            : "rgba(139, 92, 246, 0.3)"
+                            : `${themeColors.primary.main}4D`
                         }`,
                       }}
                     />

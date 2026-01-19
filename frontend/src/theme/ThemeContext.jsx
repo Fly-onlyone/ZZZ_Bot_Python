@@ -6,14 +6,40 @@ const BACKEND_URL = import.meta.env.PROD
   ? "http://127.0.0.1:8000"
   : "http://127.0.0.1:8000";
 
+/**
+ * Hook to detect user's reduced motion preference
+ */
+function useReducedMotionPreference() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    () =>
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (!mediaQuery) return;
+
+    const handleChange = (event) => {
+      setPrefersReducedMotion(event.matches);
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  return prefersReducedMotion;
+}
+
 const ThemeContext = createContext({
-  themeName: "purple",
-  themeColors: getThemeColors("purple"),
+  themeName: "nebula",
+  themeColors: getThemeColors("nebula"),
+  prefersReducedMotion: false,
 });
 
 export function ThemeContextProvider({ children }) {
-  const [themeName, setThemeName] = useState("purple");
-  const [themeColors, setThemeColors] = useState(getThemeColors("purple"));
+  const [themeName, setThemeName] = useState("nebula");
+  const [themeColors, setThemeColors] = useState(getThemeColors("nebula"));
+  const prefersReducedMotion = useReducedMotionPreference();
 
   // Fetch theme setting from backend
   const { data: settingsData } = useQuery({
@@ -27,13 +53,15 @@ export function ThemeContextProvider({ children }) {
   });
 
   useEffect(() => {
-    const newTheme = settingsData?.theme || "purple";
+    const newTheme = settingsData?.theme || "nebula";
     setThemeName(newTheme);
     setThemeColors(getThemeColors(newTheme));
   }, [settingsData]);
 
   return (
-    <ThemeContext.Provider value={{ themeName, themeColors }}>
+    <ThemeContext.Provider
+      value={{ themeName, themeColors, prefersReducedMotion }}
+    >
       {children}
     </ThemeContext.Provider>
   );

@@ -245,6 +245,19 @@ def find_correct_lottery_logo(page: Page):
 
 
 def detect_reward(page: Page, img_locator: Locator):
+    """Detect reward type by comparing locator image against reference images.
+
+    Uses 5% threshold tolerance to handle minor image variations from
+    CDN compression, animation states, or rendering differences.
+
+    Args:
+        page: Playwright Page instance
+        img_locator: Locator for the reward image element
+
+    Returns:
+        Reward name (filename without extension) if match found,
+        "Unknown reward" otherwise
+    """
     # Fetch the image from the locator
     target_img = fetch_image_from_locator(page, img_locator)
 
@@ -256,16 +269,37 @@ def detect_reward(page: Page, img_locator: Locator):
     if not reward_images:
         raise ValueError("No reward images found in the configured reward folder.")
 
-    best_match = "Unknown reward"
+    best_match_name = "Unknown reward"
+    best_match_diff = float("inf")
+
+    logger.debug(
+        f"Comparing reward image against {len(reward_images)} reference images..."
+    )
 
     for reward_img_name in reward_images:
         reward_img_path = os.path.join(CONFIG["REWARD_FOLDER"], reward_img_name)
         diff = compare_images(target_img, reward_img_path)
 
-        if diff == 0:  # Exact match found
-            return os.path.splitext(reward_img_name)[0]
+        reward_name = os.path.splitext(reward_img_name)[0]
+        logger.debug(f"  '{reward_name}': {diff:.2f}% difference")
 
-    return best_match  # Return "Unknown reward" if no exact match
+        # Track best match (lowest difference)
+        if diff < best_match_diff:
+            best_match_diff = diff
+            best_match_name = reward_name
+
+    # Return best match if within 5% threshold (consistent with button detection)
+    if best_match_diff < IMAGE_MATCH_THRESHOLD:
+        logger.info(
+            f"Reward detected: '{best_match_name}' ({best_match_diff:.2f}% difference)"
+        )
+        return best_match_name
+    else:
+        logger.warning(
+            f"No reward match found within threshold. Best match: '{best_match_name}' "
+            f"({best_match_diff:.2f}% difference, threshold: {IMAGE_MATCH_THRESHOLD}%)"
+        )
+        return "Unknown reward"
 
 
 class ImageProcessor:

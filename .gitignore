@@ -10,3 +10,8 @@ __pycache__/
 
 # Windows null device file created by subprocess
 nul
+
+# Claude Code local files
+CLAUDE.local.md
+.claude/*.local.md
+.mcp.json
