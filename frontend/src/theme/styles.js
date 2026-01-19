@@ -95,3 +95,52 @@ export const switchStyles = {
     },
   },
 };
+
+// ============================================================
+// Motion Utilities
+// ============================================================
+
+/**
+ * Creates motion-aware animation variants
+ * Returns reduced variants when user prefers reduced motion
+ * @param {object} variants - Full animation variants
+ * @param {boolean} prefersReducedMotion - User's motion preference
+ * @returns {object} Motion-appropriate variants
+ */
+export function getMotionVariants(variants, prefersReducedMotion) {
+  if (!prefersReducedMotion) return variants;
+
+  // Return variants with no motion - just opacity transitions
+  const reducedVariants = {};
+  for (const [key, value] of Object.entries(variants)) {
+    if (typeof value === "function") {
+      // Handle custom variant functions (e.g., staggered children)
+      reducedVariants[key] = (i) => ({
+        opacity: 1,
+        transition: { duration: 0.01 },
+      });
+    } else {
+      reducedVariants[key] = {
+        opacity: value.opacity ?? 1,
+        transition: { duration: 0.01 },
+      };
+    }
+  }
+  return reducedVariants;
+}
+
+/**
+ * Common reduced-motion-safe animation variants
+ */
+export const safeAnimationVariants = {
+  // Fade only - no movement
+  fadeIn: {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: 0.3 } },
+  },
+  // Instant appear (for reduced motion)
+  instant: {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: 0.01 } },
+  },
+};
