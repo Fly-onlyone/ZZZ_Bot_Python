@@ -4,6 +4,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL, DataLoader } from "../services/DataLoader";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
+import { useThemeContext } from "../theme/ThemeContext";
+import { COMMON_COLORS } from "../theme/colors";
+import { MissionSkeleton } from "../components";
 
 // Animation variants
 const containerVariants = {
@@ -57,6 +60,7 @@ const imageVariants = {
 
 export default function Mission() {
   const { useRouteData } = DataLoader();
+  const { themeColors } = useThemeContext();
 
   // Use the DataLoader's useRouteData hook
   const { data: mission, error } = useRouteData("overview/mission");
@@ -69,7 +73,7 @@ export default function Mission() {
   }
 
   if (!mission) {
-    return <Typography>Loading...</Typography>; // Display loading state
+    return <MissionSkeleton />;
   }
   const { day, check_in, missions } = mission;
   if (!missions) {
@@ -90,19 +94,26 @@ export default function Mission() {
           sx={{
             p: 3,
             borderRadius: "12px",
-            background:
-              "linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)",
-            border: "1px solid rgba(139, 92, 246, 0.3)",
+            background: themeColors.gradients.backgroundSubtle,
+            border: `1px solid ${themeColors.alpha.cardBorder}`,
             textAlign: "center",
           }}
         >
           <Typography
             variant="body2"
-            sx={{ color: "#94a3b8", fontWeight: 600, mb: 1, display: "block" }}
+            sx={{
+              color: COMMON_COLORS.text.muted,
+              fontWeight: 600,
+              mb: 1,
+              display: "block",
+            }}
           >
             Current Day
           </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: "#a78bfa" }}>
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 700, color: themeColors.primary.light }}
+          >
             {day}
           </Typography>
         </Paper>
@@ -115,12 +126,12 @@ export default function Mission() {
             borderRadius: "12px",
             background:
               check_in === "Login Success"
-                ? "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)"
-                : "linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)",
+                ? `linear-gradient(135deg, ${COMMON_COLORS.success.main}1A 0%, ${COMMON_COLORS.success.dark}1A 100%)`
+                : `linear-gradient(135deg, ${COMMON_COLORS.error.main}1A 0%, ${COMMON_COLORS.error.dark}1A 100%)`,
             border: `1px solid ${
               check_in === "Login Success"
-                ? "rgba(16, 185, 129, 0.3)"
-                : "rgba(239, 68, 68, 0.3)"
+                ? `${COMMON_COLORS.success.main}4D`
+                : `${COMMON_COLORS.error.main}4D`
             }`,
             textAlign: "center",
             display: "flex",
@@ -130,15 +141,20 @@ export default function Mission() {
           }}
         >
           {check_in === "Login Success" ? (
-            <CheckCircleIcon sx={{ color: "#10b981", fontSize: 32 }} />
+            <CheckCircleIcon
+              sx={{ color: COMMON_COLORS.success.main, fontSize: 32 }}
+            />
           ) : (
-            <ErrorIcon sx={{ color: "#ef4444", fontSize: 32 }} />
+            <ErrorIcon sx={{ color: COMMON_COLORS.error.main, fontSize: 32 }} />
           )}
           <Typography
             variant="body1"
             sx={{
               fontWeight: 600,
-              color: check_in === "Login Success" ? "#34d399" : "#f87171",
+              color:
+                check_in === "Login Success"
+                  ? COMMON_COLORS.success.light
+                  : COMMON_COLORS.error.light,
             }}
           >
             {check_in}
@@ -166,8 +182,8 @@ export default function Mission() {
               sx={{
                 borderRadius: "12px",
                 overflow: "hidden",
-                border: "1px solid rgba(16, 185, 129, 0.2)",
-                boxShadow: "0 4px 20px rgba(16, 185, 129, 0.15)",
+                border: `1px solid ${COMMON_COLORS.success.main}33`,
+                boxShadow: `0 4px 20px ${COMMON_COLORS.success.main}26`,
               }}
             >
               <img
@@ -185,7 +201,7 @@ export default function Mission() {
         sx={{
           mb: 2,
           fontWeight: 600,
-          color: "#cbd5e1",
+          color: COMMON_COLORS.text.tertiary,
         }}
       >
         Mission Status
@@ -194,7 +210,7 @@ export default function Mission() {
         sx={{
           borderRadius: "12px",
           overflow: "hidden",
-          border: "1px solid rgba(139, 92, 246, 0.2)",
+          border: `1px solid ${themeColors.alpha.divider}`,
         }}
       >
         <Box
@@ -207,8 +223,7 @@ export default function Mission() {
           <Box
             component="thead"
             sx={{
-              background:
-                "linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%)",
+              background: themeColors.gradients.header,
             }}
           >
             <Box component="tr">
@@ -219,8 +234,8 @@ export default function Mission() {
                   py: 2,
                   textAlign: "left",
                   fontWeight: 600,
-                  color: "#e2e8f0",
-                  borderBottom: "1px solid rgba(139, 92, 246, 0.2)",
+                  color: COMMON_COLORS.text.secondary,
+                  borderBottom: `1px solid ${themeColors.alpha.divider}`,
                 }}
               >
                 Mission
@@ -232,8 +247,8 @@ export default function Mission() {
                   py: 2,
                   textAlign: "left",
                   fontWeight: 600,
-                  color: "#e2e8f0",
-                  borderBottom: "1px solid rgba(139, 92, 246, 0.2)",
+                  color: COMMON_COLORS.text.secondary,
+                  borderBottom: `1px solid ${themeColors.alpha.divider}`,
                 }}
               >
                 Status
@@ -252,18 +267,18 @@ export default function Mission() {
                 sx={{
                   background:
                     mission.state === "Finished"
-                      ? "rgba(16, 185, 129, 0.08)"
-                      : "rgba(239, 68, 68, 0.08)",
+                      ? `${COMMON_COLORS.success.main}14`
+                      : `${COMMON_COLORS.error.main}14`,
                   transition: "all 0.2s ease-in-out",
                   "&:hover": {
                     background:
                       mission.state === "Finished"
-                        ? "rgba(16, 185, 129, 0.15)"
-                        : "rgba(239, 68, 68, 0.15)",
+                        ? `${COMMON_COLORS.success.main}26`
+                        : `${COMMON_COLORS.error.main}26`,
                   },
                   borderBottom:
                     index !== missions.length - 1
-                      ? "1px solid rgba(139, 92, 246, 0.1)"
+                      ? `1px solid ${themeColors.alpha.card}`
                       : "none",
                 }}
               >
@@ -272,7 +287,7 @@ export default function Mission() {
                   sx={{
                     px: 3,
                     py: 2,
-                    color: "#cbd5e1",
+                    color: COMMON_COLORS.text.tertiary,
                   }}
                 >
                   {mission.name}
@@ -289,23 +304,33 @@ export default function Mission() {
                     size="small"
                     icon={
                       mission.state === "Finished" ? (
-                        <CheckCircleIcon sx={{ color: "#10b981 !important" }} />
+                        <CheckCircleIcon
+                          sx={{
+                            color: `${COMMON_COLORS.success.main} !important`,
+                          }}
+                        />
                       ) : (
-                        <ErrorIcon sx={{ color: "#ef4444 !important" }} />
+                        <ErrorIcon
+                          sx={{
+                            color: `${COMMON_COLORS.error.main} !important`,
+                          }}
+                        />
                       )
                     }
                     sx={{
                       background:
                         mission.state === "Finished"
-                          ? "rgba(16, 185, 129, 0.2)"
-                          : "rgba(239, 68, 68, 0.2)",
+                          ? `${COMMON_COLORS.success.main}33`
+                          : `${COMMON_COLORS.error.main}33`,
                       color:
-                        mission.state === "Finished" ? "#34d399" : "#f87171",
+                        mission.state === "Finished"
+                          ? COMMON_COLORS.success.light
+                          : COMMON_COLORS.error.light,
                       fontWeight: 600,
                       border: `1px solid ${
                         mission.state === "Finished"
-                          ? "rgba(16, 185, 129, 0.3)"
-                          : "rgba(239, 68, 68, 0.3)"
+                          ? `${COMMON_COLORS.success.main}4D`
+                          : `${COMMON_COLORS.error.main}4D`
                       }`,
                     }}
                   />

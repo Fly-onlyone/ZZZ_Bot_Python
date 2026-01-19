@@ -113,12 +113,19 @@ class Mission:
         """
         self.page = page
         self.todays_data = todays_data
+        self._popup_handler = None
 
     def attach_page_listener(self) -> None:
         """Attach event listener to handle popup pages (e.g., check-in)."""
-        self.page.context.on(
-            "page", lambda new_page: handle_pop_up(new_page, self.todays_data)
-        )
+        self._popup_handler = lambda new_page: handle_pop_up(new_page, self.todays_data)
+        self.page.context.on("page", self._popup_handler)
+
+    def detach_page_listener(self) -> None:
+        """Remove the popup event listener to prevent interference with other handlers."""
+        if self._popup_handler:
+            self.page.context.remove_listener("page", self._popup_handler)
+            self._popup_handler = None
+            logger.info("Popup listener detached")
 
     def perform_mission(self, mission_button: Locator, max_retries: int = 5) -> bool:
         """Attempt to complete a mission by clicking the button.
@@ -323,6 +330,10 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
             todays_data.setdefault("missions", []).append(
                 {"name": mission_name, "state": status}
             )
+
+    # Remove popup listener to prevent interference with other handlers (e.g., ShoppingHandler)
+    if listener_attached:
+        mission_handler.detach_page_listener()
 
     # Log final check-in status
     check_in_status = todays_data.get("check_in", STATUS_LINK_NOT_OPENED)

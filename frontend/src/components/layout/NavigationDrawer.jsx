@@ -147,7 +147,7 @@ const NavigationDrawer = memo(function NavigationDrawer() {
     >
       <Toolbar />
       <Box className="overflow-auto">
-        <List sx={{ px: 1 }}>
+        <List sx={{ px: 1 }} role="navigation" aria-label="Main navigation">
           {tabs.map((tab, index) => (
             <motion.div
               key={tab.label}
@@ -160,6 +160,8 @@ const NavigationDrawer = memo(function NavigationDrawer() {
             >
               <ListItemButton
                 onClick={() => navigate(tab.path)}
+                aria-label={`Navigate to ${tab.label}`}
+                aria-current={isActive(tab.path) ? "page" : undefined}
                 sx={getListItemStyles(tab.path)}
               >
                 <ListItemIcon sx={getIconStyles(tab.path)}>

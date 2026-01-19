@@ -1,5 +1,6 @@
 import { BACKEND_URL, DataLoader } from "../services/DataLoader";
 import { Alert, Typography } from "@mui/material";
+import { RunningStatusSkeleton } from "../components";
 import { motion } from "framer-motion";
 import React from "react";
 import { DateTimeField } from "@mui/x-date-pickers";
@@ -50,7 +51,7 @@ export default function RunningStatus() {
     );
   }
   if (!data) {
-    return <Typography>Loading...</Typography>;
+    return <RunningStatusSkeleton />;
   }
 
   const { last_run, next_run } = data;

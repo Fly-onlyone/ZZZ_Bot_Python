@@ -26,13 +26,14 @@ const iconVariants = {
   },
 };
 
-// Memoized icon badge component
+// Memoized icon badge component (decorative)
 const IconBadge = memo(({ icon, gradient, themeColors }) => (
   <motion.div
     variants={iconVariants}
     initial="hidden"
     animate="visible"
     whileHover="hover"
+    aria-hidden="true"
   >
     <Box
       sx={{
@@ -80,6 +81,8 @@ export default function SectionCard({
         transition: { duration: 0.2, ease: "easeOut" },
       }}
       elevation={0}
+      role="region"
+      aria-label={title}
       sx={{
         borderRadius: "16px",
         background: cardBg,
