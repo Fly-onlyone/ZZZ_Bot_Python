@@ -1,6 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 from PyInstaller.utils.hooks import collect_submodules
+from pathlib import Path
+import sys
 
 datas = []
 binaries = []
@@ -10,6 +12,33 @@ tmp_ret = collect_all("apprise")
 datas += tmp_ret[0]
 binaries += tmp_ret[1]
 hiddenimports += tmp_ret[2]
+
+
+def _collect_openssl_binaries():
+    """Collect OpenSSL DLLs required by Python's _ssl module on Windows."""
+
+    openssl_patterns = ["libssl-*.dll", "libcrypto-*.dll"]
+    search_roots = [Path(sys.base_prefix), Path(sys.base_prefix) / "DLLs"]
+    found = []
+
+    for root in search_roots:
+        if not root.exists():
+            continue
+        for pattern in openssl_patterns:
+            for dll in root.glob(pattern):
+                found.append((str(dll), "."))
+
+    seen = set()
+    unique = []
+    for item in found:
+        if item[0] in seen:
+            continue
+        seen.add(item[0])
+        unique.append(item)
+    return unique
+
+
+binaries += _collect_openssl_binaries()
 
 datas += [
     ("./../frontend/dist", "frontend/dist"),
