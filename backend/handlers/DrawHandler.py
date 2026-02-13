@@ -12,7 +12,7 @@ from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, Lo
 
 from automation import RedeemAutofill, RetryHelper
 from automation.ImageProcessor import find_correct_lottery_logo, detect_reward
-from core.GlobalVar import CONFIG, resource_path
+from core.GlobalVar import CONFIG, resource_path, is_exe
 from utils import NotificationHelper
 from utils.StringUtil import extract_price, extract_number
 
@@ -105,7 +105,10 @@ def _find_reward_image(page: Page, draw_number: int) -> Optional[Locator]:
 def _save_debug_artifacts(page: Page, draw_number: int) -> None:
     """Save screenshot and DOM snapshot for debugging reward detection failures."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    error_dir = resource_path("backend/logs/errors", outside=True)
+    if is_exe:
+        error_dir = resource_path("logs/errors", outside_path=True)
+    else:
+        error_dir = "backend/logs/errors"
     os.makedirs(error_dir, exist_ok=True)
 
     # Screenshot

@@ -2,13 +2,14 @@
 
 ## Project Structure
 
-ZZZ Bot follows a hybrid desktop application architecture with clear separation between backend automation and frontend UI.
+ZZZ Bot follows a hybrid desktop application architecture with clear separation between backend automation and frontend
+UI.
 
 ### Hybrid Desktop Application
 
 - **Development Mode:**
     - Backend: `python backend/Bot.py` (FastAPI on port 8000)
-    - Frontend: `cd frontend && npm run dev` (Vite dev server on port 3000)
+    - Frontend: `cd frontend && bun run dev` (Vite dev server on port 3000)
 - **Production Mode:**
     - Single executable serving both backend and built frontend on port 8000
     - System tray icon with web UI launcher
@@ -61,40 +62,47 @@ Data Access Layer (Repositories)
 ### Backend Modules
 
 #### Core (`backend/core/`)
+
 - **Purpose:** Application bootstrapping, global state, notifications
 - **Key files:** `Bot.py` (entry point), `GlobalVar.py` (config), `Notification.py` (email)
 - **Pattern:** Singleton-like global state, minimal dependencies
 
 #### Handlers (`backend/handlers/`)
+
 - **Purpose:** Business logic orchestration for each task type
 - **Files:** `MissionHandler.py`, `ShoppingHandler.py`, `DrawHandler.py`, `HuntModeHandler.py`
 - **Pattern:** Task-specific handlers with `run()` method, use automation modules
 - **Dependencies:** Automation, Services, Repositories
 
 #### Automation (`backend/automation/`)
+
 - **Purpose:** Browser interaction primitives
 - **Files:** `ImageProcessor.py`, `RedeemAutofill.py`, `AutoLogin.py`, `RetryHelper.py`, `Selectors.py`
 - **Pattern:** Focused utilities, no business logic
 - **Dependencies:** Playwright, OpenCV
 
 #### Services (`backend/services/`)
+
 - **Purpose:** External system integration
 - **Files:** `BrowserService.py`
 - **Pattern:** Stateful service classes managing lifecycle
 - **Dependencies:** Playwright
 
 #### Repositories (`backend/repositories/`)
+
 - **Purpose:** Data persistence abstraction
 - **Files:** `DataRepository.py`
 - **Pattern:** Repository pattern, returns domain models
 - **Dependencies:** Domain models, utils
 
 #### Domain (`backend/domain/`)
+
 - **Purpose:** Core data structures
 - **Files:** `models.py`
 - **Pattern:** Pydantic models, no logic
 
 #### Utils (`backend/utils/`)
+
 - **Purpose:** Cross-cutting utilities
 - **Files:** `DataHandler.py`, `Logger.py`, `StringUtil.py`
 - **Pattern:** Stateless helper functions
@@ -129,6 +137,7 @@ theme/                 # Theme system (ThemeContext, themes, colors)
 **Problem:** Application runs in two modes (development and packaged exe) with different path structures.
 
 **Solution:** `resource_path(relative_path, outside=False)` function:
+
 - `outside=False`: Bundled resources (images, templates) - uses `_MEIPASS` in exe mode
 - `outside=True`: User data (output/, screenshot/) - always uses app directory
 
@@ -141,12 +150,14 @@ theme/                 # Theme system (ThemeContext, themes, colors)
 **Solution:** OpenCV template matching with reference images.
 
 **Workflow:**
+
 1. Take screenshot of current state
 2. Compare with reference images using `cv2.matchTemplate`
 3. Calculate difference percentage
 4. Make decisions based on visual similarity (<5% threshold)
 
 **Trade-offs:**
+
 - **Pros:** Resilient to layout changes, works with dynamic content
 - **Cons:** Requires reference images, sensitive to UI theme changes
 
@@ -157,6 +168,7 @@ theme/                 # Theme system (ThemeContext, themes, colors)
 **Solution:** Persistent Playwright browser context.
 
 **Implementation:**
+
 - Store session in `authentication data/` directory
 - First-time setup via manual login UI
 - Reuse session across runs
@@ -170,6 +182,7 @@ theme/                 # Theme system (ThemeContext, themes, colors)
 **Solution:** Execute hunt in three phases.
 
 **Workflow:**
+
 ```python
 # Phase 1: Exchange all items (collect codes)
 for item in hunt_items:
@@ -191,6 +204,7 @@ remove_successful_items()
 **Solution:** `ValueAdapter` component with type detection.
 
 **Pattern:**
+
 ```jsx
 <ValueAdapter
   label="Settings"
@@ -201,6 +215,7 @@ remove_successful_items()
 ```
 
 **How it works:**
+
 - Detects type (bool → Switch, array → multi-input, object → nested form)
 - Renders appropriate MUI component
 - Synchronizes with backend JSON structure
@@ -214,11 +229,13 @@ remove_successful_items()
 **Solution:** `schedule` library with last run tracking.
 
 **Features:**
+
 - Configurable schedule times (`output/settings.json`)
 - Missed run detection on startup
 - Next run calculation for UI display
 
 **Implementation:**
+
 ```python
 for time_str in schedule_times:
     schedule.every().day.at(time_str).do(task)
@@ -229,6 +246,7 @@ for time_str in schedule_times:
 **Pattern:** `Serializable` base class with `.save()` and `.load()` methods.
 
 **Features:**
+
 - Automatic JSON serialization
 - Directory creation
 - Data rotation (missions: 5 days, redemptions: 30 days)
@@ -238,16 +256,19 @@ for time_str in schedule_times:
 ## Frontend State Management
 
 ### Server State (TanStack Query)
+
 - **Use for:** API data (shopping, settings, account, missions)
 - **Features:** Caching, automatic refetching, optimistic updates
 - **Location:** `services/DataLoader.jsx`
 
 ### UI State (React useState/useReducer)
+
 - **Use for:** Form inputs, modal visibility, UI toggles
 - **Features:** Local component state, no persistence
 - **Location:** Component files, custom hooks
 
 ### Form State (Custom hooks)
+
 - **Use for:** Form field synchronization with backend
 - **Hooks:** `useFormState`, `useShoppingState`
 - **Pattern:** Controlled components with validation
@@ -303,17 +324,20 @@ Bot.py (core/)
 ## Build and Packaging
 
 ### Development
+
 - Backend: Direct Python execution (`python backend/Bot.py`)
-- Frontend: Vite dev server with HMR (`npm run dev`)
+- Frontend: Vite dev server with HMR (`bun run dev`)
 - Hot reload: Backend serves frontend build or proxies to Vite
 
 ### Production
+
 - Frontend: Build to `frontend/dist/` via Vite
 - Backend: PyInstaller bundles Python + frontend + Playwright browsers
 - Output: Single executable with embedded resources
 - Installer: Inno Setup creates Windows installer
 
 **Key files:**
+
 - `product/Bot.spec`: PyInstaller configuration
 - `installer.iss`: Inno Setup script
 - `frontend/vite.config.js`: Frontend build config

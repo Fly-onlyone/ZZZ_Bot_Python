@@ -12,9 +12,15 @@ Optional: Increment version number before building
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+try:
+    import winreg
+except ImportError:  # Non-Windows platforms
+    winreg = None
 
 
 class Colors:
@@ -55,6 +61,17 @@ def print_info(msg):
 def print_warning(msg):
     """Print a warning message"""
     print(f"{Colors.WARNING}⚠ {msg}{Colors.ENDC}")
+
+
+def print_command_output(step_name, stdout, stderr):
+    """Print captured command output for build steps."""
+    if stdout and stdout.strip():
+        print_header(f"{step_name} stdout")
+        print(stdout.rstrip())
+
+    if stderr and stderr.strip():
+        print_header(f"{step_name} stderr")
+        print(stderr.rstrip())
 
 
 def get_current_version():
@@ -145,12 +162,12 @@ def build_frontend():
         print_error("Frontend directory not found!")
         return False
 
-    print_info("Running: npm run build")
+    print_info("Running: bun run build")
 
     try:
-        # Use shell=True on Windows to find npm.cmd
+        # Use shell=True on Windows to find bun.exe/bun.cmd
         result = subprocess.run(
-            "npm run build",
+            "bun run build",
             cwd=frontend_dir,
             check=True,
             capture_output=True,
@@ -158,6 +175,7 @@ def build_frontend():
             shell=True,
         )
 
+        print_command_output("Frontend build", result.stdout, result.stderr)
         print_success("Frontend build completed successfully!")
 
         # Verify dist folder exists
@@ -170,8 +188,8 @@ def build_frontend():
         return True
 
     except subprocess.CalledProcessError as e:
-        print_error(f"Frontend build failed!")
-        print(e.stderr)
+        print_error("Frontend build failed!")
+        print_command_output("Frontend build", e.stdout, e.stderr)
         return False
 
 
@@ -202,6 +220,7 @@ def build_executable():
             env=env,
         )
 
+        print_command_output("Backend build", result.stdout, result.stderr)
         print_success("Executable build completed successfully!")
 
         # Verify exe exists
@@ -215,15 +234,56 @@ def build_executable():
         return True
 
     except subprocess.CalledProcessError as e:
-        print_error(f"Executable build failed!")
-        if e.stderr:
-            print(e.stderr)
+        print_error("Executable build failed!")
+        print_command_output("Backend build", e.stdout, e.stderr)
         return False
 
 
 def find_iscc():
-    """Find iscc.exe in common Inno Setup installation locations"""
-    # Common Inno Setup installation paths
+    """Find iscc.exe via override, PATH, registry, then common install paths."""
+
+    # 1) Explicit override for custom installations/portable setups.
+    override_path = os.getenv("ISCC_EXE")
+    if override_path:
+        candidate = Path(override_path)
+        if candidate.exists():
+            return candidate
+
+    # 2) PATH-based lookup.
+    which_path = shutil.which("iscc.exe") or shutil.which("iscc")
+    if which_path:
+        return Path(which_path)
+
+    # 3) Registry lookup for typical Inno Setup uninstall keys.
+    registry_candidates = []
+    if winreg is not None:
+        subkeys = [
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1",
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 5_is1",
+        ]
+        hives = [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]
+        views = [0]
+        if hasattr(winreg, "KEY_WOW64_64KEY"):
+            views.append(winreg.KEY_WOW64_64KEY)
+        if hasattr(winreg, "KEY_WOW64_32KEY"):
+            views.append(winreg.KEY_WOW64_32KEY)
+
+        for hive in hives:
+            for subkey in subkeys:
+                for view in views:
+                    try:
+                        access = winreg.KEY_READ | view
+                        with winreg.OpenKey(hive, subkey, 0, access) as key:
+                            install_location, _ = winreg.QueryValueEx(
+                                key, "InstallLocation"
+                            )
+                            registry_candidates.append(
+                                Path(install_location) / "iscc.exe"
+                            )
+                    except OSError:
+                        continue
+
+    # 4) Common default installation paths.
     common_paths = [
         Path(r"C:\Program Files (x86)\Inno Setup 6\iscc.exe"),
         Path(r"C:\Program Files\Inno Setup 6\iscc.exe"),
@@ -231,7 +291,17 @@ def find_iscc():
         Path(r"C:\Program Files\Inno Setup 5\iscc.exe"),
     ]
 
-    for iscc_path in common_paths:
+    # Preserve order while deduplicating.
+    seen = set()
+    candidates = []
+    for iscc_path in registry_candidates + common_paths:
+        path_str = str(iscc_path).lower()
+        if path_str in seen:
+            continue
+        seen.add(path_str)
+        candidates.append(iscc_path)
+
+    for iscc_path in candidates:
         if iscc_path.exists():
             return iscc_path
 
@@ -253,7 +323,10 @@ def build_installer():
 
     if not iscc_path:
         print_error("Inno Setup Compiler (iscc.exe) not found!")
-        print_warning("Searched in:")
+        print_warning("Searched via:")
+        print_warning("  - ISCC_EXE environment variable")
+        print_warning("  - PATH (iscc.exe / iscc)")
+        print_warning("  - Registry uninstall keys (Inno Setup 5/6)")
         print_warning("  - C:\\Program Files (x86)\\Inno Setup 6\\")
         print_warning("  - C:\\Program Files\\Inno Setup 6\\")
         print_warning("Install Inno Setup from: https://jrsoftware.org/isinfo.php")

@@ -73,9 +73,10 @@ Critical for both development and packaged exe:
 
 ```python
 def resource_path(relative_path, outside=False):
-# Handles paths differently in dev vs exe mode
-# outside=True for output/, screenshot/ (persist across updates)
-# outside=False for bundled resources
+    # Handles paths differently in dev vs exe mode
+    # outside=True for output/, screenshot/ (persist across updates)
+    # outside=False for bundled resources
+    pass
 ```
 
 When testing exe behavior in dev: `set SIMULATE_EXE=1` environment variable.
@@ -85,13 +86,14 @@ When testing exe behavior in dev: `set SIMULATE_EXE=1` environment variable.
 ### Development
 
 ```bash
-# Run backend (auto-opens web UI at http://localhost:8000)
-python backend/Bot.py
+# Sync Python environment and run backend (auto-opens web UI at http://localhost:8000)
+uv sync
+uv run python backend/Bot.py
 
 # Run frontend dev server
 cd frontend
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 ### Build
@@ -99,11 +101,14 @@ npm run dev
 ```bash
 # Build frontend
 cd frontend
-npm run build
+bun run build
+
+# Sync build dependencies
+uv sync --group dev
 
 # Create executable
 cd product
-pyinstaller Bot.spec
+uv run pyinstaller Bot.spec
 
 # Create installer (requires Inno Setup)
 iscc installer.iss
@@ -112,7 +117,7 @@ iscc installer.iss
 ### Testing
 
 ```bash
-pytest backend/test/
+uv run --group dev pytest backend/test/
 ```
 
 ## Configuration Files
