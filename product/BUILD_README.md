@@ -25,9 +25,10 @@ Automated build script that handles the complete build process for ZZZ Bot.
 
 ## Requirements
 
-- Python 3.7+
-- Node.js & npm (for frontend)
-- PyInstaller (`pip install pyinstaller`)
+- Python 3.11+
+- Bun 1.3+ (for frontend)
+- uv (for Python environment and dependency management)
+- PyInstaller (installed by `uv sync --group dev`)
 - Inno Setup (for installer creation)
     - Download: https://jrsoftware.org/isinfo.php
     - Make sure `iscc.exe` is in your PATH
@@ -76,7 +77,7 @@ The script will ask you:
 
 ### 1. Frontend Build
 
-- Runs: `npm run build` in `frontend/` directory
+- Runs: `bun run build` in `frontend/` directory
 - Output: `frontend/dist/`
 - Bundled into the executable by PyInstaller
 
@@ -196,14 +197,14 @@ python build.py
 
 ### Frontend build fails
 
-- Check if `npm` is installed: `npm --version`
-- Try manual build: `cd frontend && npm run build`
+- Check if `bun` is installed: `bun --version`
+- Try manual build: `cd frontend && bun run build`
 - Check for errors in frontend code
 
 ### Executable build fails
 
 - Check if BuildExe.py exists in product/ directory
-- Check if PyInstaller is installed: `pip install pyinstaller`
+- Sync Python dependencies (includes PyInstaller): `uv sync --group dev`
 - Try manual build: `cd product && python BuildExe.py`
 - Check Python dependencies are installed
 - Ensure MODE environment variable is not set to "MAKE_EXE_STANDALONE"

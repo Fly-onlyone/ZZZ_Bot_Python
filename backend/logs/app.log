@@ -9,3 +9,313 @@
 2025-12-06 15:26:29,442 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
 2025-12-06 15:26:29,447 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
 2025-12-06 15:26:29,459 - schedule - DEBUG - Deleting *all* jobs
+2026-01-17 20:42:08,075 - asyncio - DEBUG - Using proactor: IocpProactor
+2026-01-17 20:42:08,110 - uvicorn.error - INFO - Started server process [14996]
+2026-01-17 20:42:08,111 - uvicorn.error - INFO - Waiting for application startup.
+2026-01-17 20:42:08,111 - uvicorn.error - INFO - Application startup complete.
+2026-01-17 20:42:08,112 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2026-01-17 20:42:08,167 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2026-01-17 20:42:08,182 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2026-01-17 20:42:08,231 - schedule - DEBUG - Deleting *all* jobs
+2026-01-17 20:42:08,232 - schedule - DEBUG - Deleting all jobs tagged "hunt"
+2026-01-17 20:42:08,232 - __main__ - INFO - Cleared old hunt schedules
+2026-01-17 20:42:08,241 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×60' will be available at 18:00 20/01/26
+2026-01-17 20:42:08,245 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×100' will be available at 18:00 20/01/26
+2026-01-17 20:42:08,245 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×30' will be available at 18:00 20/01/26
+2026-01-17 20:42:08,245 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×10' will be available at 18:00 20/01/26
+2026-01-17 20:42:08,246 - handlers.HuntModeHandler - INFO - Next hunt scheduled for: 18:00 20/01/26
+2026-01-17 20:42:08,246 - __main__ - INFO - Hunt mode scheduled at 17:58 20/01/26 (target item time: 18:00 20/01/26)
+2026-01-17 20:42:08,256 - asyncio - DEBUG - Using proactor: IocpProactor
+2026-01-17 20:42:17,395 - handlers.MissionHandler - INFO - Starting mission automation...
+2026-01-17 20:42:17,395 - handlers.MissionHandler - INFO - Opening mission screen...
+2026-01-17 20:42:22,462 - automation.RetryHelper - WARNING - Attempt 1/10: Timeout waiting for button or screen
+2026-01-17 20:42:23,871 - uvicorn.access - INFO - 127.0.0.1:56476 - "GET /images/Qingyi02.ico HTTP/1.1" 200
+2026-01-17 20:42:27,140 - automation.RetryHelper - DEBUG - Button clicked (attempt 2/10)
+2026-01-17 20:42:27,151 - automation.RetryHelper - DEBUG - Attempt 2/10: Target screen not visible, retrying...
+2026-01-17 20:42:28,211 - automation.RetryHelper - DEBUG - Button clicked (attempt 3/10)
+2026-01-17 20:42:28,219 - automation.RetryHelper - DEBUG - Attempt 3/10: Target screen not visible, retrying...
+2026-01-17 20:42:29,299 - automation.RetryHelper - DEBUG - Button clicked (attempt 4/10)
+2026-01-17 20:42:29,311 - automation.RetryHelper - INFO - Target screen appeared on attempt 4
+2026-01-17 20:42:29,311 - handlers.MissionHandler - INFO - Mission screen opened successfully
+2026-01-17 20:42:29,311 - handlers.MissionHandler - INFO - Counting available missions...
+2026-01-17 20:42:29,329 - automation.RetryHelper - INFO - Non-zero count found: 2 (attempt 1/10)
+2026-01-17 20:42:29,330 - automation.ImageProcessor - INFO - Found 2 avatars
+2026-01-17 20:42:29,405 - automation.ImageProcessor - DEBUG - Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
+2026-01-17 20:42:29,405 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2026-01-17 20:42:29,409 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): act.hoyolab.com:443
+2026-01-17 20:42:30,290 - urllib3.connectionpool - DEBUG - https://act.hoyolab.com:443 "GET /bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png HTTP/1.1" 200 48212
+2026-01-17 20:42:30,405 - automation.ImageProcessor - DEBUG - Avatar 1: 73.32% difference from ZZZ icon
+2026-01-17 20:42:30,446 - automation.ImageProcessor - DEBUG - Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
+2026-01-17 20:42:30,513 - urllib3.connectionpool - DEBUG - https://act.hoyolab.com:443 "GET /bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png HTTP/1.1" 200 57692
+2026-01-17 20:42:30,577 - automation.ImageProcessor - DEBUG - Avatar 2: 0.00% difference from ZZZ icon
+2026-01-17 20:42:30,578 - automation.ImageProcessor - INFO - ZZZ avatar found at position 2
+2026-01-17 20:42:30,656 - handlers.MissionHandler - INFO - Clicked on ZZZ avatar
+2026-01-17 20:42:30,666 - automation.RetryHelper - DEBUG - Attempt 1/10: Count is 0, retrying...
+2026-01-17 20:42:31,696 - automation.RetryHelper - INFO - Non-zero count found: 9 (attempt 2/10)
+2026-01-17 20:42:31,697 - handlers.MissionHandler - INFO - Found 9 available missions
+2026-01-17 20:42:31,698 - handlers.MissionHandler - INFO - Processing mission 1/9
+2026-01-17 20:42:31,711 - handlers.MissionHandler - INFO - Mission name: Log into Zenless Zone Zero today
+2026-01-17 20:42:32,226 - handlers.MissionHandler - INFO - Mission button clicked (attempt 1/5)
+2026-01-17 20:42:34,245 - handlers.MissionHandler - INFO - Mission reward claimed successfully
+2026-01-17 20:42:34,246 - handlers.MissionHandler - INFO - Processing mission 2/9
+2026-01-17 20:42:34,255 - handlers.MissionHandler - INFO - Mission name: Reach 400 Engagement today
+2026-01-17 20:42:35,052 - uvicorn.access - INFO - 127.0.0.1:56505 - "GET /overview/mission HTTP/1.1" 200
+2026-01-17 20:42:35,058 - uvicorn.access - INFO - 127.0.0.1:56508 - "GET /routes HTTP/1.1" 200
+2026-01-17 20:42:35,061 - handlers.HuntModeHandler - INFO - Found 4 items to hunt (ordered by priority): ['Polychrome ×100', 'Polychrome ×60', 'Polychrome ×30', 'Polychrome ×10']
+2026-01-17 20:42:35,063 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×60' will be available at 18:00 20/01/26
+2026-01-17 20:42:35,067 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×100' will be available at 18:00 20/01/26
+2026-01-17 20:42:35,068 - uvicorn.access - INFO - 127.0.0.1:56509 - "GET /settings HTTP/1.1" 200
+2026-01-17 20:42:35,082 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×30' will be available at 18:00 20/01/26
+2026-01-17 20:42:35,084 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×10' will be available at 18:00 20/01/26
+2026-01-17 20:42:35,085 - handlers.HuntModeHandler - INFO - Next hunt scheduled for: 18:00 20/01/26
+2026-01-17 20:42:35,084 - uvicorn.access - INFO - 127.0.0.1:56508 - "GET /routes HTTP/1.1" 200
+2026-01-17 20:42:35,102 - uvicorn.access - INFO - 127.0.0.1:56506 - "GET /overview/hunt HTTP/1.1" 200
+2026-01-17 20:42:35,104 - uvicorn.access - INFO - 127.0.0.1:56509 - "GET /shopping HTTP/1.1" 200
+2026-01-17 20:42:35,110 - uvicorn.access - INFO - 127.0.0.1:56507 - "GET /check-run-status HTTP/1.1" 200
+2026-01-17 20:42:35,112 - uvicorn.access - INFO - 127.0.0.1:56508 - "GET /redeem HTTP/1.1" 200
+2026-01-17 20:42:35,114 - uvicorn.access - INFO - 127.0.0.1:56505 - "GET /account HTTP/1.1" 200
+2026-01-17 20:42:35,162 - uvicorn.access - INFO - 127.0.0.1:56509 - "GET /routes HTTP/1.1" 200
+2026-01-17 20:42:35,514 - uvicorn.access - INFO - 127.0.0.1:56509 - "GET /routes HTTP/1.1" 200
+2026-01-17 20:42:35,519 - uvicorn.access - INFO - 127.0.0.1:56510 - "GET /images/Zhu%20Yuan02.ico HTTP/1.1" 200
+2026-01-17 20:42:35,767 - handlers.MissionHandler - INFO - Mission button clicked (attempt 1/5)
+2026-01-17 20:42:37,804 - handlers.MissionHandler - INFO - Mission reward claimed successfully
+2026-01-17 20:42:37,804 - handlers.MissionHandler - INFO - Processing mission 3/9
+2026-01-17 20:42:37,828 - handlers.MissionHandler - INFO - Mission name: Spend 80 Battery Charge today
+2026-01-17 20:42:39,339 - handlers.MissionHandler - INFO - Mission button clicked (attempt 1/5)
+2026-01-17 20:42:41,355 - handlers.MissionHandler - INFO - Mission reward claimed successfully
+2026-01-17 20:42:41,355 - handlers.MissionHandler - INFO - Processing mission 4/9
+2026-01-17 20:42:41,363 - handlers.MissionHandler - INFO - Mission name: Visit the Zenless Zone Zero community today
+2026-01-17 20:42:41,400 - handlers.MissionHandler - INFO - Mission 'Visit the Zenless Zone Zero community today' already finished (detected via image)
+2026-01-17 20:42:41,401 - handlers.MissionHandler - INFO - Processing mission 5/9
+2026-01-17 20:42:41,414 - handlers.MissionHandler - INFO - Mission name: Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game
+2026-01-17 20:42:41,450 - handlers.MissionHandler - INFO - Mission 'Check-in once in Zenless Zone Zero and obtain Polychrome ×100 if this is your first time signing into the game' already finished (detected via image)
+2026-01-17 20:42:41,451 - handlers.MissionHandler - INFO - Processing mission 6/9
+2026-01-17 20:42:41,466 - handlers.MissionHandler - INFO - Mission name: Log into the game for 7 days
+2026-01-17 20:42:41,506 - handlers.MissionHandler - INFO - Mission 'Log into the game for 7 days' already finished (detected via image)
+2026-01-17 20:42:41,507 - handlers.MissionHandler - INFO - Processing mission 7/9
+2026-01-17 20:42:41,513 - handlers.MissionHandler - INFO - Mission name: Log into the game for 14 days
+2026-01-17 20:42:41,545 - handlers.MissionHandler - INFO - Mission 'Log into the game for 14 days' already finished (detected via image)
+2026-01-17 20:42:41,546 - handlers.MissionHandler - INFO - Processing mission 8/9
+2026-01-17 20:42:41,554 - handlers.MissionHandler - INFO - Mission name: Complete a solo Notorious Hunt challenge this week (Outpost commissions do not count)
+2026-01-17 20:42:41,596 - handlers.MissionHandler - INFO - Mission 'Complete a solo Notorious Hunt challenge this week (Outpost commissions do not count)' already finished (detected via image)
+2026-01-17 20:42:41,597 - handlers.MissionHandler - INFO - Processing mission 9/9
+2026-01-17 20:42:41,605 - handlers.MissionHandler - INFO - Mission name: Complete a Hollow Zero operation once this week
+2026-01-17 20:42:41,641 - handlers.MissionHandler - INFO - Mission 'Complete a Hollow Zero operation once this week' already finished (detected via image)
+2026-01-17 20:42:41,641 - handlers.MissionHandler - INFO - Popup listener detached
+2026-01-17 20:42:41,642 - handlers.MissionHandler - WARNING - Check-in link was not opened - skipping unnecessary wait
+2026-01-17 20:42:41,642 - handlers.MissionHandler - INFO - Check-in status: Link isn't opened
+2026-01-17 20:42:41,649 - utils.DataHandler - INFO - Mission data saved with updated check-in result.
+2026-01-17 20:42:41,650 - handlers.MissionHandler - INFO - Mission automation completed successfully
+2026-01-17 20:42:43,146 - apprise - DEBUG - Language set to en
+2026-01-17 20:42:43,536 - apprise - DEBUG - Module exception raised from C:\Users\PC\Documents\Playwright\ZZZ bot - Python\.venv\Lib\site-packages\apprise\plugins\syslog.py (name=apprise.plugins.syslog) No module named 'syslog'
+2026-01-17 20:42:43,794 - apprise - DEBUG - Notification Plugin 121(s) and 167 Schema(s) loaded in 0.6451s
+2026-01-17 20:42:43,801 - apprise - INFO - Applying Google Mail Defaults
+2026-01-17 20:42:43,805 - apprise - DEBUG - Loaded E-Mail URL: mailtos://galevan61:****@gmail.com/?pgp=no&format=html&overflow=upstream&cto=15&smtp=smtp.gmail.com&mode=starttls
+2026-01-17 20:42:43,806 - apprise - DEBUG - Connecting to remote SMTP server...
+2026-01-17 20:42:44,152 - apprise - DEBUG - Securing connection with STARTTLS...
+2026-01-17 20:42:44,676 - apprise - DEBUG - Applying user credentials...
+2026-01-17 20:42:45,388 - apprise - DEBUG - SMTP Host: smtp.gmail.com
+2026-01-17 20:42:45,389 - apprise - DEBUG - Email From: Apprise <galevan61@gmail.com>
+2026-01-17 20:42:45,390 - apprise - DEBUG - Email To: galevan61@gmail.com
+2026-01-17 20:42:46,859 - apprise - INFO - Sent Email to galevan61@gmail.com
+2026-01-17 20:42:47,343 - __main__ - INFO - === PHASE 1: Shopping Execution (Before Draw) ===
+2026-01-17 20:42:47,344 - handlers.ShoppingHandler - INFO - Starting shopping execution phase (before draw)...
+2026-01-17 20:42:47,566 - automation.RetryHelper - DEBUG - Button clicked (attempt 1/10)
+2026-01-17 20:42:47,600 - automation.RetryHelper - INFO - Target screen appeared on attempt 1
+2026-01-17 20:42:47,601 - handlers.ShoppingHandler - INFO - Shopping screen opened
+2026-01-17 20:42:47,615 - automation.RetryHelper - INFO - Non-zero count found: 2 (attempt 1/10)
+2026-01-17 20:42:47,616 - automation.ImageProcessor - INFO - Found 2 avatars
+2026-01-17 20:42:47,718 - automation.ImageProcessor - DEBUG - Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
+2026-01-17 20:42:47,794 - urllib3.connectionpool - DEBUG - https://act.hoyolab.com:443 "GET /bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png HTTP/1.1" 200 48212
+2026-01-17 20:42:47,810 - automation.ImageProcessor - DEBUG - Avatar 1: 73.32% difference from ZZZ icon
+2026-01-17 20:42:47,861 - automation.ImageProcessor - DEBUG - Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
+2026-01-17 20:42:47,940 - urllib3.connectionpool - DEBUG - https://act.hoyolab.com:443 "GET /bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png HTTP/1.1" 200 57692
+2026-01-17 20:42:47,958 - automation.ImageProcessor - DEBUG - Avatar 2: 0.00% difference from ZZZ icon
+2026-01-17 20:42:47,958 - automation.ImageProcessor - INFO - ZZZ avatar found at position 2
+2026-01-17 20:42:49,209 - handlers.ShoppingHandler - INFO - Selected ZZZ avatar
+2026-01-17 20:42:50,236 - handlers.ShoppingHandler - INFO - Starting shopping exchange process...
+2026-01-17 20:42:50,236 - handlers.ShoppingHandler - INFO - Processing 7 item(s) (buy_all: True)
+2026-01-17 20:42:50,237 - handlers.ShoppingHandler - INFO - Processing item: Polychrome ×100
+2026-01-17 20:42:50,249 - handlers.ShoppingHandler - WARNING - Item 'Polychrome ×100' not found on page, skipping
+2026-01-17 20:42:50,257 - handlers.ShoppingHandler - INFO - stop_on_failed_exchange enabled and item not previously purchased, stopping shopping
+2026-01-17 20:42:50,262 - handlers.ShoppingHandler - INFO - Shopping exchange completed: 0 successful, 1 failed
+2026-01-17 20:42:50,263 - handlers.ShoppingHandler - INFO - Shopping execution phase completed
+2026-01-17 20:42:50,264 - __main__ - INFO - Attempting to close shopping screen (attempt 1/3)
+2026-01-17 20:42:50,290 - __main__ - INFO - Close button count: 1
+2026-01-17 20:42:50,296 - __main__ - INFO - Close button visible: True
+2026-01-17 20:42:51,270 - __main__ - INFO - Clicked shopping close button
+2026-01-17 20:42:53,939 - __main__ - INFO - Shopping screen closed successfully
+2026-01-17 20:42:53,940 - __main__ - INFO - Draw data cancelled due to setting.
+2026-01-17 20:42:53,940 - __main__ - INFO - === PHASE 2: Shopping Data Gathering (After Draw) ===
+2026-01-17 20:42:53,940 - handlers.ShoppingHandler - INFO - Starting shopping data gathering phase (after draw)...
+2026-01-17 20:42:53,998 - automation.RetryHelper - DEBUG - Button clicked (attempt 1/10)
+2026-01-17 20:42:54,024 - automation.RetryHelper - INFO - Target screen appeared on attempt 1
+2026-01-17 20:42:54,025 - handlers.ShoppingHandler - INFO - Shopping screen opened
+2026-01-17 20:42:54,039 - automation.RetryHelper - INFO - Non-zero count found: 2 (attempt 1/10)
+2026-01-17 20:42:54,040 - automation.ImageProcessor - INFO - Found 2 avatars
+2026-01-17 20:42:54,102 - automation.ImageProcessor - DEBUG - Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png
+2026-01-17 20:42:54,188 - urllib3.connectionpool - DEBUG - https://act.hoyolab.com:443 "GET /bbs/event/bbs-event-20230908mimo/images/icon-rpg.ec3aefb3..png HTTP/1.1" 200 48212
+2026-01-17 20:42:54,195 - automation.ImageProcessor - DEBUG - Avatar 1: 73.32% difference from ZZZ icon
+2026-01-17 20:42:54,240 - automation.ImageProcessor - DEBUG - Resolved image URL: https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png
+2026-01-17 20:42:54,338 - urllib3.connectionpool - DEBUG - https://act.hoyolab.com:443 "GET /bbs/event/bbs-event-20230908mimo/images/icon-zzz.b4ecc9ef..png HTTP/1.1" 200 57692
+2026-01-17 20:42:54,380 - automation.ImageProcessor - DEBUG - Avatar 2: 0.00% difference from ZZZ icon
+2026-01-17 20:42:54,381 - automation.ImageProcessor - INFO - ZZZ avatar found at position 2
+2026-01-17 20:42:55,332 - handlers.ShoppingHandler - INFO - Selected ZZZ avatar
+2026-01-17 20:42:56,348 - handlers.ShoppingHandler - INFO - Extracting current points...
+2026-01-17 20:42:56,369 - handlers.ShoppingHandler - DEBUG - Raw point text extracted: '×620'
+2026-01-17 20:42:56,370 - handlers.ShoppingHandler - DEBUG - After removing first char: '620'
+2026-01-17 20:42:56,370 - handlers.ShoppingHandler - INFO - Current points: 620
+2026-01-17 20:42:56,371 - handlers.ShoppingHandler - INFO - Duration check: 2026-12-29 to 2026-02-08, Current: 2026-01-17, Within: False
+2026-01-17 20:42:56,371 - handlers.ShoppingHandler - INFO - Event duration expired, gathering fresh data
+2026-01-17 20:42:56,372 - handlers.ShoppingHandler - INFO - Gathering shopping item data...
+2026-01-17 20:42:56,375 - automation.RetryHelper - INFO - Non-zero count found: 9 (attempt 1/10)
+2026-01-17 20:42:56,375 - handlers.ShoppingHandler - INFO - Processing 9 items...
+2026-01-17 20:42:56,392 - handlers.ShoppingHandler - DEBUG - Processed item: Ye Shunguang Avatar Frame (Permanent), Price: 150, Inventory: 2983817, Status: Exchange
+2026-01-17 20:42:56,418 - handlers.ShoppingHandler - DEBUG - Processed item: Zhao Avatar Frame (Permanent), Price: 150, Inventory: 2990033, Status: Exchange
+2026-01-17 20:42:56,435 - handlers.ShoppingHandler - DEBUG - Processed item: Dennies ×5,000, Price: 50, Inventory: 30546, Status: Exchange
+2026-01-17 20:42:56,457 - handlers.ShoppingHandler - DEBUG - Processed item: Dennies ×10,000, Price: 80, Inventory: 1000, Status: Exchange
+2026-01-17 20:42:56,473 - handlers.ShoppingHandler - DEBUG - Item on cooldown, returns at: 18:00 20/01/26
+2026-01-17 20:42:56,474 - handlers.ShoppingHandler - DEBUG - Processed item: Senior Investigator Log ×5, Price: 100, Inventory: 0, Status: 18:00 20/01/26
+2026-01-17 20:42:56,488 - handlers.ShoppingHandler - DEBUG - Item on cooldown, returns at: 18:00 20/01/26
+2026-01-17 20:42:56,488 - handlers.ShoppingHandler - DEBUG - Processed item: Polychrome ×10, Price: 100, Inventory: 0, Status: 18:00 20/01/26
+2026-01-17 20:42:56,501 - handlers.ShoppingHandler - DEBUG - Item on cooldown, returns at: 18:00 20/01/26
+2026-01-17 20:42:56,502 - handlers.ShoppingHandler - DEBUG - Processed item: Polychrome ×30, Price: 200, Inventory: 0, Status: 18:00 20/01/26
+2026-01-17 20:42:56,515 - handlers.ShoppingHandler - DEBUG - Item on cooldown, returns at: 18:00 20/01/26
+2026-01-17 20:42:56,515 - handlers.ShoppingHandler - DEBUG - Processed item: Polychrome ×60, Price: 300, Inventory: 0, Status: 18:00 20/01/26
+2026-01-17 20:42:56,528 - handlers.ShoppingHandler - DEBUG - Item on cooldown, returns at: 18:00 20/01/26
+2026-01-17 20:42:56,528 - handlers.ShoppingHandler - DEBUG - Processed item: Polychrome ×100, Price: 500, Inventory: 0, Status: 18:00 20/01/26
+2026-01-17 20:42:56,533 - handlers.ShoppingHandler - INFO - Event duration: {'Start': '29/12', 'End': '8/2'}
+2026-01-17 20:42:56,533 - handlers.ShoppingHandler - INFO - Gathered data for 9 items
+2026-01-17 20:42:56,534 - handlers.ShoppingHandler - INFO - Shopping data gathering phase completed
+2026-01-17 20:42:56,534 - __main__ - INFO - Attempting to close shopping screen (attempt 1/3)
+2026-01-17 20:42:56,542 - __main__ - INFO - Close button count: 1
+2026-01-17 20:42:56,546 - __main__ - INFO - Close button visible: True
+2026-01-17 20:42:56,597 - __main__ - INFO - Clicked shopping close button
+2026-01-17 20:42:59,129 - __main__ - INFO - Shopping screen closed successfully
+2026-01-17 20:42:59,129 - schedule - DEBUG - Deleting all jobs tagged "hunt"
+2026-01-17 20:42:59,129 - __main__ - INFO - Cleared old hunt schedules
+2026-01-17 20:42:59,130 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×60' will be available at 18:00 20/01/26
+2026-01-17 20:42:59,130 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×100' will be available at 18:00 20/01/26
+2026-01-17 20:42:59,130 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×30' will be available at 18:00 20/01/26
+2026-01-17 20:42:59,130 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×10' will be available at 18:00 20/01/26
+2026-01-17 20:42:59,131 - handlers.HuntModeHandler - INFO - Next hunt scheduled for: 18:00 20/01/26
+2026-01-17 20:42:59,131 - __main__ - INFO - Hunt mode scheduled at 17:58 20/01/26 (target item time: 18:00 20/01/26)
+2026-01-17 20:42:59,145 - utils.NotificationHelper - INFO - Windows notification sent: ZZZ Bot
+2026-01-17 20:50:12,976 - asyncio - DEBUG - Using proactor: IocpProactor
+2026-01-17 20:50:13,025 - uvicorn.error - INFO - Started server process [65600]
+2026-01-17 20:50:13,025 - uvicorn.error - INFO - Waiting for application startup.
+2026-01-17 20:50:13,026 - uvicorn.error - INFO - Application startup complete.
+2026-01-17 20:50:13,031 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2026-01-17 20:50:13,037 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2026-01-17 20:50:13,054 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2026-01-17 20:50:13,090 - schedule - DEBUG - Deleting *all* jobs
+2026-01-17 20:50:13,091 - schedule - DEBUG - Deleting all jobs tagged "hunt"
+2026-01-17 20:50:13,091 - __main__ - INFO - Cleared old hunt schedules
+2026-01-17 20:50:13,092 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×60' will be available at 18:00 20/01/26
+2026-01-17 20:50:13,094 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×100' will be available at 18:00 20/01/26
+2026-01-17 20:50:13,094 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×30' will be available at 18:00 20/01/26
+2026-01-17 20:50:13,094 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×10' will be available at 18:00 20/01/26
+2026-01-17 20:50:13,094 - handlers.HuntModeHandler - INFO - Next hunt scheduled for: 18:00 20/01/26
+2026-01-17 20:50:13,095 - __main__ - INFO - Hunt mode scheduled at 17:58 20/01/26 (target item time: 18:00 20/01/26)
+2026-01-17 20:50:41,786 - uvicorn.access - INFO - 127.0.0.1:54325 - "GET /images/Qingyi02.ico HTTP/1.1" 200
+2026-01-17 20:52:16,090 - asyncio - DEBUG - Using proactor: IocpProactor
+2026-01-17 20:52:16,126 - uvicorn.error - INFO - Started server process [62576]
+2026-01-17 20:52:16,126 - uvicorn.error - INFO - Waiting for application startup.
+2026-01-17 20:52:16,127 - uvicorn.error - INFO - Application startup complete.
+2026-01-17 20:52:16,127 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2026-01-17 20:52:16,136 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2026-01-17 20:52:16,149 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2026-01-17 20:52:16,174 - schedule - DEBUG - Deleting *all* jobs
+2026-01-17 20:52:16,174 - schedule - DEBUG - Deleting all jobs tagged "hunt"
+2026-01-17 20:52:16,175 - __main__ - INFO - Cleared old hunt schedules
+2026-01-17 20:52:16,175 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×60' will be available at 18:00 20/01/26
+2026-01-17 20:52:16,177 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×100' will be available at 18:00 20/01/26
+2026-01-17 20:52:16,178 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×30' will be available at 18:00 20/01/26
+2026-01-17 20:52:16,178 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×10' will be available at 18:00 20/01/26
+2026-01-17 20:52:16,178 - handlers.HuntModeHandler - INFO - Next hunt scheduled for: 18:00 20/01/26
+2026-01-17 20:52:16,178 - __main__ - INFO - Hunt mode scheduled at 17:58 20/01/26 (target item time: 18:00 20/01/26)
+2026-01-17 20:53:32,166 - asyncio - DEBUG - Using proactor: IocpProactor
+2026-01-17 20:53:32,200 - uvicorn.error - INFO - Started server process [75748]
+2026-01-17 20:53:32,200 - uvicorn.error - INFO - Waiting for application startup.
+2026-01-17 20:53:32,200 - uvicorn.error - INFO - Application startup complete.
+2026-01-17 20:53:32,203 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2026-01-17 20:53:32,208 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2026-01-17 20:53:32,220 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2026-01-17 20:53:32,245 - schedule - DEBUG - Deleting *all* jobs
+2026-01-17 20:53:32,245 - schedule - DEBUG - Deleting all jobs tagged "hunt"
+2026-01-17 20:53:32,245 - __main__ - INFO - Cleared old hunt schedules
+2026-01-17 20:53:32,246 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×60' will be available at 18:00 20/01/26
+2026-01-17 20:53:32,248 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×100' will be available at 18:00 20/01/26
+2026-01-17 20:53:32,248 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×30' will be available at 18:00 20/01/26
+2026-01-17 20:53:32,248 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×10' will be available at 18:00 20/01/26
+2026-01-17 20:53:32,248 - handlers.HuntModeHandler - INFO - Next hunt scheduled for: 18:00 20/01/26
+2026-01-17 20:53:32,248 - __main__ - INFO - Hunt mode scheduled at 17:58 20/01/26 (target item time: 18:00 20/01/26)
+2026-01-17 20:54:36,225 - uvicorn.access - INFO - 127.0.0.1:61642 - "GET /images/Qingyi02.ico HTTP/1.1" 200
+2026-01-17 20:57:47,954 - uvicorn.access - INFO - 127.0.0.1:58201 - "GET /images/Qingyi02.ico HTTP/1.1" 200
+2026-01-17 20:57:48,092 - uvicorn.access - INFO - 127.0.0.1:58205 - "GET /routes HTTP/1.1" 200
+2026-01-17 20:57:48,095 - uvicorn.access - INFO - 127.0.0.1:58202 - "GET /overview/mission HTTP/1.1" 200
+2026-01-17 20:57:48,096 - handlers.HuntModeHandler - INFO - Found 4 items to hunt (ordered by priority): ['Polychrome ×100', 'Polychrome ×60', 'Polychrome ×30', 'Polychrome ×10']
+2026-01-17 20:57:48,100 - uvicorn.access - INFO - 127.0.0.1:58206 - "GET /settings HTTP/1.1" 200
+2026-01-17 20:57:48,102 - uvicorn.access - INFO - 127.0.0.1:58202 - "GET /routes HTTP/1.1" 200
+2026-01-17 20:57:48,102 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×60' will be available at 18:00 20/01/26
+2026-01-17 20:57:48,104 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×100' will be available at 18:00 20/01/26
+2026-01-17 20:57:48,104 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×30' will be available at 18:00 20/01/26
+2026-01-17 20:57:48,118 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×10' will be available at 18:00 20/01/26
+2026-01-17 20:57:48,118 - handlers.HuntModeHandler - INFO - Next hunt scheduled for: 18:00 20/01/26
+2026-01-17 20:57:48,167 - uvicorn.access - INFO - 127.0.0.1:58203 - "GET /overview/hunt HTTP/1.1" 200
+2026-01-17 20:57:48,168 - uvicorn.access - INFO - 127.0.0.1:58205 - "GET /shopping HTTP/1.1" 200
+2026-01-17 20:57:48,180 - uvicorn.access - INFO - 127.0.0.1:58208 - "GET /account HTTP/1.1" 200
+2026-01-17 20:57:48,181 - uvicorn.access - INFO - 127.0.0.1:58204 - "GET /check-run-status HTTP/1.1" 200
+2026-01-17 20:57:48,185 - uvicorn.access - INFO - 127.0.0.1:58207 - "GET /redeem HTTP/1.1" 200
+2026-01-17 20:57:48,220 - uvicorn.access - INFO - 127.0.0.1:58205 - "GET /routes HTTP/1.1" 200
+2026-01-17 20:57:48,342 - uvicorn.access - INFO - 127.0.0.1:58205 - "GET /routes HTTP/1.1" 200
+2026-01-17 20:57:48,527 - uvicorn.access - INFO - 127.0.0.1:58201 - "GET /images/Zhu%20Yuan02.ico HTTP/1.1" 200
+2026-01-17 21:07:19,746 - asyncio - DEBUG - Using proactor: IocpProactor
+2026-01-17 21:07:19,785 - uvicorn.error - INFO - Started server process [81628]
+2026-01-17 21:07:19,785 - uvicorn.error - INFO - Waiting for application startup.
+2026-01-17 21:07:19,786 - uvicorn.error - INFO - Application startup complete.
+2026-01-17 21:07:19,786 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2026-01-17 21:07:19,802 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2026-01-17 21:07:19,817 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2026-01-17 21:07:19,852 - schedule - DEBUG - Deleting *all* jobs
+2026-01-17 21:07:19,852 - schedule - DEBUG - Deleting all jobs tagged "hunt"
+2026-01-17 21:07:19,852 - __main__ - INFO - Cleared old hunt schedules
+2026-01-17 21:07:19,853 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×60' will be available at 18:00 20/01/26
+2026-01-17 21:07:19,855 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×100' will be available at 18:00 20/01/26
+2026-01-17 21:07:19,856 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×30' will be available at 18:00 20/01/26
+2026-01-17 21:07:19,856 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×10' will be available at 18:00 20/01/26
+2026-01-17 21:07:19,856 - handlers.HuntModeHandler - INFO - Next hunt scheduled for: 18:00 20/01/26
+2026-01-17 21:07:19,856 - __main__ - INFO - Hunt mode scheduled at 17:58 20/01/26 (target item time: 18:00 20/01/26)
+2026-01-17 21:08:06,747 - asyncio - DEBUG - Using proactor: IocpProactor
+2026-01-17 21:08:06,775 - uvicorn.error - INFO - Started server process [39892]
+2026-01-17 21:08:06,775 - uvicorn.error - INFO - Waiting for application startup.
+2026-01-17 21:08:06,775 - uvicorn.error - INFO - Application startup complete.
+2026-01-17 21:08:06,778 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2026-01-17 21:08:06,781 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2026-01-17 21:08:06,789 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2026-01-17 21:08:06,808 - schedule - DEBUG - Deleting *all* jobs
+2026-01-17 21:08:06,808 - schedule - DEBUG - Deleting all jobs tagged "hunt"
+2026-01-17 21:08:06,808 - __main__ - INFO - Cleared old hunt schedules
+2026-01-17 21:08:06,808 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×60' will be available at 18:00 20/01/26
+2026-01-17 21:08:06,811 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×100' will be available at 18:00 20/01/26
+2026-01-17 21:08:06,811 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×30' will be available at 18:00 20/01/26
+2026-01-17 21:08:06,811 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×10' will be available at 18:00 20/01/26
+2026-01-17 21:08:06,811 - handlers.HuntModeHandler - INFO - Next hunt scheduled for: 18:00 20/01/26
+2026-01-17 21:08:06,811 - __main__ - INFO - Hunt mode scheduled at 17:58 20/01/26 (target item time: 18:00 20/01/26)
+2026-01-17 21:08:27,778 - uvicorn.access - INFO - 127.0.0.1:54201 - "GET /overview/mission HTTP/1.1" 200
+2026-01-17 21:08:27,779 - uvicorn.access - INFO - 127.0.0.1:54204 - "GET /routes HTTP/1.1" 200
+2026-01-17 21:08:27,780 - handlers.HuntModeHandler - INFO - Found 4 items to hunt (ordered by priority): ['Polychrome ×100', 'Polychrome ×60', 'Polychrome ×30', 'Polychrome ×10']
+2026-01-17 21:08:27,781 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×60' will be available at 18:00 20/01/26
+2026-01-17 21:08:27,781 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×100' will be available at 18:00 20/01/26
+2026-01-17 21:08:27,782 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×30' will be available at 18:00 20/01/26
+2026-01-17 21:08:27,782 - handlers.HuntModeHandler - INFO - Item 'Polychrome ×10' will be available at 18:00 20/01/26
+2026-01-17 21:08:27,783 - handlers.HuntModeHandler - INFO - Next hunt scheduled for: 18:00 20/01/26
+2026-01-17 21:08:27,784 - uvicorn.access - INFO - 127.0.0.1:54205 - "GET /settings HTTP/1.1" 200
+2026-01-17 21:08:27,790 - uvicorn.access - INFO - 127.0.0.1:54202 - "GET /overview/hunt HTTP/1.1" 200
+2026-01-17 21:08:27,791 - uvicorn.access - INFO - 127.0.0.1:54203 - "GET /check-run-status HTTP/1.1" 200
+2026-01-17 21:08:27,803 - uvicorn.access - INFO - 127.0.0.1:54201 - "GET /routes HTTP/1.1" 200
+2026-01-17 21:08:27,816 - uvicorn.access - INFO - 127.0.0.1:54205 - "GET /account HTTP/1.1" 200
+2026-01-17 21:08:27,817 - uvicorn.access - INFO - 127.0.0.1:54201 - "GET /shopping HTTP/1.1" 200
+2026-01-17 21:08:27,818 - uvicorn.access - INFO - 127.0.0.1:54202 - "GET /redeem HTTP/1.1" 200
+2026-01-17 21:08:27,904 - uvicorn.access - INFO - 127.0.0.1:54201 - "GET /routes HTTP/1.1" 200
+2026-01-17 21:08:27,971 - uvicorn.access - INFO - 127.0.0.1:54201 - "GET /routes HTTP/1.1" 200

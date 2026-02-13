@@ -10,7 +10,140 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\colors.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\icons.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\landing.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\products.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\prompts.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\.claude\skills\ui-ux-pro-max\data\stacks\flutter.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\stacks\html-tailwind.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\stacks\nextjs.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\stacks\nuxt-ui.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\stacks\nuxtjs.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\stacks\react-native.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\stacks\react.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\stacks\shadcn.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\stacks\svelte.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\stacks\swiftui.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\stacks\vue.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\styles.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\ui-reasoning.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\ux-guidelines.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\web-interface.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

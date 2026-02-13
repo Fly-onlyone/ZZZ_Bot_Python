@@ -1,11 +1,12 @@
 <component name="ProjectRunConfigurationManager">
-    <configuration default="false" name="Run development" type="PythonConfigurationType" factoryName="Python">
+    <configuration default="false" name="Run exe" type="PythonConfigurationType" factoryName="Python">
         <module name="ZZZ bot - Python"/>
         <option name="ENV_FILES" value=""/>
         <option name="INTERPRETER_OPTIONS" value=""/>
         <option name="PARENT_ENVS" value="true"/>
         <envs>
             <env name="PYTHONUNBUFFERED" value="1"/>
+            <env name="SIMULATE_EXE" value="1"/>
         </envs>
         <option name="SDK_HOME" value=""/>
         <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$"/>
@@ -13,6 +14,7 @@
         <option name="ADD_CONTENT_ROOTS" value="true"/>
         <option name="ADD_SOURCE_ROOTS" value="true"/>
         <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py"/>
+        <option name="RUN_TOOL" value=""/>
         <option name="SCRIPT_NAME" value="$PROJECT_DIR$/backend/Bot.py"/>
         <option name="PARAMETERS" value=""/>
         <option name="SHOW_COMMAND_LINE" value="false"/>

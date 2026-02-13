@@ -3,7 +3,7 @@ product/dist/
 product/ZZZ Bot Installer.exe
 
 backend/playwright-browsers/
-
+.codex
 __pycache__/
 *.pyc
 *.pyo
