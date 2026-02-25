@@ -2,6 +2,8 @@ product/build/
 product/dist/
 product/ZZZ Bot Installer.exe
 
+src-tauri/target/
+
 backend/playwright-browsers/
 .codex
 __pycache__/

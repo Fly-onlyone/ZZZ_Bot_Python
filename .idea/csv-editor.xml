@@ -45,6 +45,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\.claude\skills\ui-ux-pro-max\data\react-performance.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\.claude\skills\ui-ux-pro-max\data\stacks\flutter.csv">
           <value>
             <Attribute>

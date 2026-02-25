@@ -3,24 +3,36 @@
 Separates API logic from application bootstrapping for better maintainability.
 """
 
-import json
 import logging
 import os
+import sys
 from dataclasses import asdict
 from pathlib import Path
+from secrets import compare_digest
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
-from core.GlobalVar import accounts, CONFIG, settings, RedeemItem
+import repositories.MongoRepository as mongo
+from core.GlobalVar import CONFIG, RedeemItem, accounts, is_exe, settings
 from core.ManualLogin import run
-from utils.DataHandler import load_shopping_data, prepare_mission_data, load_redeem_data
 
 logger = logging.getLogger(__name__)
 
 # Create router instance
 router = APIRouter()
+
+
+def _has_valid_desktop_token(request: Request) -> bool:
+    """Verify local desktop token for privileged loopback-only endpoints."""
+    expected = os.getenv("ZZZ_DESKTOP_TOKEN", "")
+    provided = request.headers.get("x-desktop-token", "")
+
+    if not expected or not provided:
+        return False
+
+    return compare_digest(expected, provided)
 
 
 # ============================================================================
@@ -40,6 +52,7 @@ async def get_routes():
         "/manual",
         "/images",
         "/screenshot",
+        "/assets",
         "/playstate",
     }
     routes = [
@@ -51,6 +64,26 @@ async def get_routes():
     return {"routes": list(dict.fromkeys(routes))}  # Deduplicate
 
 
+@router.get("/assets/screenshot/{filename}")
+def get_screenshot_asset(filename: str):
+    """Serve screenshot assets from MongoDB storage."""
+    from utils.screenshot_store import get_screenshot_bytes
+
+    safe_name = Path(filename).name
+    if not safe_name:
+        return JSONResponse({"message": "Invalid screenshot filename"}, status_code=400)
+
+    image_bytes = get_screenshot_bytes(safe_name)
+    if image_bytes is None:
+        return JSONResponse({"message": "Screenshot not found"}, status_code=404)
+
+    return Response(
+        content=image_bytes,
+        media_type="image/png",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 # ============================================================================
 # SHOPPING ROUTES
 # ============================================================================
@@ -59,7 +92,7 @@ async def get_routes():
 @router.get("/shopping")
 def get_shopping_data():
     """Retrieve current shopping data from storage."""
-    return load_shopping_data(Path(CONFIG["SHOPPING_FILE"]))
+    return mongo.get_shopping()
 
 
 @router.post("/shopping")
@@ -71,28 +104,12 @@ def update_shopping_data(selected: dict):
 
     Returns:
         Success message
-
-    Raises:
-        HTTPException: If shopping file not found
     """
-    file_path = Path(CONFIG["SHOPPING_FILE"])
-
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Shopping file not found")
-
-    # Load existing data
-    with open(file_path, "r", encoding="utf-8") as file:
-        shopping_data = json.load(file)
-
-    # Update selected and hunt items
+    shopping_data = mongo.get_shopping() or {}
     shopping_data["Selected"] = selected.get("Selected", [])
     shopping_data["Hunt"] = selected.get("Hunt", [])
+    mongo.save_shopping(shopping_data)
 
-    # Save updated data
-    with open(file_path, "w", encoding="utf-8") as file:
-        json.dump(shopping_data, file, indent=4, ensure_ascii=False)
-
-    # Reschedule hunt tasks to reflect updated items
     from Bot import schedule_hunt_tasks
 
     schedule_hunt_tasks()
@@ -108,7 +125,7 @@ def update_shopping_data(selected: dict):
 @router.get("/redeem")
 def get_redeem_data():
     """Retrieve redemption code history."""
-    return load_redeem_data(Path(CONFIG["REDEEM_FILE"]))
+    return mongo.get_redemptions()
 
 
 @router.post("/redeem")
@@ -120,28 +137,9 @@ def update_redeem_data(redeem_data: list[RedeemItem]):
 
     Returns:
         Success message
-
-    Raises:
-        HTTPException: If file not found or save fails
     """
-    file_path = CONFIG["REDEEM_FILE"]
-
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Redeem file not found")
-
-    try:
-        with open(file_path, "w", encoding="utf-8") as file:
-            json.dump(
-                [item.model_dump() for item in redeem_data],
-                file,
-                indent=4,
-                ensure_ascii=False,
-            )
-        return {"message": "Redeem data updated successfully"}
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update redeem data: {str(e)}"
-        )
+    mongo.replace_all_redemptions([item.model_dump() for item in redeem_data])
+    return {"message": "Redeem data updated successfully"}
 
 
 # ============================================================================
@@ -152,9 +150,14 @@ def update_redeem_data(redeem_data: list[RedeemItem]):
 @router.get("/overview/mission")
 def get_mission_report():
     """Retrieve today's mission completion report."""
-    _, todays_data = prepare_mission_data(
-        CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
-    )
+    from datetime import datetime
+
+    today_str = datetime.now().strftime("%d/%m/%Y")
+    todays_data = mongo.get_today_mission(today_str) or {
+        "day": today_str,
+        "check_in": "Link isn't opened",
+        "missions": [],
+    }
     return todays_data
 
 
@@ -162,16 +165,16 @@ def get_mission_report():
 def get_hunt_info():
     """Return hunt mode information including items and next hunt time."""
     from datetime import datetime, timedelta
-    from utils.StringUtil import calculate_return_time
+
     from handlers import HuntModeHandler as HuntMode
+    from utils.StringUtil import calculate_return_time
 
     hunt_items = HuntMode.get_hunt_items()
     next_hunt_time = HuntMode.get_next_hunt_time()
     hunt_enabled = settings.enable_hunt_mode
 
     # Get detailed item information
-    file_path = Path(CONFIG["SHOPPING_FILE"])
-    shopping_data = load_shopping_data(file_path)
+    shopping_data = mongo.get_shopping()
     items_list = shopping_data.get("Item's list", {}) if shopping_data else {}
 
     # Build hunt items with scheduled times
@@ -181,7 +184,6 @@ def get_hunt_info():
         availability = item_data.get("Available", "")
 
         # Calculate scheduled hunt time
-        scheduled_hunt_time = None
         try:
             # Convert countdown to return time if needed
             if ":" in availability and "/" not in availability:
@@ -240,7 +242,7 @@ async def update_account(request: Request):
     for key, value in data.items():
         if hasattr(accounts, key):
             setattr(accounts, key, value)
-    accounts.save(CONFIG["ACCOUNT_FILE"])
+    mongo.save_account(asdict(accounts))
     return JSONResponse({"message": "Account updated"})
 
 
@@ -326,8 +328,51 @@ async def get_play_state():
 
 
 # ============================================================================
+# TASK ROUTES
+# ============================================================================
+
+
+@router.post("/tasks/run-playwright")
+def run_playwright_now(request: Request):
+    """Start a manual automation run in the background.
+
+    Requires a desktop token header for local shell integrations.
+    """
+    if not _has_valid_desktop_token(request):
+        return JSONResponse({"status": "rejected"}, status_code=401)
+
+    from Bot import run_playwright_task_async
+
+    run_playwright_task_async()
+    return JSONResponse({"status": "started"})
+
+
+# ============================================================================
 # SETTINGS ROUTES
 # ============================================================================
+
+
+@router.post("/maintenance/local-cleanup")
+def run_local_cleanup():
+    """Run local artifact cleanup on demand from the UI."""
+    from repositories.connection import get_db, get_runtime_mode
+    from utils.local_artifact_maintenance import cleanup_local_artifacts_once
+    from utils.migrate_json_to_mongo import migrate_if_needed
+
+    migration_report = migrate_if_needed(
+        CONFIG["OUTPUT_FOLDER"],
+        CONFIG["STORAGE_PATH"],
+        CONFIG["SCREENSHOT_FOLDER"],
+    )
+    cleanup_report = cleanup_local_artifacts_once(
+        db=get_db(),
+        config=CONFIG,
+        is_exe_mode=is_exe,
+        runtime_mode=get_runtime_mode(),
+        migration_report=migration_report,
+        exe_base_dir=os.path.dirname(sys.executable) if is_exe else None,
+    )
+    return JSONResponse(cleanup_report)
 
 
 @router.get("/settings")
@@ -346,31 +391,59 @@ async def update_settings(request: Request):
     Returns:
         Success message
     """
-    from Bot import schedule_tasks, update_tray_menu, calculate_next_run
+    from Bot import calculate_next_run, schedule_tasks
+    from repositories.connection import get_db, set_runtime_uri
 
     data = await request.json()
+
+    applied_updates: dict[str, tuple[object, object]] = {}
     for key, value in data.items():
         if hasattr(settings, key):
+            applied_updates[key] = (getattr(settings, key), value)
             setattr(settings, key, value)
 
-    # Save and reschedule
-    settings.save(CONFIG["SETTINGS_FILE"])
+    try:
+        if "mongodb_uri" in applied_updates:
+            set_runtime_uri(settings.mongodb_uri)
+            get_db()
+
+        # Save and reschedule
+        mongo.save_settings(asdict(settings))
+    except Exception as exc:
+        # Roll back in-memory settings.
+        for key, (old_value, _) in applied_updates.items():
+            setattr(settings, key, old_value)
+
+        # Restore previous Mongo connection if URI update failed.
+        if "mongodb_uri" in applied_updates:
+            previous_uri = applied_updates["mongodb_uri"][0]
+            try:
+                set_runtime_uri(previous_uri if isinstance(previous_uri, str) else "")
+                get_db()
+            except Exception as restore_exc:
+                logger.error(
+                    "Failed to restore previous MongoDB URI after update failure: %s",
+                    restore_exc,
+                )
+
+        logger.error("Failed to update settings: %s", exc)
+        return JSONResponse(
+            {
+                "message": "Settings update failed",
+                "error": str(exc),
+            },
+            status_code=400,
+        )
+
     schedule_tasks()
-    update_tray_menu()
 
     # Update next_run when schedule_times change
-    if "schedule_times" in data:
-        if os.path.exists(CONFIG["LAST_RUN_FILE"]):
-            with open(CONFIG["LAST_RUN_FILE"]) as f:
-                run_data = json.load(f)
-
-            next_run = calculate_next_run()
-            run_data["next_run"] = next_run.strftime("%H:%M %d/%m/%y")
-
-            with open(CONFIG["LAST_RUN_FILE"], "w") as f:
-                json.dump(run_data, f)
-
-            logger.info(f"Updated next run to: {run_data['next_run']}")
+    if "schedule_times" in applied_updates:
+        run_data = mongo.get_last_run() or {}
+        next_run = calculate_next_run()
+        run_data["next_run"] = next_run.strftime("%H:%M %d/%m/%y")
+        mongo.save_last_run(run_data)
+        logger.info("Updated next run to: %s", run_data["next_run"])
 
     return JSONResponse({"message": "Settings updated"})
 
@@ -380,16 +453,8 @@ def check_run_status():
     """Check last run status with dynamically calculated next run."""
     from Bot import calculate_next_run
 
-    last_run = None
-    if os.path.exists(CONFIG["LAST_RUN_FILE"]):
-        with open(CONFIG["LAST_RUN_FILE"]) as f:
-            data = json.load(f)
-            last_run = data.get("last_run")
-
-    # Calculate next run dynamically
-    next_run = calculate_next_run()
-
+    data = mongo.get_last_run() or {}
     return {
-        "last_run": last_run,
-        "next_run": next_run.strftime("%H:%M %d/%m/%y"),
+        "last_run": data.get("last_run"),
+        "next_run": calculate_next_run().strftime("%H:%M %d/%m/%y"),
     }

@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   API_RETRY_COUNT,
@@ -9,38 +10,71 @@ import {
 export const DataLoader = () => {
   const queryClient = useQueryClient();
 
-  const fetchAllRoutes = async () => {
-    const response = await fetch(`${BACKEND_URL}/routes`);
-    if (!response.ok) throw new Error("Failed to fetch routes");
-    try {
-      const data = await response.json();
-      return data.routes || [];
-    } catch (error) {
-      throw new Error(`Failed to parse routes JSON: ${error.message}`);
-    }
-  };
+  const fetchJson = useCallback(async (url, context) => {
+    let response;
 
-  const fetchRouteData = async (route) => {
-    const response = await fetch(`${BACKEND_URL}/${route}`);
-    if (!response.ok) throw new Error(`Failed to fetch data for ${route}`);
+    try {
+      response = await fetch(url);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`${context}: ${message}`);
+    }
+
+    if (!response.ok) {
+      throw new Error(`${context}: HTTP ${response.status}`);
+    }
+
     try {
       return await response.json();
     } catch (error) {
-      throw new Error(`Failed to parse JSON for ${route}: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`${context}: ${message}`);
     }
-  };
+  }, []);
 
-  const prefetchAllRoutes = async () => {
-    const routes = await fetchAllRoutes();
-    for (const route of routes) {
-      queryClient.prefetchQuery({
-        queryKey: [route],
-        queryFn: () => fetchRouteData(route),
-        staleTime: STALE_TIMES[route] || DEFAULT_STALE_TIME,
-        retry: API_RETRY_COUNT,
-      });
+  const fetchAllRoutes = useCallback(async () => {
+    const data = await fetchJson(
+      `${BACKEND_URL}/routes`,
+      "Failed to fetch routes"
+    );
+    return Array.isArray(data?.routes) ? data.routes : [];
+  }, [fetchJson]);
+
+  const fetchRouteData = useCallback(
+    async (route) => {
+      return fetchJson(
+        `${BACKEND_URL}/${route}`,
+        `Failed to fetch data for ${route}`
+      );
+    },
+    [fetchJson]
+  );
+
+  const prefetchAllRoutes = useCallback(async () => {
+    let routes = [];
+
+    try {
+      routes = await fetchAllRoutes();
+    } catch (error) {
+      console.warn("Route prefetch skipped:", error);
+      return;
     }
-  };
+
+    await Promise.all(
+      routes.map((route) =>
+        queryClient
+          .prefetchQuery({
+            queryKey: [route],
+            queryFn: () => fetchRouteData(route),
+            staleTime: STALE_TIMES[route] || DEFAULT_STALE_TIME,
+            retry: API_RETRY_COUNT,
+          })
+          .catch((error) => {
+            console.warn(`Prefetch failed for ${route}:`, error);
+          })
+      )
+    );
+  }, [fetchAllRoutes, fetchRouteData, queryClient]);
 
   const useRouteData = (route) => {
     return useQuery({
@@ -48,7 +82,7 @@ export const DataLoader = () => {
       queryFn: () => fetchRouteData(route),
       staleTime: STALE_TIMES[route] || DEFAULT_STALE_TIME,
       retry: API_RETRY_COUNT,
-      refetchOnWindowFocus: false, // Prevent excessive refetching
+      refetchOnWindowFocus: false,
     });
   };
 
@@ -59,19 +93,48 @@ export const DataLoader = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newValue),
       });
-      if (!response.ok) throw new Error("Failed to save data");
+
+      if (!response.ok) {
+        throw new Error("Failed to save data");
+      }
     };
 
     return useMutation({
       mutationFn: saveData,
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: [route] });
+        void queryClient.invalidateQueries({ queryKey: [route] });
       },
     });
   };
 
-  return { prefetchAllRoutes, useRouteData, useSaveData };
+  const useActionData = (route) => {
+    const runAction = async (payload = {}) => {
+      const response = await fetch(`${BACKEND_URL}/${route}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const contentType = response.headers.get("content-type") || "";
+      const responseData = contentType.includes("application/json")
+        ? await response.json()
+        : null;
+
+      if (!response.ok) {
+        const errorMessage =
+          responseData?.error ||
+          responseData?.message ||
+          `Failed to run action for ${route}`;
+        throw new Error(errorMessage);
+      }
+
+      return responseData;
+    };
+
+    return useMutation({ mutationFn: runAction });
+  };
+
+  return { prefetchAllRoutes, useRouteData, useSaveData, useActionData };
 };
 
-// Re-export BACKEND_URL for convenience
 export { BACKEND_URL } from "../config/constants";

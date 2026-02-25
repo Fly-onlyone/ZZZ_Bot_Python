@@ -23,12 +23,16 @@ export default function Redeem() {
   });
 
   useEffect(() => {
-    setRows(
-      redeemList.map((item, index) => ({
-        id: index,
-        ...item,
-      }))
-    );
+    const nextRows = redeemList.map((item, index) => ({
+      id: index,
+      ...item,
+    }));
+
+    setRows((prevRows) => {
+      const previousSnapshot = JSON.stringify(prevRows);
+      const nextSnapshot = JSON.stringify(nextRows);
+      return previousSnapshot === nextSnapshot ? prevRows : nextRows;
+    });
   }, [redeemList]);
 
   const handleSwitchState = (id) => {
@@ -57,6 +61,11 @@ export default function Redeem() {
       },
     });
   };
+
+  if (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return <p className="text-red-500">{errorMessage}</p>;
+  }
 
   const columns = [
     { field: "id", headerName: "ID", flex: 0.5 },
@@ -93,12 +102,12 @@ export default function Redeem() {
   ];
 
   return (
-    <div style={{ width: "100%" }}>
+    <div style={{ height: 420, minWidth: 320, width: "100%" }}>
       <DataGrid
         rows={rows}
         columns={columns}
-        autoHeight
         hideFooterSelectedRowCount
+        sx={{ height: "100%", width: "100%" }}
       />
       <div className="flex justify-center">
         <SaveButton onSave={handleSave} alert={alert} setAlert={setAlert} />

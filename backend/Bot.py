@@ -1,4 +1,4 @@
-import json
+import argparse
 import logging
 import os
 import signal
@@ -16,9 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import schedule
 import uvicorn
-from PIL import Image
-from playwright.sync_api import sync_playwright
-from pystray import Icon, Menu, MenuItem
+from playwright.sync_api import Error as PlaywrightError, sync_playwright
 from starlette.staticfiles import StaticFiles
 
 from handlers import DrawHandler, ShoppingHandler
@@ -31,8 +29,8 @@ from core.GlobalVar import app, CONFIG, settings, is_exe
 from core import GlobalVar
 from utils.Logger import Logger, NoImportFilter
 from utils.NotificationHelper import NotificationModule
+from utils.screenshot_store import save_page_screenshot
 from core import Notification
-from utils.Win32Icon import Win32Icon
 from api.routes import router
 
 # Configure logger
@@ -43,6 +41,12 @@ app.include_router(router)
 
 # Hunt mode target date (used for date validation in run_hunt)
 _hunt_target_date: datetime | None = None
+
+# React dev server process (non-exe mode only)
+react_server: subprocess.Popen | None = None
+
+# Whether backend is hosted by the Tauri desktop shell.
+hosted_by_tauri = False
 
 
 # ============================================================================
@@ -122,12 +126,11 @@ def _close_shopping_screen_helper(page):
                 logger.warning(f"Shopping screen still visible after attempt {attempt}")
                 # Take screenshot for debugging
                 if attempt == max_close_attempts:
-                    screenshot_path = os.path.join(
-                        CONFIG["SCREENSHOT_FOLDER"],
-                        f"shopping_wont_close_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                    screenshot_name = (
+                        f"shopping_wont_close_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
                     )
-                    page.screenshot(path=screenshot_path)
-                    logger.error(f"Final screenshot saved to: {screenshot_path}")
+                    asset_id = save_page_screenshot(page, screenshot_name)
+                    logger.error("Final screenshot saved to MongoDB asset: %s", asset_id)
 
         except Exception as e:
             logger.warning(f"Error during close attempt {attempt}: {e}")
@@ -143,7 +146,31 @@ def playwright_task():
         CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
     )
     with sync_playwright() as p:
-        browser = p.firefox.launch(headless=settings.hide_browser)
+        try:
+            browser = p.firefox.launch(headless=settings.hide_browser)
+        except PlaywrightError as firefox_error:
+            firefox_message = str(firefox_error)
+            logger.warning(f"Firefox launch failed: {firefox_message}")
+
+            if "Executable doesn't exist" not in firefox_message:
+                raise
+
+            logger.warning("Firefox browser binary is missing. Trying Chromium fallback.")
+            try:
+                browser = p.chromium.launch(headless=settings.hide_browser)
+                logger.info("Launched Chromium as fallback browser.")
+            except PlaywrightError as chromium_error:
+                logger.error(f"Chromium fallback failed: {chromium_error}")
+                NotificationModule.notify(
+                    title="ZZZ Bot",
+                    message=(
+                        "Playwright browser binaries are missing. "
+                        "Run 'playwright install' and try again."
+                    ),
+                    app_icon=CONFIG["SAD_ICON"],
+                )
+                return
+
         context_options = (
             {"storage_state": CONFIG["STORAGE_PATH"]}
             if os.path.exists(CONFIG["STORAGE_PATH"])
@@ -265,27 +292,26 @@ def calculate_next_run() -> datetime:
 
 def save_last_run():
     """Save the current time as last run and calculate the next run."""
+    import repositories.MongoRepository as mongo
+
     now = datetime.now()
     next_run = calculate_next_run()
-
-    # Save the last and next run times to the file
-    with open(CONFIG["LAST_RUN_FILE"], "w") as f:
-        json.dump(
-            {
-                "last_run": now.strftime("%H:%M %d/%m/%y"),
-                "next_run": next_run.strftime("%H:%M %d/%m/%y"),
-            },
-            f,
-        )
+    mongo.save_last_run(
+        {
+            "last_run": now.strftime("%H:%M %d/%m/%y"),
+            "next_run": next_run.strftime("%H:%M %d/%m/%y"),
+        }
+    )
 
 
 def check_missed_runs():
     """Check if any scheduled runs were missed."""
+    import repositories.MongoRepository as mongo
+
     last_run = datetime.min
-    if os.path.exists(CONFIG["LAST_RUN_FILE"]):
-        with open(CONFIG["LAST_RUN_FILE"]) as f:
-            data = json.load(f)
-            last_run = datetime.strptime(data["last_run"], "%H:%M %d/%m/%y")
+    data = mongo.get_last_run()
+    if data and data.get("last_run"):
+        last_run = datetime.strptime(data["last_run"], "%H:%M %d/%m/%y")
 
     now = datetime.now()
     for scheduled_time in settings.schedule_times:
@@ -294,7 +320,7 @@ def check_missed_runs():
         )
         if now > today_scheduled > last_run:
             playwright_task()
-            save_last_run()  # Save the current run time
+            save_last_run()
             break
 
 
@@ -373,62 +399,98 @@ def run_scheduled_tasks():
         time.sleep(60)
 
 
-# Tray Icon Logic
-def update_tray_menu():
-    """Update the tray images menu."""
-    GlobalVar.tray_icon.update_menu()
-
-
+# Runtime Helpers
 def run_playwright_task_async():
     """Run playwright task in a background thread."""
     threading.Thread(target=playwright_task, daemon=False).start()
 
 
-def setup_tray_icon():
-    """Set up the system tray images."""
-    if sys.platform == "win32":
-        Icon = Win32Icon
-    icon_image = Image.open(CONFIG["ICON_PATH"])
-    GlobalVar.tray_icon = Icon(
-        "ZZZ Bot",
-        icon_image,
-        menu=Menu(
-            MenuItem("Run Playwright", lambda item: run_playwright_task_async()),
-            MenuItem(
-                "Toggle Web UI",
-                lambda item: toggle_setting("open_web_ui"),
-                checked=lambda item: settings.open_web_ui,
-            ),
-            MenuItem(
-                "Exit After Run",
-                lambda item: toggle_setting("exit_after_run"),
-                checked=lambda item: settings.exit_after_run,
-            ),
-            MenuItem("Exit", lambda item: on_tray_exit(GlobalVar.tray_icon)),
-        ),
-        on_double_click=lambda icon, _: webbrowser.open_new_tab(CONFIG["WEB_UI_URL"]),
-    )
-    threading.Thread(target=run_scheduled_tasks, daemon=True).start()
-    GlobalVar.tray_icon.run()
-
-
-def toggle_setting(setting_name):
-    """Toggle a setting value."""
-    current_value = getattr(settings, setting_name)
-    setattr(settings, setting_name, not current_value)
-    settings.save(CONFIG["SETTINGS_FILE"])
-    print(f"{setting_name} set to {not current_value}")
-
-
-def on_tray_exit(icon: Icon):
-    """Handle tray images exit."""
-    if not is_exe:
-        react_server.send_signal(signal.CTRL_C_EVENT)
-    icon.stop()
-
-
 # Main Entry Point
 if __name__ == "__main__":
+    # === 0. Parse Arguments ===
+    _parser = argparse.ArgumentParser(description="ZZZ Bot")
+    _parser.add_argument("--port", type=int, default=8000)
+    _parser.add_argument("--no-frontend", action="store_true")
+    _parser.add_argument("--hosted-by-tauri", action="store_true")
+    args = _parser.parse_args()
+
+    hosted_by_tauri = args.hosted_by_tauri
+
+    # === 0.25. Load runtime env vars from .env files ===
+    GlobalVar.load_runtime_env()
+
+    # === 0.5. Initialize Sentry (before everything else) ===
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+
+    _sentry_dsn = (
+        os.getenv("SENTRY_DSN")
+        or (settings.sentry_dsn if settings.sentry_dsn else "")
+    )
+    _send_sentry_test_event = os.getenv("SENTRY_SEND_TEST_EVENT", "0") == "1"
+    _default_sample_rate = "0.1" if is_exe else "1.0"
+    _traces_sample_rate = float(
+        os.getenv("SENTRY_TRACES_SAMPLE_RATE", _default_sample_rate)
+    )
+    _profiles_sample_rate = float(
+        os.getenv("SENTRY_PROFILES_SAMPLE_RATE", _default_sample_rate)
+    )
+    if _send_sentry_test_event:
+        # Force deterministic visibility during verification runs.
+        _traces_sample_rate = 1.0
+        _profiles_sample_rate = 1.0
+
+    _enable_sentry_logs = os.getenv("SENTRY_ENABLE_LOGS", "1").lower() not in {
+        "0",
+        "false",
+        "no",
+    }
+
+    if _sentry_dsn:
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            environment="production" if is_exe else "development",
+            integrations=[
+                FastApiIntegration(),
+                LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
+            ],
+            traces_sample_rate=_traces_sample_rate,
+            profiles_sample_rate=_profiles_sample_rate,
+            enable_logs=_enable_sentry_logs,
+            send_default_pii=False,
+        )
+
+        if _send_sentry_test_event:
+            # Send an explicit startup message event.
+            event_id = sentry_sdk.capture_message(
+                "ZZZ Bot startup test event",
+                level="warning",
+            )
+
+            # Create a sampled transaction so traces/profiles can be verified.
+            with sentry_sdk.start_transaction(
+                op="startup",
+                name="zzz-bot-startup-profile-test",
+                sampled=True,
+            ):
+                with sentry_sdk.start_span(
+                    op="test.work",
+                    name="profile verification span",
+                ):
+                    time.sleep(0.2)
+
+            # Emit multiple log levels to verify log ingestion.
+            sentry_test_logger = logging.getLogger("zzz_bot.sentry_test")
+            sentry_test_logger.info("ZZZ Bot startup info log integration test")
+            sentry_test_logger.warning("ZZZ Bot startup warning log integration test")
+            sentry_test_logger.error("ZZZ Bot startup error log integration test")
+
+            sentry_sdk.flush(timeout=5.0)
+            logger.info(f"Sent Sentry startup test event: {event_id}")
+    else:
+        logger.warning("Sentry DSN not configured. Monitoring is disabled.")
+
     # === 1. Setup Log Path and Initialize Logger (only in EXE mode) ===
     if is_exe:
         # ensure logs dir exists
@@ -489,13 +551,22 @@ if __name__ == "__main__":
         root.addHandler(console_handler)
 
     # === 2. Start React Dev Server (non-exe mode) ===
-    if not is_exe:
+    if not is_exe and not args.no_frontend:
         try:
+            dev_backend_url = f"http://127.0.0.1:{args.port}"
+            frontend_env = os.environ.copy()
+            frontend_env["VITE_BACKEND_URL"] = dev_backend_url
+
             print("Starting React dev server...")
+            logger.info(
+                "Starting React dev server with VITE_BACKEND_URL=%s",
+                dev_backend_url,
+            )
             react_server = subprocess.Popen(
-                ["npm", "run", "dev"],
+                ["bun", "run", "dev"],
                 cwd="./frontend",
                 shell=True,
+                env=frontend_env,
                 stdout=sys.__stdout__,  # Use original stdout to see dev server output
                 stderr=sys.__stderr__,  # Use original stderr
             )
@@ -503,7 +574,7 @@ if __name__ == "__main__":
             print(f"Error starting React server: {e}")
 
     # === 3. Mount Frontend (exe mode) ===
-    else:
+    elif is_exe:
         try:
             print("Mounting frontend build and setting browser path...")
             app.mount(
@@ -514,22 +585,39 @@ if __name__ == "__main__":
             os.environ["PLAYWRIGHT_BROWSERS_PATH"] = CONFIG["BROWSER"]
         except Exception as e:
             print(f"Error mounting frontend: {e}")
+    else:
+        logger.info("Frontend mounting disabled via --no-frontend")
 
-    # === 4. Start FastAPI Server ===
-    print("Starting FastAPI server...")
-    threading.Thread(
-        target=lambda: uvicorn.run(app, log_config=None),
-        daemon=True,
-    ).start()
+    # === 3.5. Validate MongoDB and migrate JSON backups on first run ===
+    try:
+        from repositories.connection import get_db
+        from utils.migrate_json_to_mongo import migrate_if_needed
+
+        get_db()
+        migrate_if_needed(
+            CONFIG["OUTPUT_FOLDER"],
+            CONFIG["STORAGE_PATH"],
+            CONFIG["SCREENSHOT_FOLDER"],
+        )
+    except Exception as mongo_exc:
+        logger.critical("MongoDB is required but unavailable: %s", mongo_exc)
+        raise SystemExit(1) from mongo_exc
+
+    # === 4. Start Scheduler ===
+    threading.Thread(target=run_scheduled_tasks, daemon=True).start()
 
     # === 5. Open Web UI ===
-    if settings.open_web_ui:
+    if settings.open_web_ui and not hosted_by_tauri:
         print("Opening web UI...")
         webbrowser.open_new_tab(CONFIG["WEB_UI_URL"])
 
-    # === 6. Setup Tray Icon ===
+    # === 6. Start FastAPI Server ===
+    print("Starting FastAPI server...")
     try:
-        print("Setting up tray icon...")
-        setup_tray_icon()
-    except Exception as e:
-        print(f"Error setting up tray icon: {e}")
+        uvicorn.run(app, host="127.0.0.1", port=args.port, log_config=None)
+    finally:
+        if not is_exe and react_server is not None:
+            try:
+                react_server.send_signal(signal.CTRL_C_EVENT)
+            except Exception:
+                react_server.terminate()

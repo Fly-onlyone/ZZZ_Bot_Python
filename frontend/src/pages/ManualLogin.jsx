@@ -8,9 +8,9 @@ import {
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
+import { BACKEND_URL } from "../config";
 
 export default function ManualLogin() {
-  const BACKEND_URL = "http://127.0.0.1:8000";
   const MINO_URL =
     "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...";
   const REDEEM_URL = "https://zenless.hoyoverse.com/redemption";
@@ -22,7 +22,7 @@ export default function ManualLogin() {
     e.preventDefault();
     const newPlayState = !playState; // Compute the new state
     setPlayState(newPlayState); // Update the state
-    handleSubmit(newPlayState); // Pass the new state directly
+    void handleSubmit(newPlayState); // Pass the new state directly
   };
 
   const handleSubmit = async (updatedPlayState) => {
@@ -74,6 +74,7 @@ export default function ManualLogin() {
       <FormControl fullWidth>
         <InputLabel id="demo-simple-select-label">Url</InputLabel>
         <Select
+          variant="outlined"
           labelId="demo-simple-select-label"
           id="demo-simple-select"
           value={url}
