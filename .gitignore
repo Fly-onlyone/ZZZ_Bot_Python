@@ -17,3 +17,7 @@ nul
 CLAUDE.local.md
 .claude/*.local.md
 .mcp.json
+
+# Environment variables
+.env
+
