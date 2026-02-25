@@ -14,6 +14,7 @@ from automation import RedeemAutofill, RetryHelper
 from automation.ImageProcessor import find_correct_lottery_logo, detect_reward
 from core.GlobalVar import CONFIG, resource_path, is_exe
 from utils import NotificationHelper
+from utils.screenshot_store import save_page_screenshot
 from utils.StringUtil import extract_price, extract_number
 
 logger = logging.getLogger(__name__)
@@ -112,10 +113,10 @@ def _save_debug_artifacts(page: Page, draw_number: int) -> None:
     os.makedirs(error_dir, exist_ok=True)
 
     # Screenshot
-    screenshot_path = os.path.join(error_dir, f"draw_{draw_number}_{timestamp}.png")
+    screenshot_name = f"draw_{draw_number}_{timestamp}.png"
     try:
-        page.screenshot(path=screenshot_path)
-        logger.info(f"Debug screenshot saved: {screenshot_path}")
+        asset_id = save_page_screenshot(page, screenshot_name)
+        logger.info("Debug screenshot saved to MongoDB asset: %s", asset_id)
     except Exception as e:
         logger.error(f"Failed to save debug screenshot: {e}")
 
@@ -443,7 +444,7 @@ def run(page: Page) -> None:
                 f"Expected button at index {DRAW_BUTTON_INDEX}, but page has {total_images} images"
             )
             logger.error(
-                "Check the screenshot in the screenshot folder for more details"
+                "Check MongoDB screenshot assets for more details"
             )
             return
 

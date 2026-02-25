@@ -12,6 +12,8 @@ from typing import Optional
 
 from playwright.sync_api import sync_playwright, BrowserContext, Page
 
+from utils.screenshot_store import save_page_screenshot
+
 logger = logging.getLogger(__name__)
 
 
@@ -222,7 +224,7 @@ class BrowserService:
             full_page: Whether to capture full scrollable page
         """
         try:
-            page.screenshot(path=path, full_page=full_page)
-            logger.info(f"Screenshot saved to {path}")
+            asset_id = save_page_screenshot(page, os.path.basename(path), full_page=full_page)
+            logger.info("Screenshot saved to MongoDB asset: %s", asset_id)
         except Exception as e:
             logger.error(f"Failed to take screenshot: {e}")

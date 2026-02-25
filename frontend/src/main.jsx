@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import * as Sentry from "@sentry/react";
 import "./index.css";
 import PermanentDrawer from "./routes/PermanentDrawer";
 import { ThemeProvider, useMediaQuery } from "@mui/material";
@@ -8,6 +9,31 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { ThemeContextProvider, useThemeContext } from "./theme/ThemeContext";
 import { createMuiTheme } from "./theme/muiTheme";
+import ErrorFallback from "./components/common/ErrorFallback";
+
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
+const DEFAULT_SAMPLE_RATE =
+  import.meta.env.MODE === "development" ? "1.0" : "0.1";
+
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: import.meta.env.MODE,
+    integrations: [
+      Sentry.browserTracingIntegration(),
+      Sentry.browserProfilingIntegration(),
+      Sentry.captureConsoleIntegration({ levels: ["log", "warn", "error"] }),
+    ],
+    tracesSampleRate: parseFloat(
+      import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || DEFAULT_SAMPLE_RATE
+    ),
+    profilesSampleRate: parseFloat(
+      import.meta.env.VITE_SENTRY_PROFILES_SAMPLE_RATE || DEFAULT_SAMPLE_RATE
+    ),
+    tracePropagationTargets: ["localhost", "127.0.0.1"],
+    sendDefaultPii: false,
+  });
+}
 
 function ThemedApp() {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
@@ -28,8 +54,9 @@ function ThemedApp() {
   );
 }
 
+const queryClient = new QueryClient();
+
 function App() {
-  const queryClient = new QueryClient();
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeContextProvider>
@@ -39,10 +66,24 @@ function App() {
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
+const rootElement = document.getElementById("root");
+
+if (!rootElement) {
+  throw new Error("Root element #root was not found");
+}
+
+const ROOT_KEY = "__ZZZ_BOT_APP_ROOT__";
+const root = window[ROOT_KEY] || ReactDOM.createRoot(rootElement);
+window[ROOT_KEY] = root;
 
 root.render(
   <React.StrictMode>
-    <App />
+    <Sentry.ErrorBoundary
+      fallback={({ error, resetError }) => (
+        <ErrorFallback error={error} resetError={resetError} />
+      )}
+    >
+      <App />
+    </Sentry.ErrorBoundary>
   </React.StrictMode>
 );

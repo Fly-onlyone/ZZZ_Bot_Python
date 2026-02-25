@@ -1,10 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getThemeColors } from "./themes";
-
-const BACKEND_URL = import.meta.env.PROD
-  ? "http://127.0.0.1:8000"
-  : "http://127.0.0.1:8000";
+import { BACKEND_URL } from "../config";
 
 /**
  * Hook to detect user's reduced motion preference

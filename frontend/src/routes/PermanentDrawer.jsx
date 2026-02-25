@@ -52,6 +52,80 @@ const pageVariants = {
   },
 };
 
+function formatCleanupSummary(report) {
+  const deleted = report?.deleted || {};
+  return (
+    `Cleanup completed. Deleted ` +
+    `${deleted["auth_storage_file"] || 0} auth file(s), ` +
+    `${deleted["log_files"] || 0} log file(s), ` +
+    `${deleted["screenshot_files"] || 0} screenshot file(s), ` +
+    `${deleted["json_files"] || 0} JSON file(s).`
+  );
+}
+
+function SettingsPanel() {
+  const { useActionData } = DataLoader();
+  const cleanupMutation = useActionData("maintenance/local-cleanup");
+
+  const handleRunCleanup = async () => {
+    return cleanupMutation.mutateAsync({});
+  };
+
+  return (
+    <ValueAdapter
+      customSections={{
+        Task: {
+          icon: <TaskIcon />,
+          fields: [
+            "schedule_times",
+            "exit_after_run",
+            "hide_browser",
+            "run_task",
+          ],
+        },
+        Shopping: {
+          icon: <ShoppingCartIcon />,
+          fields: [
+            "gather_shopping_data",
+            "exchange_good",
+            "buy_all",
+            "stop_on_failed_exchange",
+            "enable_hunt_mode",
+          ],
+        },
+        Draw: {
+          icon: <IconCards />,
+          fields: ["draw_item"],
+        },
+        Appearance: {
+          icon: <PaletteIcon />,
+          fields: ["theme"],
+        },
+      }}
+      typeConfig={{
+        theme: {
+          type: "select",
+          options: [
+            { value: "nebula", label: "Nebula" },
+            { value: "venom", label: "Venom" },
+            { value: "glacier", label: "Glacier" },
+            { value: "cyber", label: "Cyber" },
+          ],
+        },
+      }}
+      extraActions={[
+        {
+          key: "run-local-cleanup",
+          label: "Run Local Cleanup",
+          onClick: handleRunCleanup,
+          successMessage: formatCleanupSummary,
+          errorMessage: "Failed to run local cleanup.",
+        },
+      ]}
+    />
+  );
+}
+
 /**
  * Animated wrapper for route transitions
  */
@@ -143,48 +217,7 @@ function AnimatedRoutes() {
               animate="animate"
               exit="exit"
             >
-              <ValueAdapter
-                customSections={{
-                  Task: {
-                    icon: <TaskIcon />,
-                    fields: [
-                      "schedule_times",
-                      "exit_after_run",
-                      "hide_browser",
-                      "run_task",
-                    ],
-                  },
-                  Shopping: {
-                    icon: <ShoppingCartIcon />,
-                    fields: [
-                      "gather_shopping_data",
-                      "exchange_good",
-                      "buy_all",
-                      "stop_on_failed_exchange",
-                      "enable_hunt_mode",
-                    ],
-                  },
-                  Draw: {
-                    icon: <IconCards />,
-                    fields: ["draw_item"],
-                  },
-                  Appearance: {
-                    icon: <PaletteIcon />,
-                    fields: ["theme"],
-                  },
-                }}
-                typeConfig={{
-                  theme: {
-                    type: "select",
-                    options: [
-                      { value: "nebula", label: "Nebula" },
-                      { value: "venom", label: "Venom" },
-                      { value: "glacier", label: "Glacier" },
-                      { value: "cyber", label: "Cyber" },
-                    ],
-                  },
-                }}
-              />
+              <SettingsPanel />
             </motion.div>
           }
         />
@@ -204,7 +237,7 @@ export default function PermanentDrawer() {
   const { themeColors } = useThemeContext(); // Get theme colors
 
   useEffect(() => {
-    prefetchAllRoutes(); // Prefetch routes on load
+    void prefetchAllRoutes();
   }, [prefetchAllRoutes]);
 
   return (

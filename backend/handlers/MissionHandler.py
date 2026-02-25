@@ -11,8 +11,8 @@ from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeout
 
 from automation import RetryHelper
 from automation.ImageProcessor import ImageProcessor, find_correct_avatar
-from core.GlobalVar import CONFIG
 from utils.DataHandler import maintain_mission_data
+from utils.screenshot_store import save_locator_screenshot
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -93,8 +93,8 @@ def handle_check_in(new_page: Page, todays_data: Dict) -> None:
     if clicked:
         logger.info("Check-in successful!")
         todays_data["check_in"] = STATUS_SUCCESS
-        screenshot_path = f"{CONFIG['SCREENSHOT_FOLDER']}/login_reward.png"
-        success_msg.screenshot(path=screenshot_path)
+        asset_id = save_locator_screenshot(success_msg, "login_reward.png")
+        logger.info("Saved login reward screenshot to MongoDB asset: %s", asset_id)
     else:
         logger.error("Check-in failed")
         todays_data["check_in"] = STATUS_FAILED

@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+    <configuration default="false" name="Run Tauri App" type="js.build_tools.npm">
+        <package-json value="$PROJECT_DIR$/frontend/package.json"/>
+        <command value="run"/>
+        <scripts>
+            <script value="tauri:app"/>
+        </scripts>
+        <node-interpreter value="$USER_HOME$\\.bun\\bin\\bun.exe"/>
+        <package-manager value="$USER_HOME$\\.bun\\bin\\bun.exe"/>
+        <envs/>
+        <method v="2"/>
+    </configuration>
+</component>

@@ -5,6 +5,7 @@ import apprise
 from jinja2 import Template
 
 from .GlobalVar import accounts, CONFIG, settings
+from utils.screenshot_store import get_screenshot_bytes
 
 
 def send_mission_data_via_email_html(todays_data):
@@ -16,14 +17,26 @@ def send_mission_data_via_email_html(todays_data):
 
     with open(CONFIG["MISSION_NOTIFICATION"], "r") as file:
         template = Template(file.read())
-    with open(CONFIG["SCREENSHOT_FOLDER"] + "/login_reward.png", "rb") as image_file:
-        encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
+    image_bytes = get_screenshot_bytes("login_reward.png")
+    if image_bytes is None:
+        legacy_path = CONFIG["SCREENSHOT_FOLDER"] + "/login_reward.png"
+        try:
+            with open(legacy_path, "rb") as image_file:
+                image_bytes = image_file.read()
+        except FileNotFoundError:
+            image_bytes = b""
+
+    encoded_image = (
+        base64.b64encode(image_bytes).decode("utf-8")
+        if image_bytes
+        else ""
+    )
 
     mission_summary_html = template.render(
         day=todays_data["day"],
         check_in=todays_data["check_in"],
         missions=todays_data["missions"],
-        login_reward_image=f"data:image/png;base64,{encoded_image}",
+        login_reward_image=f"data:image/png;base64,{encoded_image}" if encoded_image else "",
         theme=settings.theme,  # Pass current theme setting
     )
 

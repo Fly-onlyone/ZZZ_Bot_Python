@@ -69,17 +69,14 @@ def retry_until_screen_appears(
         # Log diagnostic information
         page = button.page
 
-        # Take screenshot for debugging
-        from core.GlobalVar import CONFIG
-        import os
         from datetime import datetime
 
-        screenshot_dir = CONFIG.get("SCREENSHOT_FOLDER", "./screenshot")
-        os.makedirs(screenshot_dir, exist_ok=True)
+        from utils.screenshot_store import save_page_screenshot
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        screenshot_path = os.path.join(screenshot_dir, f"retry_failed_{timestamp}.png")
-        page.screenshot(path=screenshot_path)
-        logger.error(f"Screenshot saved to: {screenshot_path}")
+        filename = f"retry_failed_{timestamp}.png"
+        asset_id = save_page_screenshot(page, filename)
+        logger.error("Screenshot saved to MongoDB asset: %s", asset_id)
 
         # Log available image buttons
         all_images = page.get_by_role("img")

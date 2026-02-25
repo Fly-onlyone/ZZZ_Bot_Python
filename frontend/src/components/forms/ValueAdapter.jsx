@@ -1,5 +1,5 @@
 import React from "react";
-import { Divider } from "@mui/material";
+import { Button, Divider, Stack } from "@mui/material";
 import SaveButton from "../common/SaveButton";
 import { COMMON_COLORS } from "../../theme/colors";
 import { useThemeContext } from "../../theme/ThemeContext";
@@ -15,18 +15,26 @@ import { useFieldRenderer, useFormState } from "../../hooks";
  * @param {Object} customIcons - Icon mappings for specific fields
  * @param {Object} customSections - Section configuration with fields and icons
  * @param {Object} typeConfig - Custom type configuration (e.g., select options)
+ * @param {Array} extraActions - Additional action buttons displayed above Save
  */
 export default function ValueAdapter({
   customIcons = {},
   customSections = null,
   typeConfig = {},
+  extraActions = [],
 }) {
   const { themeColors } = useThemeContext();
   const { value, error, handleChange, handleSubmit, alert, setAlert } =
     useFormState();
   const { renderField } = useFieldRenderer(typeConfig);
+  const [actionLoading, setActionLoading] = React.useState({});
+  /** @type {{key: string, label: string, onClick: Function, successMessage?: string | Function, errorMessage?: string}[]} */
+  const actions = Array.isArray(extraActions) ? extraActions : [];
 
-  if (error) return <p className="text-red-500">{error}</p>;
+  if (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return <p className="text-red-500">{errorMessage}</p>;
+  }
 
   /**
    * Renders a single field with label and appropriate input component
@@ -124,6 +132,51 @@ export default function ValueAdapter({
     </div>
   );
 
+  const handleExtraAction = async (action) => {
+    if (typeof action?.onClick !== "function") {
+      return;
+    }
+
+    setActionLoading((prev) => ({ ...prev, [action.key]: true }));
+    try {
+      const result = await action.onClick();
+      const successMessage =
+        typeof action.successMessage === "function"
+          ? action.successMessage(result)
+          : action.successMessage || "Action completed successfully!";
+      setAlert({
+        open: true,
+        type: "success",
+        message: successMessage,
+      });
+    } catch (error) {
+      const fallbackMessage =
+        error instanceof Error ? error.message : "Action failed.";
+      setAlert({
+        open: true,
+        type: "error",
+        message: action.errorMessage || fallbackMessage,
+      });
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [action.key]: false }));
+    }
+  };
+
+  /** @type {React.ReactNode[]} */
+  const actionButtons = actions.map((action) => (
+    <Button
+      key={action.key}
+      variant="outlined"
+      color="warning"
+      onClick={() => {
+        void handleExtraAction(action);
+      }}
+      disabled={Boolean(actionLoading[action.key])}
+    >
+      {actionLoading[action.key] ? "Running..." : action.label}
+    </Button>
+  ));
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="mb-10">
@@ -138,6 +191,11 @@ export default function ValueAdapter({
             )
           : renderStandaloneFields()}
       </div>
+      {actions.length > 0 && (
+        <Stack direction="row" spacing={2}>
+          {actionButtons}
+        </Stack>
+      )}
       <SaveButton onSave={handleSubmit} alert={alert} setAlert={setAlert} />
     </form>
   );

@@ -1,6 +1,7 @@
+import logging
 import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List
 
@@ -11,6 +12,8 @@ from starlette.staticfiles import StaticFiles
 
 from utils.DataHandler import Serializable
 from utils.StringUtil import clean_leading_dots
+
+logger = logging.getLogger(__name__)
 
 
 def is_exe():
@@ -61,7 +64,7 @@ def generate_config(outside_folder, exclude_keys=None):
 
     base_config = {
         "FRONTEND_BUILD": "./frontend/dist",
-        "BROWSER": "./playwright-browsers",
+        "BROWSER": "./backend/playwright-browsers",
         "ICON_PATH": "./images/Qingyi02.ico",
         "SAD_ICON": "./images/Qingyi01.ico",
         "STORAGE_PATH": "./authentication data/hoyo.json",
@@ -144,11 +147,13 @@ class AppSettings(Serializable):
     enable_hunt_mode: bool = False
     stop_on_failed_exchange: bool = False
     theme: str = "purple"  # purple, green, blue
+    sentry_dsn: str = ""  # Override SENTRY_DSN env var if set
+    mongodb_uri: str = ""  # Override MONGODB_URI env var if set
 
 
 @dataclass
 class Account(Serializable):
-    """Account credentials for email notifications. Load from output/account.json."""
+    """Account credentials for email notifications stored in MongoDB."""
 
     username: str = ""
     password: str = ""
@@ -176,22 +181,156 @@ CONFIG["WEB_UI_URL"] = (
 # Config loaded successfully (removed print to avoid exposing paths)
 
 
-settings = AppSettings.load(CONFIG["SETTINGS_FILE"])
-accounts = Account.load(CONFIG["ACCOUNT_FILE"])
+def load_runtime_env() -> None:
+    """Load local .env files before any MongoDB initialization."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+
+    candidates = [
+        Path.cwd() / ".env",
+        Path(__file__).resolve().parent.parent / ".env",
+    ]
+    if is_exe:
+        candidates.append(Path(sys.executable).resolve().parent / ".env")
+
+    loaded_any = False
+    checked_paths = set()
+    for env_path in candidates:
+        resolved = env_path.resolve()
+        if resolved in checked_paths:
+            continue
+        checked_paths.add(resolved)
+        if resolved.is_file():
+            load_dotenv(dotenv_path=resolved, override=False)
+            loaded_any = True
+
+    if loaded_any:
+        logger.info("Loaded runtime .env configuration")
+
+
+def _bootstrap_mongo() -> None:
+    """Ensure Mongo is reachable and run one-time JSON migration check."""
+    import sentry_sdk
+
+    from repositories.connection import get_connection_debug_info, get_db
+    from utils.migrate_json_to_mongo import migrate_if_needed
+
+    with sentry_sdk.start_transaction(
+        op="startup.mongo_bootstrap",
+        name="mongo-bootstrap",
+        sampled=True,
+    ) as transaction:
+        with sentry_sdk.start_span(op="mongo.connect", description="Connect and ping"):
+            db = get_db()
+
+        with sentry_sdk.start_span(
+            op="mongo.migrate",
+            description="Migrate JSON backups if needed",
+        ):
+            report = migrate_if_needed(
+                CONFIG["OUTPUT_FOLDER"],
+                CONFIG["STORAGE_PATH"],
+                CONFIG["SCREENSHOT_FOLDER"],
+            )
+
+        transaction.set_tag("mongo.db_name", db.name)
+        transaction.set_data("mongo.connection", get_connection_debug_info())
+        transaction.set_data("mongo.migration_report", report)
+
+
+def _load_settings() -> "AppSettings":
+    """Load settings from MongoDB only and persist defaults when missing."""
+    import sentry_sdk
+
+    from repositories import MongoRepository
+    from repositories.connection import (
+        get_connection_debug_info,
+        get_db,
+        set_runtime_uri,
+    )
+    from utils.migrate_json_to_mongo import migrate_if_needed
+
+    data = MongoRepository.get_settings()
+    if data:
+        valid = AppSettings.__annotations__.keys()
+        loaded = AppSettings(**{k: v for k, v in data.items() if k in valid})
+    else:
+        loaded = AppSettings()
+
+    # settings.mongodb_uri is the primary runtime source after bootstrap.
+    set_runtime_uri(loaded.mongodb_uri)
+
+    with sentry_sdk.start_transaction(
+        op="startup.mongo_runtime_uri_sync",
+        name="mongo-runtime-uri-sync",
+        sampled=True,
+    ) as transaction:
+        with sentry_sdk.start_span(
+            op="mongo.connect",
+            description="Reconnect with settings.mongodb_uri",
+        ):
+            active_db = get_db()
+
+        with sentry_sdk.start_span(
+            op="mongo.migrate",
+            description="Migrate JSON backups into active runtime DB if needed",
+        ):
+            runtime_report = migrate_if_needed(
+                CONFIG["OUTPUT_FOLDER"],
+                CONFIG["STORAGE_PATH"],
+                CONFIG["SCREENSHOT_FOLDER"],
+            )
+
+        transaction.set_tag("mongo.db_name", active_db.name)
+        transaction.set_data("mongo.connection", get_connection_debug_info())
+        transaction.set_data("mongo.runtime_migration_report", runtime_report)
+
+    # Read settings from the active database after applying runtime URI.
+    active_data = MongoRepository.get_settings()
+    if active_data:
+        valid = AppSettings.__annotations__.keys()
+        return AppSettings(**{k: v for k, v in active_data.items() if k in valid})
+
+    # Ensure settings document exists in the active database.
+    MongoRepository.save_settings(asdict(loaded))
+    return loaded
+
+
+def _load_accounts() -> "Account":
+    """Load account from MongoDB only and persist defaults when missing."""
+    from repositories import MongoRepository
+
+    data = MongoRepository.get_account()
+    if data:
+        valid = Account.__annotations__.keys()
+        return Account(**{k: v for k, v in data.items() if k in valid})
+
+    default_account = Account()
+    MongoRepository.save_account(asdict(default_account))
+    return default_account
+
+
+load_runtime_env()
+_bootstrap_mongo()
+
+settings = _load_settings()
+accounts = _load_accounts()
 tray_icon = None
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    # Restrict to localhost only for security (desktop app)
+    # Allow desktop/web UI origins on localhost and WebView protocols.
     allow_origins=[
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8000",
-        "http://localhost:3000",
-        "http://localhost:8000",
+        "tauri://localhost",
+        "https://tauri.localhost",
+        "null",  # file:// origin in some desktop webviews
     ],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
-    allow_methods=["GET", "POST"],  # Only allow needed methods
-    allow_headers=["Content-Type"],  # Only allow needed headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Ensure screenshot directory exists (it's an outside path that needs creation)
