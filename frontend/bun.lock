@@ -16,6 +16,7 @@
         "@sentry/react": "^8.0.0",
         "@tabler/icons-react": "^3.24.0",
         "@tanstack/react-query": "^5.62.3",
+        "@tauri-apps/plugin-autostart": "^2.5.1",
         "dayjs": "^1.11.13",
         "framer-motion": "^12.23.24",
         "prop-types": "^15.8.1",
@@ -274,6 +275,10 @@
     "@tanstack/query-core": ["@tanstack/query-core@5.62.3", "", {}, "sha512-Jp/nYoz8cnO7kqhOlSv8ke/0MJRJVGuZ0P/JO9KQ+f45mpN90hrerzavyTKeSoT/pOzeoOUkv1Xd0wPsxAWXfg=="],
 
     "@tanstack/react-query": ["@tanstack/react-query@5.62.3", "", { "dependencies": { "@tanstack/query-core": "5.62.3" }, "peerDependencies": { "react": "^18 || ^19" } }, "sha512-y2zDNKuhgiuMgsKkqd4AcsLIBiCfEO8U11AdrtAUihmLbRNztPrlcZqx2lH1GacZsx+y1qRRbCcJLYTtF1vKsw=="],
+
+    "@tauri-apps/api": ["@tauri-apps/api@2.10.1", "", {}, "sha512-hKL/jWf293UDSUN09rR69hrToyIXBb8CjGaWC7gfinvnQrBVvnLr08FeFi38gxtugAVyVcTa5/FD/Xnkb1siBw=="],
+
+    "@tauri-apps/plugin-autostart": ["@tauri-apps/plugin-autostart@2.5.1", "", { "dependencies": { "@tauri-apps/api": "^2.8.0" } }, "sha512-zS/xx7yzveCcotkA+8TqkI2lysmG2wvQXv2HGAVExITmnFfHAdj1arGsbbfs3o6EktRHf6l34pJxc3YGG2mg7w=="],
 
     "@types/cookie": ["@types/cookie@0.6.0", "", {}, "sha512-4Kh9a6B2bQciAhf7FSuMRRkUWecJgJu9nPnx3yzpsfXX/c50REIqpHY4C82bXP90qrLtXtkDxTZosYO3UpOwlA=="],
 

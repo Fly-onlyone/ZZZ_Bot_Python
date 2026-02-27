@@ -11,8 +11,8 @@ HoYoLab event website including check-ins, shopping, redemptions, and prize draw
 
 - **Backend:** Python (FastAPI, Playwright, OpenCV, Schedule)
 - **Frontend:** React 18 + Material-UI v6 + Vite
-- **Desktop:** System tray (Pystray) / Tauri sidecar (in progress)
-- **Packaging:** PyInstaller + Inno Setup / Tauri (in progress)
+- **Desktop:** Tauri desktop shell with native tray icon + Python sidecar backend
+- **Packaging:** Tauri (NSIS) + Python sidecar (PyInstaller)
 
 ## Key Modules
 
@@ -84,19 +84,14 @@ bun run dev
 ### Build
 
 ```bash
-# Build frontend
+# Build frontend and sidecar
 cd frontend
 bun run build
+bun run tauri:prepare-sidecar
 
-# Sync build dependencies
-uv sync --group dev
-
-# Create executable
-cd product
-uv run pyinstaller Bot.spec
-
-# Create installer (requires Inno Setup)
-iscc installer.iss
+# Build Windows installer bundle (NSIS)
+cd ..
+cargo tauri build
 ```
 
 ### Testing
@@ -111,7 +106,10 @@ uv run --group dev pytest backend/test/
 
 ```json
 {
-  "schedule_times": ["08:00", "20:00"],
+  "schedule_times": [
+    "08:00",
+    "20:00"
+  ],
   "exit_after_run": false,
   "hide_browser": true,
   "enable_hunt_mode": true,
@@ -127,9 +125,19 @@ Stores email credentials for Gmail notifications.
 
 ```json
 {
-  "Selected": ["Item 1", "Item 2"],
-  "Hunt": ["Item 2"],
-  "Item's list": { "Item 1": {"Available": "Yes", "Point": 100} }
+  "Selected": [
+    "Item 1",
+    "Item 2"
+  ],
+  "Hunt": [
+    "Item 2"
+  ],
+  "Item's list": {
+    "Item 1": {
+      "Available": "Yes",
+      "Point": 100
+    }
+  }
 }
 ```
 

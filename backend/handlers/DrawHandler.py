@@ -420,8 +420,11 @@ def run(page: Page) -> None:
     Args:
         page: Playwright Page instance
     """
+    import sentry_sdk
+
     logger.info("Starting prize draw automation...")
 
+    _tx = sentry_sdk.start_transaction(op="task", name="draw-handler")
     try:
         # Log diagnostic information before attempting to open screen
         logger.info(f"Looking for draw button at image index {DRAW_BUTTON_INDEX}")
@@ -537,6 +540,7 @@ def run(page: Page) -> None:
             )
 
     except Exception as e:
+        _tx.set_status("internal_error")
         logger.error(f"Prize draw automation failed: {e}", exc_info=True)
         NotificationHelper.notify(
             title="ZZZ Bot - Error",
@@ -544,3 +548,5 @@ def run(page: Page) -> None:
             app_icon=CONFIG.get("SAD_ICON", ""),
         )
         raise
+    finally:
+        _tx.finish()

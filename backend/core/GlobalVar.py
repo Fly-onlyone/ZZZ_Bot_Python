@@ -148,6 +148,9 @@ class AppSettings(Serializable):
     stop_on_failed_exchange: bool = False
     theme: str = "purple"  # purple, green, blue
     sentry_dsn: str = ""  # Override SENTRY_DSN env var if set
+    sentry_send_test_event: bool = False
+    sentry_traces_sample_rate: float = 1.0
+    sentry_profiles_sample_rate: float = 1.0
     mongodb_uri: str = ""  # Override MONGODB_URI env var if set
 
 
@@ -208,6 +211,108 @@ def load_runtime_env() -> None:
 
     if loaded_any:
         logger.info("Loaded runtime .env configuration")
+
+
+def parse_sample_rate_value(raw_value: object, source_name: str) -> float | None:
+    if raw_value is None:
+        return None
+
+    value_text = str(raw_value).strip()
+    if not value_text:
+        return None
+
+    try:
+        parsed_value = float(value_text)
+    except ValueError:
+        logger.warning("Invalid %s='%s'; ignoring value", source_name, value_text)
+        return None
+
+    if not 0.0 <= parsed_value <= 1.0:
+        logger.warning(
+            "Out-of-range %s=%.3f; expected 0.0-1.0, ignoring value",
+            source_name,
+            parsed_value,
+        )
+        return None
+
+    return parsed_value
+
+
+def parse_sample_rate(env_name: str, default_value: float) -> float:
+    parsed_value = parse_sample_rate_value(os.getenv(env_name), env_name)
+    if parsed_value is None:
+        return default_value
+    return parsed_value
+
+
+def resolve_sentry_sample_rate(
+    *,
+    env_name: str,
+    settings_name: str,
+    settings_value: object,
+    fallback_value: float = 1.0,
+) -> tuple[float, str]:
+    env_value = parse_sample_rate_value(os.getenv(env_name), env_name)
+    if env_value is not None:
+        return env_value, f"env:{env_name}"
+
+    settings_rate = parse_sample_rate_value(settings_value, settings_name)
+    if settings_rate is not None:
+        return settings_rate, f"settings:{settings_name}"
+
+    return fallback_value, "fallback"
+
+
+def _env_flag_enabled(env_name: str, default_value: bool = True) -> bool:
+    raw_value = os.getenv(env_name)
+    if raw_value is None:
+        return default_value
+    return raw_value.lower() not in {"0", "false", "no"}
+
+
+def _init_startup_sentry_if_configured() -> None:
+    """Initialize Sentry early so startup transactions are captured."""
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.logging import LoggingIntegration
+    except ImportError:
+        return
+
+    if sentry_sdk.get_client().is_active():
+        return
+
+    sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
+    if not sentry_dsn:
+        return
+
+    default_sample_rate = 1.0
+    traces_sample_rate = parse_sample_rate(
+        "SENTRY_TRACES_SAMPLE_RATE",
+        default_sample_rate,
+    )
+    profiles_sample_rate = parse_sample_rate(
+        "SENTRY_PROFILES_SAMPLE_RATE",
+        default_sample_rate,
+    )
+    enable_logs = _env_flag_enabled("SENTRY_ENABLE_LOGS", default_value=True)
+
+    try:
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            environment="production" if is_exe else "development",
+            integrations=[
+                FastApiIntegration(),
+                LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
+            ],
+            traces_sample_rate=traces_sample_rate,
+            profiles_sample_rate=profiles_sample_rate,
+            enable_logs=enable_logs,
+            send_default_pii=False,
+        )
+        logger.info("Initialized Sentry during startup bootstrap")
+    except Exception as exc:
+        logger.warning("Failed to initialize startup Sentry: %s", exc)
 
 
 def _bootstrap_mongo() -> None:
@@ -313,17 +418,18 @@ def _load_accounts() -> "Account":
 
 
 load_runtime_env()
+_init_startup_sentry_if_configured()
 _bootstrap_mongo()
 
 settings = _load_settings()
 accounts = _load_accounts()
-tray_icon = None
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     # Allow desktop/web UI origins on localhost and WebView protocols.
     allow_origins=[
         "tauri://localhost",
+        "http://tauri.localhost",
         "https://tauri.localhost",
         "null",  # file:// origin in some desktop webviews
     ],
@@ -333,8 +439,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ensure screenshot directory exists (it's an outside path that needs creation)
+# Ensure outside-path runtime directories exist for first run in packaged app.
 os.makedirs(CONFIG["SCREENSHOT_FOLDER"], exist_ok=True)
+storage_parent = os.path.dirname(CONFIG["STORAGE_PATH"])
+if storage_parent:
+    os.makedirs(storage_parent, exist_ok=True)
 
 # ICON_FOLDER is bundled with the exe, no need to create it
 app.mount("/images", StaticFiles(directory=CONFIG["ICON_FOLDER"]), name="images")

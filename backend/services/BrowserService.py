@@ -13,6 +13,11 @@ from typing import Optional
 from playwright.sync_api import sync_playwright, BrowserContext, Page
 
 from utils.screenshot_store import save_page_screenshot
+from utils.storage_state_store import (
+    build_context_options,
+    load_storage_state,
+    save_context_storage_state,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,13 +71,10 @@ class BrowserService:
                 browser_launcher = getattr(p, self.browser_type)
                 browser = browser_launcher.launch(headless=self.headless)
 
-                # Create context with optional storage state
-                context_options = {}
-                if storage_path and os.path.exists(storage_path):
-                    context_options["storage_state"] = storage_path
-                    logger.info(f"Loading authentication state from {storage_path}")
-                else:
-                    logger.info("No authentication state found, starting fresh session")
+                # Create context with optional storage state (Mongo-first).
+                context_options = (
+                    build_context_options(storage_path) if storage_path else {}
+                )
 
                 context = browser.new_context(**context_options)
                 page = context.new_page()
@@ -101,8 +103,8 @@ class BrowserService:
             storage_path: Path to save state file
         """
         try:
-            context.storage_state(path=storage_path)
-            logger.info(f"Session state saved to {storage_path}")
+            save_context_storage_state(context, storage_path)
+            logger.info(f"Session state saved to MongoDB and file backup: {storage_path}")
         except Exception as e:
             logger.error(f"Failed to save session state: {e}")
             raise
@@ -117,7 +119,7 @@ class BrowserService:
         Returns:
             bool: True if authenticated state exists
         """
-        return os.path.exists(storage_path)
+        return load_storage_state(storage_path) is not None or os.path.exists(storage_path)
 
     @staticmethod
     def click_element(

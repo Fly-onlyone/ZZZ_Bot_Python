@@ -17,6 +17,96 @@ from bson.binary import Binary
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_SETTINGS_PAYLOAD = {
+    "schedule_times": ["08:00", "20:00"],
+    "exit_after_run": False,
+    "open_web_ui": True,
+    "hide_browser": False,
+    "run_task": True,
+    "gather_shopping_data": True,
+    "exchange_good": False,
+    "buy_all": False,
+    "draw_item": False,
+    "enable_hunt_mode": False,
+    "stop_on_failed_exchange": False,
+    "theme": "purple",
+    "sentry_dsn": "",
+    "sentry_send_test_event": False,
+    "sentry_traces_sample_rate": 1.0,
+    "sentry_profiles_sample_rate": 1.0,
+    "mongodb_uri": "",
+}
+
+
+def _dedupe_paths(paths: list[Path]) -> list[Path]:
+    """Deduplicate paths while preserving input order."""
+    unique_paths: list[Path] = []
+    seen: set[str] = set()
+    for raw_path in paths:
+        try:
+            normalized = str(raw_path.expanduser().resolve(strict=False)).lower()
+        except (OSError, RuntimeError):
+            normalized = str(raw_path).lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        unique_paths.append(raw_path)
+    return unique_paths
+
+
+def _resolve_output_dirs(output_dir: str) -> list[Path]:
+    """Return primary output dir plus legacy fallback locations."""
+    candidates = [Path(output_dir)]
+
+    local_app_data = os.getenv("LOCALAPPDATA", "").strip()
+    if local_app_data:
+        local_path = Path(local_app_data)
+        candidates.extend(
+            [
+                local_path / "zzz-bot" / "output",
+                local_path / "ZZZ Bot" / "output",
+                local_path / "Programs" / "zzz-bot" / "output",
+                local_path / "Programs" / "ZZZ Bot" / "output",
+            ]
+        )
+
+    custom_legacy_dirs = os.getenv("ZZZ_LEGACY_OUTPUT_DIRS", "").strip()
+    if custom_legacy_dirs:
+        for raw_path in custom_legacy_dirs.split(";"):
+            cleaned = raw_path.strip()
+            if cleaned:
+                candidates.append(Path(cleaned))
+
+    return _dedupe_paths(candidates)
+
+
+def _resolve_artifact_path(filename: str, output_dirs: list[Path]) -> str:
+    """Pick the first existing artifact path from configured output directories."""
+    if not output_dirs:
+        return filename
+
+    for directory in output_dirs:
+        candidate = directory / filename
+        if candidate.is_file():
+            return str(candidate)
+
+    return str(output_dirs[0] / filename)
+
+
+def _is_default_settings_payload(data: Any) -> bool:
+    """Return True when settings payload matches app defaults."""
+    if not isinstance(data, dict):
+        return False
+    return all(data.get(key) == value for key, value in _DEFAULT_SETTINGS_PAYLOAD.items())
+
+
+def _is_blank_account_payload(data: Any) -> bool:
+    """Return True when account payload has no credentials."""
+    if not isinstance(data, dict):
+        return True
+    fields = ("username", "password", "app_password")
+    return not any(str(data.get(field, "")).strip() for field in fields)
+
 
 def _read_json_with_error(path: str) -> tuple[Any, str | None]:
     """Read a JSON file and return payload + parse/read error."""
@@ -198,9 +288,10 @@ def migrate_if_needed(
     migrated: list[str] = []
     artifact_status: dict[str, dict[str, Any]] = {}
     db = get_db()
+    output_dirs = _resolve_output_dirs(output_dir)
 
     def _path(filename: str) -> str:
-        return os.path.join(output_dir, filename)
+        return _resolve_artifact_path(filename, output_dirs)
 
     with sentry_sdk.start_transaction(
         op="startup.mongo_migration",
@@ -229,6 +320,10 @@ def migrate_if_needed(
                 MongoRepository.save_settings(settings_data)
                 migrated.append("settings")
                 settings_status["action"] = "migrated"
+            elif _is_default_settings_payload(MongoRepository.get_settings()):
+                MongoRepository.save_settings(settings_data)
+                migrated.append("settings (replaced_default)")
+                settings_status["action"] = "migrated_replaced_default"
             else:
                 settings_status["action"] = "skipped_existing_data"
             settings_status["safe_to_delete"] = True
@@ -254,6 +349,10 @@ def migrate_if_needed(
                 MongoRepository.save_account(account_data)
                 migrated.append("account")
                 account_status["action"] = "migrated"
+            elif _is_blank_account_payload(MongoRepository.get_account()):
+                MongoRepository.save_account(account_data)
+                migrated.append("account (replaced_blank)")
+                account_status["action"] = "migrated_replaced_blank"
             else:
                 account_status["action"] = "skipped_existing_data"
             account_status["safe_to_delete"] = True
@@ -383,6 +482,7 @@ def migrate_if_needed(
             "counts_before": counts_before,
             "counts_after": counts_after,
             "artifact_status": artifact_status,
+            "output_dirs_checked": [str(path) for path in output_dirs],
             "storage_state_report": storage_report,
             "screenshot_report": screenshot_report,
         }
