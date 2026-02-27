@@ -7,6 +7,16 @@ import {
   STALE_TIMES,
 } from "../config";
 
+const STARTUP_RETRY_COUNT = 12;
+const STARTUP_RETRY_DELAY_MS = 500;
+const STARTUP_MAX_RETRY_DELAY_MS = 3000;
+
+const getStartupRetryDelay = (attemptIndex) =>
+  Math.min(
+    STARTUP_RETRY_DELAY_MS * 2 ** attemptIndex,
+    STARTUP_MAX_RETRY_DELAY_MS
+  );
+
 export const DataLoader = () => {
   const queryClient = useQueryClient();
 
@@ -76,13 +86,27 @@ export const DataLoader = () => {
     );
   }, [fetchAllRoutes, fetchRouteData, queryClient]);
 
-  const useRouteData = (route) => {
+  const useRouteData = (route, queryOptions = {}) => {
     return useQuery({
       queryKey: [route],
       queryFn: () => fetchRouteData(route),
       staleTime: STALE_TIMES[route] || DEFAULT_STALE_TIME,
       retry: API_RETRY_COUNT,
       refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      ...queryOptions,
+    });
+  };
+
+  const useBackendHealth = () => {
+    return useQuery({
+      queryKey: ["backend-health"],
+      queryFn: () => fetchJson(`${BACKEND_URL}/health`, "Backend unavailable"),
+      staleTime: 1000 * 5,
+      retry: STARTUP_RETRY_COUNT,
+      retryDelay: getStartupRetryDelay,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
     });
   };
 
@@ -134,7 +158,13 @@ export const DataLoader = () => {
     return useMutation({ mutationFn: runAction });
   };
 
-  return { prefetchAllRoutes, useRouteData, useSaveData, useActionData };
+  return {
+    prefetchAllRoutes,
+    useRouteData,
+    useSaveData,
+    useActionData,
+    useBackendHealth,
+  };
 };
 
 export { BACKEND_URL } from "../config/constants";

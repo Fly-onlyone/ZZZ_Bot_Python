@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { getThemeColors } from "./themes";
-import { BACKEND_URL } from "../config";
+import { DataLoader } from "../services";
 
 /**
  * Hook to detect user's reduced motion preference
@@ -38,15 +37,17 @@ export function ThemeContextProvider({ children }) {
   const [themeColors, setThemeColors] = useState(getThemeColors("nebula"));
   const prefersReducedMotion = useReducedMotionPreference();
 
-  // Fetch theme setting from backend
-  const { data: settingsData } = useQuery({
-    queryKey: ["settings"],
-    queryFn: async () => {
-      const response = await fetch(`${BACKEND_URL}/settings`);
-      return response.json();
-    },
-    staleTime: 1000 * 60 * 5, // 5 minutes
+  const { useRouteData, useBackendHealth } = DataLoader();
+  const { data: healthData } = useBackendHealth();
+  const isBackendReady = healthData?.status === "ok";
+
+  // Fetch theme setting from backend once health check confirms readiness.
+  const { data: settingsData } = useRouteData("settings", {
+    enabled: isBackendReady,
+    retry: 6,
+    retryDelay: (attemptIndex) => Math.min(500 * 2 ** attemptIndex, 3000),
     refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   useEffect(() => {
