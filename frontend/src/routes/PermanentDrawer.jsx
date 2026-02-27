@@ -8,10 +8,12 @@ import {
 } from "react-router-dom";
 import {
   Box,
+  CircularProgress,
   CssBaseline,
   FormControlLabel,
   Switch,
   Toolbar,
+  Typography,
 } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
 import PersonIcon from "@mui/icons-material/Person";
@@ -100,6 +102,32 @@ function formatCleanupSummary(report) {
     `${deleted["log_files"] || 0} log file(s), ` +
     `${deleted["screenshot_files"] || 0} screenshot file(s), ` +
     `${deleted["json_files"] || 0} JSON file(s).`
+  );
+}
+
+function StartupStatus({ isLoading, error }) {
+  const message = isLoading ? "Starting backend..." : "Waiting for backend...";
+  const detail = error
+    ? "Connection failed during startup. Retrying automatically."
+    : "Please wait while services initialize.";
+
+  return (
+    <Box
+      sx={{
+        minHeight: "50vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 2,
+      }}
+    >
+      <CircularProgress size={32} />
+      <Typography variant="h6">{message}</Typography>
+      <Typography variant="body2" color="text.secondary">
+        {detail}
+      </Typography>
+    </Box>
   );
 }
 
@@ -315,12 +343,23 @@ function AnimatedRoutes() {
 // Manages routing and data prefetching.
 //
 export default function PermanentDrawer() {
-  const { prefetchAllRoutes } = DataLoader();
+  const { prefetchAllRoutes, useBackendHealth } = DataLoader();
   const { themeColors } = useThemeContext(); // Get theme colors
+  const {
+    data: healthData,
+    error: backendHealthError,
+    isLoading: isBackendHealthLoading,
+    isFetching: isBackendHealthFetching,
+  } = useBackendHealth();
+  const isBackendReady = healthData?.status === "ok";
 
   useEffect(() => {
+    if (!isBackendReady) {
+      return;
+    }
+
     void prefetchAllRoutes();
-  }, [prefetchAllRoutes]);
+  }, [isBackendReady, prefetchAllRoutes]);
 
   return (
     <BrowserRouter>
@@ -338,7 +377,14 @@ export default function PermanentDrawer() {
         <NavigationDrawer />
         <Box component="main" className="flex-grow p-6">
           <Toolbar />
-          <AnimatedRoutes />
+          {isBackendReady ? (
+            <AnimatedRoutes />
+          ) : (
+            <StartupStatus
+              isLoading={isBackendHealthLoading || isBackendHealthFetching}
+              error={backendHealthError}
+            />
+          )}
         </Box>
       </Box>
     </BrowserRouter>

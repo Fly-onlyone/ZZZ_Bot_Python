@@ -41,6 +41,12 @@ def _has_valid_desktop_token(request: Request) -> bool:
 # ============================================================================
 
 
+@router.get("/health")
+def health_check():
+    """Return backend readiness status for frontend startup gating."""
+    return {"status": "ok"}
+
+
 @router.get("/routes")
 async def get_routes():
     """Return list of available API routes (excluding internal endpoints)."""
@@ -56,6 +62,7 @@ async def get_routes():
         "/assets",
         "/playstate",
         "/logs",
+        "/health",
     }
     routes = [
         route.path.lstrip("/")
