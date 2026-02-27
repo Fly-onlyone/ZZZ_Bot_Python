@@ -12,6 +12,7 @@ import {
 import { motion } from "framer-motion";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import ArticleIcon from "@mui/icons-material/Article";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import RedeemIcon from "@mui/icons-material/Redeem";
@@ -30,6 +31,7 @@ const tabs = [
   { label: "Redeem", icon: <RedeemIcon />, path: "/redeem" },
   { label: "Account", icon: <AccountCircleIcon />, path: "/account" },
   { label: "Manual Login", icon: <IconLogin2 />, path: "/manual" },
+  { label: "Logs", icon: <ArticleIcon />, path: "/logs" },
   { label: "Setting", icon: <SettingsIcon />, path: "/settings" },
 ];
 

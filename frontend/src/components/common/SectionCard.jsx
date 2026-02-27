@@ -58,6 +58,9 @@ export default function SectionCard({
   icon,
   children,
   colorScheme = "primary",
+  sx = {},
+  contentSx = {},
+  disableHover = false,
 }) {
   const { themeColors } = useThemeContext();
   const isPrimary = colorScheme === "primary";
@@ -75,11 +78,15 @@ export default function SectionCard({
       component={motion.div}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{
-        y: -5,
-        scale: 1.02,
-        transition: { duration: 0.2, ease: "easeOut" },
-      }}
+      whileHover={
+        disableHover
+          ? undefined
+          : {
+              y: -5,
+              scale: 1.02,
+              transition: { duration: 0.2, ease: "easeOut" },
+            }
+      }
       elevation={0}
       role="region"
       aria-label={title}
@@ -95,6 +102,7 @@ export default function SectionCard({
           boxShadow: `0 12px 40px ${themeColors.alpha.hover}`,
           border: `1px solid ${themeColors.primary.main}60`,
         },
+        ...sx,
       }}
     >
       <Box
@@ -124,7 +132,7 @@ export default function SectionCard({
           {title}
         </Typography>
       </Box>
-      <Box sx={{ padding: "24px" }}>{children}</Box>
+      <Box sx={{ padding: "24px", ...contentSx }}>{children}</Box>
     </Paper>
   );
 }

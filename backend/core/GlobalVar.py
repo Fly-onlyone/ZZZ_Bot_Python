@@ -327,12 +327,12 @@ def _bootstrap_mongo() -> None:
         name="mongo-bootstrap",
         sampled=True,
     ) as transaction:
-        with sentry_sdk.start_span(op="mongo.connect", description="Connect and ping"):
+        with sentry_sdk.start_span(op="mongo.connect", name="Connect and ping"):
             db = get_db()
 
         with sentry_sdk.start_span(
             op="mongo.migrate",
-            description="Migrate JSON backups if needed",
+            name="Migrate JSON backups if needed",
         ):
             report = migrate_if_needed(
                 CONFIG["OUTPUT_FOLDER"],
@@ -374,13 +374,13 @@ def _load_settings() -> "AppSettings":
     ) as transaction:
         with sentry_sdk.start_span(
             op="mongo.connect",
-            description="Reconnect with settings.mongodb_uri",
+            name="Reconnect with settings.mongodb_uri",
         ):
             active_db = get_db()
 
         with sentry_sdk.start_span(
             op="mongo.migrate",
-            description="Migrate JSON backups into active runtime DB if needed",
+            name="Migrate JSON backups into active runtime DB if needed",
         ):
             runtime_report = migrate_if_needed(
                 CONFIG["OUTPUT_FOLDER"],
