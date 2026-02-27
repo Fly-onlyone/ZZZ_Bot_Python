@@ -1,0 +1,11 @@
+{
+  "increment_version": false,
+  "custom_version": "",
+  "parallel_prep": true,
+  "auto_run_installer": true,
+  "steps": {
+    "frontend": true,
+    "sidecar": true,
+    "bundle": true
+  }
+}

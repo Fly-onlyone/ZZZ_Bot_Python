@@ -4,7 +4,6 @@ import zIndex from "@mui/material/styles/zIndex";
 import { COMMON_COLORS } from "../../theme/colors";
 import { TRANSITIONS } from "../../theme/styles";
 import { useThemeContext } from "../../theme/ThemeContext";
-import { BACKEND_URL } from "../../config";
 
 /**
  * AppHeader Component
@@ -14,7 +13,7 @@ import { BACKEND_URL } from "../../config";
  */
 export default function AppHeader() {
   const { themeColors } = useThemeContext();
-  const Qingyi02 = `${BACKEND_URL}/images/Qingyi02.ico`;
+  const Qingyi02 = "/Qingyi02.ico";
 
   return (
     <AppBar position="fixed" sx={{ zIndex: zIndex.drawer + 1 }}>

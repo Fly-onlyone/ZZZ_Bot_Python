@@ -1,11 +1,11 @@
 product/build/
 product/dist/
-product/ZZZ Bot Installer.exe
+product/build-sidecar/
 
 src-tauri/target/
 
 backend/playwright-browsers/
-.codex
+.codex/
 __pycache__/
 *.pyc
 *.pyo
@@ -20,4 +20,11 @@ CLAUDE.local.md
 
 # Environment variables
 .env
+
+# Authentication session data
+authentication data/
+
+# Log files
+logs/
+backend/logs/
 

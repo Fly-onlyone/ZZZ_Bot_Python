@@ -1,6 +1,6 @@
 [package]
-name = "app"
-version = "0.1.0"
+name = "zzz-bot"
+version = "0.1.1"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
@@ -11,7 +11,7 @@ rust-version = "1.77.2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "app_lib"
+name = "zzz_bot_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -23,5 +23,11 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 tauri = { version = "2.10.0", features = ["tray-icon"] }
+tauri-plugin-autostart = "2"
 tauri-plugin-log = "2"
 tauri-plugin-shell = "2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

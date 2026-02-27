@@ -24,6 +24,11 @@ from automation.Selectors import (
 from core.GlobalVar import CONFIG, settings
 from utils import NotificationHelper
 from utils.DataHandler import load_shopping_data, save_shopping_data
+from utils.storage_state_store import (
+    build_context_options,
+    load_storage_state,
+    save_context_storage_state,
+)
 from . import ShoppingHandler
 
 logger = logging.getLogger(__name__)
@@ -328,15 +333,14 @@ def run_hunt():
         logger.info("No hunt items with return times, skipping")
         return
 
+    import sentry_sdk
+
     browser = None
+    _tx = sentry_sdk.start_transaction(op="task", name="hunt-handler")
     try:
         with sync_playwright() as p:
             browser = p.firefox.launch(headless=settings.hide_browser)
-            context_options = (
-                {"storage_state": CONFIG["STORAGE_PATH"]}
-                if os.path.exists(CONFIG["STORAGE_PATH"])
-                else {}
-            )
+            context_options = build_context_options(CONFIG["STORAGE_PATH"])
             context = browser.new_context(**context_options)
             page = context.new_page()
 
@@ -345,8 +349,12 @@ def run_hunt():
                     "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
                 )
 
-                # Handle manual login if storage path doesn't exist
-                if not os.path.exists(CONFIG["STORAGE_PATH"]):
+                # Handle manual login only when neither MongoDB nor file has auth state.
+                has_auth_state = (
+                    load_storage_state(CONFIG["STORAGE_PATH"]) is not None
+                    or os.path.exists(CONFIG["STORAGE_PATH"])
+                )
+                if not has_auth_state:
                     NotificationHelper.notify(
                         title="ZZZ Bot - Hunt Mode",
                         message="Please log in manually",
@@ -431,7 +439,7 @@ def run_hunt():
                     logger.info("No items to remove from hunt list")
 
                 # Save session state
-                context.storage_state(path=CONFIG["STORAGE_PATH"])
+                save_context_storage_state(context, CONFIG["STORAGE_PATH"])
 
                 # Send notification
                 message = (
@@ -464,6 +472,7 @@ def run_hunt():
                     browser.close()
 
     except Exception as e:
+        _tx.set_status("internal_error")
         logger.error(f"Hunt mode failed: {e}", exc_info=True)
         NotificationHelper.notify(
             title="ZZZ Bot - Hunt Mode",
@@ -476,3 +485,5 @@ def run_hunt():
                 browser.close()
             except:
                 pass  # Browser may already be closed
+    finally:
+        _tx.finish()

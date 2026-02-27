@@ -27,14 +27,35 @@ from utils.DataHandler import (
 )
 from core.GlobalVar import app, CONFIG, settings, is_exe
 from core import GlobalVar
-from utils.Logger import Logger, NoImportFilter
+from utils.Logger import StreamToLogger, NoImportFilter
 from utils.NotificationHelper import NotificationModule
 from utils.screenshot_store import save_page_screenshot
+from utils.storage_state_store import (
+    build_context_options,
+    load_storage_state,
+    save_context_storage_state,
+)
 from core import Notification
 from api.routes import router
 
 # Configure logger
 logger = logging.getLogger(__name__)
+
+LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+
+def _create_file_handler(log_path: str) -> TimedRotatingFileHandler:
+    handler = TimedRotatingFileHandler(
+        filename=log_path,
+        when="D",
+        interval=1,
+        backupCount=7,
+        encoding="utf-8",
+    )
+    handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    handler.addFilter(NoImportFilter())
+    return handler
+
 
 # Include API routes from separate module
 app.include_router(router)
@@ -171,11 +192,7 @@ def playwright_task():
                 )
                 return
 
-        context_options = (
-            {"storage_state": CONFIG["STORAGE_PATH"]}
-            if os.path.exists(CONFIG["STORAGE_PATH"])
-            else {}
-        )
+        context_options = build_context_options(CONFIG["STORAGE_PATH"])
         context = browser.new_context(**context_options)
         mino_page = context.new_page()
 
@@ -183,8 +200,12 @@ def playwright_task():
             "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
         )
 
-        # Handle manual login if storage path doesn't exist
-        if not os.path.exists(CONFIG["STORAGE_PATH"]):
+        # Handle manual login only when neither MongoDB nor file has auth state.
+        has_auth_state = (
+            load_storage_state(CONFIG["STORAGE_PATH"]) is not None
+            or os.path.exists(CONFIG["STORAGE_PATH"])
+        )
+        if not has_auth_state:
             NotificationModule.notify(
                 title="ZZZ Bot",
                 message="Please log in manually",
@@ -252,7 +273,7 @@ def playwright_task():
             title="ZZZ Bot", message="Task finished", app_icon=CONFIG["ICON_PATH"]
         )
 
-        context.storage_state(path=CONFIG["STORAGE_PATH"])
+        save_context_storage_state(context, CONFIG["STORAGE_PATH"])
         if not is_exe:
             input("Press ENTER to exit...")
         browser.close()
@@ -405,6 +426,208 @@ def run_playwright_task_async():
     threading.Thread(target=playwright_task, daemon=False).start()
 
 
+def resolve_playwright_browsers_path() -> str | None:
+    """Return first existing Playwright browser directory for packaged/runtime modes."""
+    candidates: list[str] = []
+
+    env_browser_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH", "").strip()
+    if env_browser_path:
+        candidates.append(env_browser_path)
+
+    configured_path = CONFIG.get("BROWSER")
+    if configured_path:
+        candidates.append(configured_path)
+
+    candidates.extend(
+        [
+            GlobalVar.resource_path("./playwright-browsers"),
+            GlobalVar.resource_path("./backend/playwright-browsers"),
+            os.path.join(os.path.dirname(sys.executable), "playwright-browsers"),
+            os.path.join(os.path.dirname(sys.executable), "backend", "playwright-browsers"),
+        ]
+    )
+
+    checked: set[str] = set()
+    for path in candidates:
+        normalized = os.path.abspath(path)
+        if normalized in checked:
+            continue
+        checked.add(normalized)
+        if os.path.isdir(normalized):
+            return normalized
+
+    return None
+
+
+def configure_sentry_runtime(
+    *,
+    trigger_source: str = "startup",
+    force_reinit: bool = False,
+) -> dict[str, object]:
+    """Configure Sentry from environment + current settings values."""
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.logging import LoggingIntegration
+    except ImportError:
+        return {
+            "active": False,
+            "dsn_source": "none",
+            "dsn_present": False,
+            "environment": "production" if is_exe else "development",
+            "logs_enabled": False,
+            "send_test_event": False,
+            "send_test_event_source": "none",
+            "traces_sample_rate": 0.0,
+            "traces_sample_rate_source": "fallback",
+            "profiles_sample_rate": 0.0,
+            "profiles_sample_rate_source": "fallback",
+            "trigger_source": trigger_source,
+            "reconfigured": False,
+            "error": "sentry_sdk unavailable",
+        }
+
+    env_sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
+    settings_sentry_dsn = (settings.sentry_dsn or "").strip()
+    sentry_dsn = env_sentry_dsn or settings_sentry_dsn
+    if env_sentry_dsn:
+        sentry_dsn_source = "env:SENTRY_DSN"
+    elif settings_sentry_dsn:
+        sentry_dsn_source = "settings.sentry_dsn"
+    else:
+        sentry_dsn_source = "none"
+
+    raw_send_sentry_test_event = os.getenv("SENTRY_SEND_TEST_EVENT")
+    if raw_send_sentry_test_event is None:
+        send_sentry_test_event = bool(settings.sentry_send_test_event)
+        sentry_test_event_source = "settings.sentry_send_test_event"
+    else:
+        send_sentry_test_event = raw_send_sentry_test_event.lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        sentry_test_event_source = "env:SENTRY_SEND_TEST_EVENT"
+
+    if is_exe and send_sentry_test_event:
+        logger.warning(
+            "Ignoring Sentry startup test event in production runtime (source=%s)",
+            sentry_test_event_source,
+        )
+        send_sentry_test_event = False
+        sentry_test_event_source = f"{sentry_test_event_source}:ignored_in_production"
+
+    traces_sample_rate, traces_sample_rate_source = GlobalVar.resolve_sentry_sample_rate(
+        env_name="SENTRY_TRACES_SAMPLE_RATE",
+        settings_name="settings.sentry_traces_sample_rate",
+        settings_value=getattr(settings, "sentry_traces_sample_rate", 1.0),
+        fallback_value=1.0,
+    )
+    profiles_sample_rate, profiles_sample_rate_source = GlobalVar.resolve_sentry_sample_rate(
+        env_name="SENTRY_PROFILES_SAMPLE_RATE",
+        settings_name="settings.sentry_profiles_sample_rate",
+        settings_value=getattr(settings, "sentry_profiles_sample_rate", 1.0),
+        fallback_value=1.0,
+    )
+
+    if send_sentry_test_event:
+        # Force deterministic visibility during verification runs.
+        traces_sample_rate = 1.0
+        profiles_sample_rate = 1.0
+        traces_sample_rate_source = "forced:test_event"
+        profiles_sample_rate_source = "forced:test_event"
+
+    enable_sentry_logs = os.getenv("SENTRY_ENABLE_LOGS", "1").lower() not in {
+        "0",
+        "false",
+        "no",
+    }
+
+    sentry_is_active = sentry_sdk.get_client().is_active()
+    reconfigured = False
+
+    try:
+        if sentry_dsn:
+            if force_reinit or not sentry_is_active:
+                sentry_sdk.init(
+                    dsn=sentry_dsn,
+                    environment="production" if is_exe else "development",
+                    integrations=[
+                        FastApiIntegration(),
+                        LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
+                    ],
+                    traces_sample_rate=traces_sample_rate,
+                    profiles_sample_rate=profiles_sample_rate,
+                    enable_logs=enable_sentry_logs,
+                    send_default_pii=False,
+                )
+                sentry_is_active = sentry_sdk.get_client().is_active()
+                reconfigured = True
+            else:
+                logger.info("Sentry already initialized during startup bootstrap")
+
+            if send_sentry_test_event and sentry_is_active:
+                event_id = sentry_sdk.capture_message(
+                    "ZZZ Bot startup test event",
+                    level="warning",
+                )
+                with sentry_sdk.start_transaction(
+                    op="startup",
+                    name="zzz-bot-startup-profile-test",
+                    sampled=True,
+                ):
+                    with sentry_sdk.start_span(
+                        op="test.work",
+                        name="profile verification span",
+                    ):
+                        time.sleep(0.2)
+
+                sentry_test_logger = logging.getLogger("zzz_bot.sentry_test")
+                sentry_test_logger.info("ZZZ Bot startup info log integration test")
+                sentry_test_logger.warning("ZZZ Bot startup warning log integration test")
+                sentry_test_logger.error("ZZZ Bot startup error log integration test")
+
+                sentry_sdk.flush(timeout=5.0)
+                logger.info("Sent Sentry startup test event: %s", event_id)
+        elif not sentry_is_active:
+            logger.warning("Sentry DSN not configured. Monitoring is disabled.")
+    except Exception as sentry_error:
+        logger.error("Failed to configure Sentry runtime: %s", sentry_error)
+        return {
+            "active": sentry_is_active,
+            "dsn_source": sentry_dsn_source,
+            "dsn_present": bool(sentry_dsn),
+            "environment": "production" if is_exe else "development",
+            "logs_enabled": enable_sentry_logs,
+            "send_test_event": send_sentry_test_event,
+            "send_test_event_source": sentry_test_event_source,
+            "traces_sample_rate": traces_sample_rate,
+            "traces_sample_rate_source": traces_sample_rate_source,
+            "profiles_sample_rate": profiles_sample_rate,
+            "profiles_sample_rate_source": profiles_sample_rate_source,
+            "trigger_source": trigger_source,
+            "reconfigured": reconfigured,
+            "error": str(sentry_error),
+        }
+
+    return {
+        "active": sentry_is_active,
+        "dsn_source": sentry_dsn_source,
+        "dsn_present": bool(sentry_dsn),
+        "environment": "production" if is_exe else "development",
+        "logs_enabled": enable_sentry_logs,
+        "send_test_event": send_sentry_test_event,
+        "send_test_event_source": sentry_test_event_source,
+        "traces_sample_rate": traces_sample_rate,
+        "traces_sample_rate_source": traces_sample_rate_source,
+        "profiles_sample_rate": profiles_sample_rate,
+        "profiles_sample_rate_source": profiles_sample_rate_source,
+        "trigger_source": trigger_source,
+        "reconfigured": reconfigured,
+        "error": None,
+    }
+
+
 # Main Entry Point
 if __name__ == "__main__":
     # === 0. Parse Arguments ===
@@ -420,135 +643,61 @@ if __name__ == "__main__":
     GlobalVar.load_runtime_env()
 
     # === 0.5. Initialize Sentry (before everything else) ===
-    import sentry_sdk
-    from sentry_sdk.integrations.fastapi import FastApiIntegration
-    from sentry_sdk.integrations.logging import LoggingIntegration
-
-    _sentry_dsn = (
-        os.getenv("SENTRY_DSN")
-        or (settings.sentry_dsn if settings.sentry_dsn else "")
+    _sentry_status = configure_sentry_runtime(
+        trigger_source="startup",
+        force_reinit=False,
     )
-    _send_sentry_test_event = os.getenv("SENTRY_SEND_TEST_EVENT", "0") == "1"
-    _default_sample_rate = "0.1" if is_exe else "1.0"
-    _traces_sample_rate = float(
-        os.getenv("SENTRY_TRACES_SAMPLE_RATE", _default_sample_rate)
-    )
-    _profiles_sample_rate = float(
-        os.getenv("SENTRY_PROFILES_SAMPLE_RATE", _default_sample_rate)
-    )
-    if _send_sentry_test_event:
-        # Force deterministic visibility during verification runs.
-        _traces_sample_rate = 1.0
-        _profiles_sample_rate = 1.0
-
-    _enable_sentry_logs = os.getenv("SENTRY_ENABLE_LOGS", "1").lower() not in {
-        "0",
-        "false",
-        "no",
-    }
-
-    if _sentry_dsn:
-        sentry_sdk.init(
-            dsn=_sentry_dsn,
-            environment="production" if is_exe else "development",
-            integrations=[
-                FastApiIntegration(),
-                LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
-            ],
-            traces_sample_rate=_traces_sample_rate,
-            profiles_sample_rate=_profiles_sample_rate,
-            enable_logs=_enable_sentry_logs,
-            send_default_pii=False,
-        )
-
-        if _send_sentry_test_event:
-            # Send an explicit startup message event.
-            event_id = sentry_sdk.capture_message(
-                "ZZZ Bot startup test event",
-                level="warning",
-            )
-
-            # Create a sampled transaction so traces/profiles can be verified.
-            with sentry_sdk.start_transaction(
-                op="startup",
-                name="zzz-bot-startup-profile-test",
-                sampled=True,
-            ):
-                with sentry_sdk.start_span(
-                    op="test.work",
-                    name="profile verification span",
-                ):
-                    time.sleep(0.2)
-
-            # Emit multiple log levels to verify log ingestion.
-            sentry_test_logger = logging.getLogger("zzz_bot.sentry_test")
-            sentry_test_logger.info("ZZZ Bot startup info log integration test")
-            sentry_test_logger.warning("ZZZ Bot startup warning log integration test")
-            sentry_test_logger.error("ZZZ Bot startup error log integration test")
-
-            sentry_sdk.flush(timeout=5.0)
-            logger.info(f"Sent Sentry startup test event: {event_id}")
-    else:
-        logger.warning("Sentry DSN not configured. Monitoring is disabled.")
 
     # === 1. Setup Log Path and Initialize Logger (only in EXE mode) ===
     if is_exe:
-        # ensure logs dir exists
-        os.makedirs("logs", exist_ok=True)
-
-        # configure root logger *only* with your rotating handler
-        handler = TimedRotatingFileHandler(
-            filename="logs/app.log",
-            when="D",  # rollover every day
-            interval=1,  # 1-day interval
-            backupCount=7,  # KEEP only 7 days of logs
-            encoding="utf-8",
-        )
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
-        handler.addFilter(NoImportFilter())
-
-        # attach handler to root logger
+        log_dir = GlobalVar.resource_path("logs", outside_path=True)
+        os.makedirs(log_dir, exist_ok=True)
         root = logging.getLogger()
         root.setLevel(logging.DEBUG)
-        root.addHandler(handler)
-
+        root.addHandler(_create_file_handler(os.path.join(log_dir, "app.log")))
         app_log = logging.getLogger(__name__)
-        sys.stdout = Logger(app_log, logging.INFO)
-        sys.stderr = Logger(app_log, logging.ERROR)
+        sys.stdout = StreamToLogger(app_log, logging.INFO)
+        sys.stderr = StreamToLogger(app_log, logging.ERROR)
     else:
         # Development mode - log to both console and file
-        print("Running in normal Python process (dev mode)")
-
-        # Ensure logs directory exists
         os.makedirs("backend/logs", exist_ok=True)
-
-        # Configure file logging for development
-        file_handler = TimedRotatingFileHandler(
-            filename="backend/logs/app.log",
-            when="D",  # rollover every day
-            interval=1,  # 1-day interval
-            backupCount=7,  # Keep only 7 days of logs
-            encoding="utf-8",
-        )
-        file_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
-        file_handler.addFilter(NoImportFilter())
-
-        # Configure console logging for development
+        file_handler = _create_file_handler("backend/logs/app.log")
         console_handler = logging.StreamHandler()
-        console_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
+        console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+        console_handler.setLevel(logging.INFO)
         console_handler.addFilter(NoImportFilter())
-
-        # Attach both handlers to root logger
         root = logging.getLogger()
         root.setLevel(logging.DEBUG)
         root.addHandler(file_handler)
         root.addHandler(console_handler)
+        logger.info("Running in normal Python process (dev mode)")
+
+    logger.info(
+        "Sentry startup status: active=%s, dsn_source=%s, dsn_present=%s, environment=%s, logs_enabled=%s, send_test_event=%s, send_test_event_source=%s, traces_sample_rate=%.3f, traces_sample_rate_source=%s, profiles_sample_rate=%.3f, profiles_sample_rate_source=%s, trigger_source=%s, reconfigured=%s, error=%s",
+        _sentry_status["active"],
+        _sentry_status["dsn_source"],
+        _sentry_status["dsn_present"],
+        _sentry_status["environment"],
+        _sentry_status["logs_enabled"],
+        _sentry_status["send_test_event"],
+        _sentry_status["send_test_event_source"],
+        _sentry_status["traces_sample_rate"],
+        _sentry_status["traces_sample_rate_source"],
+        _sentry_status["profiles_sample_rate"],
+        _sentry_status["profiles_sample_rate_source"],
+        _sentry_status["trigger_source"],
+        _sentry_status["reconfigured"],
+        _sentry_status["error"],
+    )
+
+    browser_path = resolve_playwright_browsers_path()
+    if browser_path:
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browser_path
+        logger.info("Using Playwright browser path: %s", browser_path)
+    else:
+        logger.warning(
+            "No packaged Playwright browser directory found. Falling back to default Playwright lookup."
+        )
 
     # === 2. Start React Dev Server (non-exe mode) ===
     if not is_exe and not args.no_frontend:
@@ -557,7 +706,6 @@ if __name__ == "__main__":
             frontend_env = os.environ.copy()
             frontend_env["VITE_BACKEND_URL"] = dev_backend_url
 
-            print("Starting React dev server...")
             logger.info(
                 "Starting React dev server with VITE_BACKEND_URL=%s",
                 dev_backend_url,
@@ -571,20 +719,22 @@ if __name__ == "__main__":
                 stderr=sys.__stderr__,  # Use original stderr
             )
         except Exception as e:
-            print(f"Error starting React server: {e}")
+            logger.error("Error starting React server: %s", e)
 
     # === 3. Mount Frontend (exe mode) ===
     elif is_exe:
-        try:
-            print("Mounting frontend build and setting browser path...")
-            app.mount(
-                "/",
-                StaticFiles(directory=CONFIG["FRONTEND_BUILD"], html=True),
-                name="ui",
-            )
-            os.environ["PLAYWRIGHT_BROWSERS_PATH"] = CONFIG["BROWSER"]
-        except Exception as e:
-            print(f"Error mounting frontend: {e}")
+        if args.no_frontend or hosted_by_tauri:
+            logger.info("Skipping frontend mount for Tauri sidecar or --no-frontend mode")
+        else:
+            try:
+                logger.info("Mounting frontend build...")
+                app.mount(
+                    "/",
+                    StaticFiles(directory=CONFIG["FRONTEND_BUILD"], html=True),
+                    name="ui",
+                )
+            except Exception as e:
+                logger.error("Error mounting frontend: %s", e)
     else:
         logger.info("Frontend mounting disabled via --no-frontend")
 
@@ -608,13 +758,19 @@ if __name__ == "__main__":
 
     # === 5. Open Web UI ===
     if settings.open_web_ui and not hosted_by_tauri:
-        print("Opening web UI...")
+        logger.info("Opening web UI...")
         webbrowser.open_new_tab(CONFIG["WEB_UI_URL"])
 
     # === 6. Start FastAPI Server ===
-    print("Starting FastAPI server...")
+    logger.info("Starting FastAPI server...")
     try:
-        uvicorn.run(app, host="127.0.0.1", port=args.port, log_config=None)
+        uvicorn.run(
+            app,
+            host="127.0.0.1",
+            port=args.port,
+            log_config=None,
+            ws="wsproto",
+        )
     finally:
         if not is_exe and react_server is not None:
             try:

@@ -332,6 +332,19 @@ async def get_play_state():
 # ============================================================================
 
 
+@router.post("/shutdown")
+def shutdown(request: Request):
+    """Gracefully shut down the backend process.
+
+    Requires a desktop token header — only callable from the Tauri shell.
+    """
+    if not _has_valid_desktop_token(request):
+        return JSONResponse({"status": "rejected"}, status_code=401)
+
+    logger.info("Graceful shutdown requested by desktop shell.")
+    os._exit(0)
+
+
 @router.post("/tasks/run-playwright")
 def run_playwright_now(request: Request):
     """Start a manual automation run in the background.
@@ -391,7 +404,7 @@ async def update_settings(request: Request):
     Returns:
         Success message
     """
-    from Bot import calculate_next_run, schedule_tasks
+    from Bot import calculate_next_run, configure_sentry_runtime, schedule_tasks
     from repositories.connection import get_db, set_runtime_uri
 
     data = await request.json()
@@ -436,6 +449,27 @@ async def update_settings(request: Request):
         )
 
     schedule_tasks()
+
+    sentry_setting_keys = {
+        "sentry_dsn",
+        "sentry_send_test_event",
+        "sentry_traces_sample_rate",
+        "sentry_profiles_sample_rate",
+    }
+    if any(key in applied_updates for key in sentry_setting_keys):
+        sentry_status = configure_sentry_runtime(
+            trigger_source="settings_update",
+            force_reinit=True,
+        )
+        logger.info(
+            "Applied Sentry runtime settings from UI: active=%s, dsn_source=%s, traces_sample_rate=%.3f, profiles_sample_rate=%.3f, reconfigured=%s, error=%s",
+            sentry_status["active"],
+            sentry_status["dsn_source"],
+            sentry_status["traces_sample_rate"],
+            sentry_status["profiles_sample_rate"],
+            sentry_status["reconfigured"],
+            sentry_status["error"],
+        )
 
     # Update next_run when schedule_times change
     if "schedule_times" in applied_updates:

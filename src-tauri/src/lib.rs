@@ -1,3 +1,4 @@
+use std::process::Command as ProcessCommand;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -5,8 +6,8 @@ use reqwest::blocking::Client;
 use serde_json::Value;
 use tauri::{
     menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, WindowEvent,
+    tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Manager, RunEvent, WindowEvent,
 };
 use tauri_plugin_shell::{process::CommandChild, process::CommandEvent, ShellExt};
 
@@ -135,16 +136,109 @@ fn show_main_window(app: &AppHandle) {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn run_taskkill(args: &[&str], label: &str) {
+    use std::os::windows::process::CommandExt;
+    // Suppress the console window that would flash for each taskkill call in a GUI app.
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    match ProcessCommand::new("taskkill")
+        .args(args)
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+    {
+        Ok(output) => {
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                log::warn!("taskkill failed ({label}): {}", stderr.trim());
+            }
+        }
+        Err(error) => {
+            log::warn!("Failed to run taskkill ({label}): {error}");
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn force_kill_backend_processes(tracked_pid: Option<u32>) {
+    if let Some(pid) = tracked_pid {
+        let pid_str = pid.to_string();
+
+        run_taskkill(&["/F", "/T", "/PID", &pid_str], "tracked-pid");
+    }
+
+    // Exact image-name attempts for known sidecar naming variants.
+    for image in [
+        "zzz-backend.exe",
+        "zzz-backend-x86_64-pc-windows-msvc.exe",
+        "zzz-backend-aarch64-pc-windows-msvc.exe",
+        "zzz-backend-i686-pc-windows-msvc.exe",
+    ] {
+        run_taskkill(&["/F", "/T", "/IM", image], image);
+    }
+
+    // Final fallback using filter wildcard to catch any suffix variants.
+    run_taskkill(
+        &["/F", "/T", "/FI", "IMAGENAME eq zzz-backend*", "/IM", "*"],
+        "filtered-wildcard",
+    );
+}
+
+#[cfg(not(target_os = "windows"))]
+fn force_kill_backend_processes(_tracked_pid: Option<u32>) {}
+
+fn resolve_sidecar_sentry_dsn() -> Option<(String, &'static str)> {
+    if let Ok(runtime_dsn) = std::env::var("SENTRY_DSN") {
+        let trimmed = runtime_dsn.trim();
+        if !trimmed.is_empty() {
+            return Some((trimmed.to_string(), "env:SENTRY_DSN"));
+        }
+    }
+
+    if let Some(embedded_dsn) = option_env!("ZZZ_SENTRY_DSN") {
+        let trimmed = embedded_dsn.trim();
+        if !trimmed.is_empty() {
+            return Some((trimmed.to_string(), "embedded:ZZZ_SENTRY_DSN"));
+        }
+    }
+
+    None
+}
+
 fn stop_backend_sidecar(app: &AppHandle) {
     let runtime = app.state::<AppRuntime>();
-    let mut child_guard = match runtime.backend_child.lock() {
-        Ok(guard) => guard,
-        Err(_) => return,
-    };
+    let mut tracked_pid: Option<u32> = None;
 
-    if let Some(child) = child_guard.take() {
-        let _ = child.kill();
+    // Grab PID before taking the child so force_kill can use it as a fallback.
+    if let Ok(child_guard) = runtime.backend_child.lock() {
+        if let Some(child) = child_guard.as_ref() {
+            tracked_pid = Some(child.pid());
+        }
     }
+
+    // Send graceful shutdown request (best-effort, 1 s timeout).
+    if let Ok(client) = Client::builder()
+        .timeout(Duration::from_millis(1000))
+        .build()
+    {
+        let _ = client
+            .post(format!("{}/shutdown", runtime.backend_url))
+            .header("x-desktop-token", runtime.desktop_token.clone())
+            .send();
+    }
+
+    // Brief wait for the process to exit cleanly before force-killing.
+    std::thread::sleep(Duration::from_millis(500));
+
+    if let Ok(mut child_guard) = runtime.backend_child.lock() {
+        if let Some(child) = child_guard.take() {
+            if let Err(error) = child.kill() {
+                log::warn!("Failed to kill tracked backend sidecar: {error}");
+            }
+        }
+    }
+
+    force_kill_backend_processes(tracked_pid);
 }
 
 fn spawn_backend_sidecar(app: &tauri::App) {
@@ -155,17 +249,31 @@ fn spawn_backend_sidecar(app: &tauri::App) {
     let runtime = app.state::<AppRuntime>();
     let port = backend_port().to_string();
 
+    let sentry_dsn = resolve_sidecar_sentry_dsn();
+    if let Some((_, source)) = sentry_dsn.as_ref() {
+        log::info!("Sidecar Sentry DSN source: {source}");
+    } else {
+        log::info!("Sidecar Sentry DSN source: none");
+    }
+
     let spawn_result = app
         .shell()
         .sidecar("zzz-backend")
         .map(|command| {
-            command
+            let command = command
                 .arg("--port")
                 .arg(port)
                 .arg("--no-frontend")
                 .arg("--hosted-by-tauri")
-                .env("ZZZ_DESKTOP_TOKEN", runtime.desktop_token.clone())
-                .spawn()
+                .env("ZZZ_DESKTOP_TOKEN", runtime.desktop_token.clone());
+
+            let command = if let Some((dsn, _)) = sentry_dsn.as_ref() {
+                command.env("SENTRY_DSN", dsn)
+            } else {
+                command
+            };
+
+            command.spawn()
         })
         .map_err(|error| error.to_string())
         .and_then(|result| result.map_err(|error| error.to_string()));
@@ -232,7 +340,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let toggle_open_web_ui_item_handle = toggle_open_web_ui_item.clone();
     let toggle_exit_after_run_item_handle = toggle_exit_after_run_item.clone();
 
-    TrayIconBuilder::new()
+    TrayIconBuilder::with_id("main")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id().as_ref() {
@@ -270,7 +378,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
             }
             _ => {}
         })
-        .on_tray_icon_event(|tray, event| match event {
+        .on_tray_icon_event(|tray: &TrayIcon, event: TrayIconEvent| match event {
             TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
@@ -296,8 +404,13 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .args(["--minimized"])
+                .build(),
+        )
         .setup(|app| {
             let desktop_token = std::env::var("ZZZ_DESKTOP_TOKEN")
                 .unwrap_or_else(|_| generate_desktop_token());
@@ -309,8 +422,21 @@ pub fn run() {
                 backend_child: Mutex::new(None),
             });
 
+            if let Some(window) = app.get_webview_window("main") {
+                if let Some(icon) = app.default_window_icon().cloned() {
+                    let _ = window.set_icon(icon);
+                }
+            }
+
             spawn_backend_sidecar(app);
             build_tray(app)?;
+
+            // Hide window on autostart launch so the app starts minimized to tray.
+            if std::env::args().any(|arg| arg == "--minimized") {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+            }
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -328,6 +454,13 @@ pub fn run() {
                 let _ = window.hide();
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app_handle, event| match event {
+        RunEvent::ExitRequested { .. } | RunEvent::Exit => {
+            stop_backend_sidecar(app_handle);
+        }
+        _ => {}
+    });
 }

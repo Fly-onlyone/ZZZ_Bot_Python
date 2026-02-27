@@ -1,19 +1,16 @@
 @echo off
-REM ZZZ Bot Build Script Launcher
-REM Runs the Python build script
+REM ZZZ Bot Build GUI Launcher
+REM Opens the Tkinter build GUI (build_gui.py)
 
-echo Starting ZZZ Bot Build Script...
+echo Starting ZZZ Bot Build GUI...
 echo.
 
-python build.py
+python build_gui.py
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
-    echo Build failed with error code %ERRORLEVEL%
+    echo Build GUI exited with error code %ERRORLEVEL%
     pause
     exit /b %ERRORLEVEL%
 )
 
-echo.
-echo Build completed!
-pause

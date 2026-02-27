@@ -6,6 +6,7 @@ from playwright.sync_api import BrowserContext
 from core.GlobalVar import CONFIG, settings
 from utils import NotificationHelper
 from utils.DataHandler import save_redeem_data
+from utils.storage_state_store import save_context_storage_state
 from . import AutoLogin, RetryHelper
 
 
@@ -61,7 +62,7 @@ def run(context: BrowserContext, code, item_name):
             message=f"Redeemed {item_name} failed.",
             app_icon=CONFIG["SAD_ICON"],
         )
-    context.storage_state(path=CONFIG["STORAGE_PATH"])
+    save_context_storage_state(context, CONFIG["STORAGE_PATH"])
 
     # Save redeem data with state
     save_redeem_data(item_name, code, current_day, redeem_file_path, state=redeem_state)

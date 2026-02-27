@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright, Browser, BrowserContext, Page
 
 from utils import NotificationHelper
+from utils.storage_state_store import build_context_options, save_context_storage_state
 from .GlobalVar import CONFIG
 
 logger = logging.getLogger(__name__)
@@ -178,9 +179,8 @@ class ManualLoginManager:
             with sync_playwright() as p:
                 # Launch browser (using Firefox for better session handling)
                 self._browser = p.firefox.launch(headless=headless)
-                self._context = self._browser.new_context(
-                    storage_state=CONFIG["STORAGE_PATH"]
-                )
+                context_options = build_context_options(CONFIG["STORAGE_PATH"])
+                self._context = self._browser.new_context(**context_options)
                 self._page = self._context.new_page()
 
                 logger.info(f"Navigating to: {url}")
@@ -250,7 +250,7 @@ class ManualLoginManager:
 
                 try:
                     # Save the session state
-                    self._context.storage_state(path=CONFIG["STORAGE_PATH"])
+                    save_context_storage_state(self._context, CONFIG["STORAGE_PATH"])
                     logger.info(
                         f"✓ Session saved successfully to: {CONFIG['STORAGE_PATH']}"
                     )

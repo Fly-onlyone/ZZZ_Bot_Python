@@ -1,33 +1,28 @@
 #!/usr/bin/env python3
 """
-ZZZ Bot Build Script
-====================
-Automates the complete build process:
-1. Build frontend (React + Vite)
-2. Build executable (PyInstaller)
-3. Build installer (Inno Setup)
+ZZZ Bot build script.
 
-Optional: Increment version number before building
+Build pipeline:
+1. Build frontend (Vite)
+2. Build backend sidecar for Tauri
+3. Build Tauri desktop bundles (NSIS/MSI on Windows)
+
+Optional: increment version before building.
 """
 
-import os
+import json
 import re
-import shutil
 import subprocess
 import sys
+import time
+import tomllib
 from pathlib import Path
-
-try:
-    import winreg
-except ImportError:  # Non-Windows platforms
-    winreg = None
 
 
 class Colors:
-    """ANSI color codes for terminal output"""
+    """ANSI color codes for terminal output."""
 
     HEADER = "\033[95m"
-    OKBLUE = "\033[94m"
     OKCYAN = "\033[96m"
     OKGREEN = "\033[92m"
     WARNING = "\033[93m"
@@ -36,519 +31,375 @@ class Colors:
     BOLD = "\033[1m"
 
 
-def print_header(msg):
-    """Print a formatted header"""
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = PROJECT_ROOT / "frontend"
+TAURI_DIR = PROJECT_ROOT / "src-tauri"
+TAURI_CONFIG_PATH = TAURI_DIR / "tauri.conf.json"
+CARGO_TOML_PATH = TAURI_DIR / "Cargo.toml"
+VERSION_FILE_PATH = Path(__file__).parent / "Bot version.txt"
+
+
+def print_header(message: str) -> None:
+    """Print a formatted section header."""
     print(f"\n{Colors.HEADER}{Colors.BOLD}{'=' * 60}{Colors.ENDC}")
-    print(f"{Colors.HEADER}{Colors.BOLD}{msg.center(60)}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{message.center(60)}{Colors.ENDC}")
     print(f"{Colors.HEADER}{Colors.BOLD}{'=' * 60}{Colors.ENDC}\n")
 
 
-def print_success(msg):
-    """Print a success message"""
-    print(f"{Colors.OKGREEN}✓ {msg}{Colors.ENDC}")
+def print_success(message: str) -> None:
+    """Print a success message."""
+    print(f"{Colors.OKGREEN}[OK] {message}{Colors.ENDC}")
 
 
-def print_error(msg):
-    """Print an error message"""
-    print(f"{Colors.FAIL}✗ {msg}{Colors.ENDC}")
+def print_error(message: str) -> None:
+    """Print an error message."""
+    print(f"{Colors.FAIL}[ERR] {message}{Colors.ENDC}")
 
 
-def print_info(msg):
-    """Print an info message"""
-    print(f"{Colors.OKCYAN}→ {msg}{Colors.ENDC}")
+def print_info(message: str) -> None:
+    """Print an info message."""
+    print(f"{Colors.OKCYAN}[..] {message}{Colors.ENDC}")
 
 
-def print_warning(msg):
-    """Print a warning message"""
-    print(f"{Colors.WARNING}⚠ {msg}{Colors.ENDC}")
+def print_warning(message: str) -> None:
+    """Print a warning message."""
+    print(f"{Colors.WARNING}[WARN] {message}{Colors.ENDC}")
 
 
-def print_command_output(step_name, stdout, stderr):
-    """Print captured command output for build steps."""
-    if stdout and stdout.strip():
-        print_header(f"{step_name} stdout")
-        print(stdout.rstrip())
+def run_command(command, cwd: Path, step_name: str, shell: bool = False) -> bool:
+    """Run a command and stream output to stdout."""
+    print_info(f"Running ({step_name}): {command}")
 
-    if stderr and stderr.strip():
-        print_header(f"{step_name} stderr")
-        print(stderr.rstrip())
+    proc = subprocess.Popen(
+        command,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        shell=shell,
+    )
+
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        print(line.rstrip())
+
+    proc.wait()
+    if proc.returncode != 0:
+        print_error(f"{step_name} failed with exit code {proc.returncode}")
+        return False
+
+    print_success(f"{step_name} completed")
+    return True
 
 
-def get_current_version():
-    """Read current version from Bot version.txt"""
-    version_file = Path(__file__).parent / "Bot version.txt"
+def get_current_version() -> str:
+    """Read current version from Tauri config, then Cargo, then legacy metadata."""
+    try:
+        tauri_config = json.loads(TAURI_CONFIG_PATH.read_text(encoding="utf-8"))
+        version = str(tauri_config.get("version", "")).strip()
+        if version:
+            return version
+    except (OSError, json.JSONDecodeError):
+        pass
 
-    with open(version_file, "r") as f:
-        content = f.read()
+    try:
+        cargo_manifest = tomllib.loads(CARGO_TOML_PATH.read_text(encoding="utf-8"))
+        package_meta = cargo_manifest.get("package")
+        if isinstance(package_meta, dict):
+            version = str(package_meta.get("version", "")).strip()
+            if version:
+                return version
+    except (OSError, tomllib.TOMLDecodeError):
+        pass
 
-    # Extract version from ProductVersion
-    match = re.search(r"StringStruct\('ProductVersion',\s*'([^']+)'\)", content)
-    if match:
-        return match.group(1)
+    try:
+        content = VERSION_FILE_PATH.read_text(encoding="utf-8")
+        match = re.search(r"StringStruct\('ProductVersion',\s*'([^']+)'\)", content)
+        if match:
+            return match.group(1)
+    except OSError:
+        pass
 
-    return "1.0"
+    return "0.1.0"
 
 
-def increment_version(version_str):
-    """Increment the minor version number (e.g., 1.5 -> 1.6)"""
-    parts = version_str.split(".")
-    if len(parts) >= 2:
+def increment_version(version: str) -> str:
+    """Increment the trailing numeric version segment."""
+    parts = version.split(".")
+    if not parts:
+        return "0.1.0"
+
+    try:
+        if len(parts) == 1:
+            return f"{int(parts[0]) + 1}"
+
         major = int(parts[0])
         minor = int(parts[1])
-        return f"{major}.{minor + 1}"
-    return version_str
+        patch = int(parts[2]) if len(parts) >= 3 else 0
+        return f"{major}.{minor}.{patch + 1}"
+    except ValueError:
+        return version
 
 
-def update_version_files(new_version):
-    """Update version in all relevant files"""
-    print_info(f"Updating version to {new_version}...")
+def update_version_files(new_version: str) -> None:
+    """Update version metadata in legacy file, Tauri config, and Cargo manifest."""
+    print_info(f"Updating version to {new_version}")
 
-    # Convert version string to tuple (e.g., "1.5" -> (1, 5, 0, 0))
     parts = new_version.split(".")
-    major = int(parts[0]) if len(parts) > 0 else 1
+    major = int(parts[0]) if len(parts) > 0 else 0
     minor = int(parts[1]) if len(parts) > 1 else 0
-    version_tuple = f"({major}, {minor}, 0, 0)"
+    patch = int(parts[2]) if len(parts) > 2 else 0
+    version_tuple = f"({major}, {minor}, {patch}, 0)"
 
-    # Update Bot version.txt
-    version_file = Path(__file__).parent / "Bot version.txt"
-    with open(version_file, "r") as f:
-        content = f.read()
-
-    # Update filevers and prodvers tuples
-    content = re.sub(r"filevers=\([^)]+\)", f"filevers={version_tuple}", content)
-    content = re.sub(r"prodvers=\([^)]+\)", f"prodvers={version_tuple}", content)
-
-    # Update ProductVersion and FileVersion strings
-    content = re.sub(
+    version_content = VERSION_FILE_PATH.read_text(encoding="utf-8")
+    version_content = re.sub(r"filevers=\([^)]+\)", f"filevers={version_tuple}", version_content)
+    version_content = re.sub(r"prodvers=\([^)]+\)", f"prodvers={version_tuple}", version_content)
+    version_content = re.sub(
         r"StringStruct\('ProductVersion',\s*'[^']+'\)",
         f"StringStruct('ProductVersion', '{new_version}')",
-        content,
+        version_content,
     )
-    content = re.sub(
+    version_content = re.sub(
         r"StringStruct\('FileVersion',\s*'[^']+'\)",
         f"StringStruct('FileVersion', '{new_version}')",
-        content,
+        version_content,
+    )
+    VERSION_FILE_PATH.write_text(version_content, encoding="utf-8")
+    print_success(f"Updated {VERSION_FILE_PATH}")
+
+    tauri_config = json.loads(TAURI_CONFIG_PATH.read_text(encoding="utf-8"))
+    tauri_config["version"] = new_version
+    TAURI_CONFIG_PATH.write_text(
+        json.dumps(tauri_config, indent=2) + "\n", encoding="utf-8"
+    )
+    print_success(f"Updated {TAURI_CONFIG_PATH}")
+
+    cargo_content = CARGO_TOML_PATH.read_text(encoding="utf-8")
+    cargo_updated, replacements = re.subn(
+        r'(?ms)(^\[package]\s.*?^\s*version\s*=\s*")[^"]+(")',
+        rf"\g<1>{new_version}\2",
+        cargo_content,
+    )
+    if replacements:
+        CARGO_TOML_PATH.write_text(cargo_updated, encoding="utf-8")
+        print_success(f"Updated {CARGO_TOML_PATH}")
+    else:
+        print_warning(f"Could not locate [package].version in {CARGO_TOML_PATH}")
+
+
+def build_frontend() -> bool:
+    """Build frontend assets for Tauri embedding."""
+    print_header("STEP 1: FRONTEND BUILD")
+    return run_command("bun run build", cwd=FRONTEND_DIR, step_name="frontend", shell=True)
+
+
+def build_sidecar() -> bool:
+    """Build and copy Python sidecar binary for Tauri externalBin."""
+    print_header("STEP 2: SIDECAR BUILD")
+    ok = run_command(
+        "bun run tauri:prepare-sidecar",
+        cwd=FRONTEND_DIR,
+        step_name="tauri sidecar prepare",
+        shell=True,
+    )
+    if not ok:
+        return False
+
+    binaries = sorted(TAURI_DIR.joinpath("binaries").glob("zzz-backend-*.exe"))
+    if not binaries:
+        print_error("No sidecar binary found in src-tauri/binaries")
+        return False
+
+    print_success(f"Sidecar ready: {binaries[-1]}")
+    return True
+
+
+def _collect_bundle_artifacts() -> list[Path]:
+    bundle_dir = TAURI_DIR / "target" / "release" / "bundle"
+    artifacts: list[Path] = []
+    patterns = ["nsis/*.exe", "msi/*.msi", "app/*.exe"]
+    for pattern in patterns:
+        artifacts.extend(bundle_dir.glob(pattern))
+    return sorted(artifacts, key=lambda path: path.stat().st_mtime, reverse=True)
+
+
+def stop_conflicting_processes_for_bundle() -> int:
+    """Stop running ZZZ processes that commonly lock Windows bundle outputs."""
+    if sys.platform != "win32":
+        return 0
+
+    # WHY: Windows cannot overwrite bundle artifacts when app or stale build processes still hold files.
+    script = (
+        "$repoHint = 'ZZZ bot - Python'; "
+        "$appTargets = @('ZZZ Bot.exe','zzz-bot.exe','zzz-backend.exe'); "
+        "$toolTargets = @('cargo.exe','cargo-tauri.exe','makensis.exe','light.exe','candle.exe'); "
+        "$appProcs = Get-CimInstance Win32_Process | Where-Object { "
+        "($appTargets -contains $_.Name) -and $_.ExecutablePath -and "
+        "(($_.ExecutablePath -like '*\\ZZZ Bot\\*') -or ($_.ExecutablePath -like '*\\ZZZ bot - Python\\*')) "
+        "}; "
+        "$toolProcs = Get-CimInstance Win32_Process | Where-Object { "
+        "($toolTargets -contains $_.Name) -and $_.CommandLine -and ($_.CommandLine -like ('*' + $repoHint + '*')) "
+        "}; "
+        "$procs = @($appProcs + $toolProcs | Sort-Object ProcessId -Unique); "
+        "$stopped = 0; "
+        "foreach ($proc in $procs) { "
+        "try { Stop-Process -Id $proc.ProcessId -Force -ErrorAction Stop; $stopped++ } catch {} "
+        "}; "
+        "Write-Output $stopped"
     )
 
-    with open(version_file, "w") as f:
-        f.write(content)
-
-    print_success(f"Updated {version_file.name}")
-
-    # Update installer.iss
-    installer_file = Path(__file__).parent.parent / "installer.iss"
-    with open(installer_file, "r") as f:
-        content = f.read()
-
-    content = re.sub(
-        r'#define MyAppVersion\s+"[^"]+"',
-        f'#define MyAppVersion "{new_version}"',
-        content,
+    result = subprocess.run(
+        ["powershell", "-NoProfile", "-Command", script],
+        capture_output=True,
+        text=True,
     )
 
-    with open(installer_file, "w") as f:
-        f.write(content)
+    stopped = 0
+    if result.returncode == 0:
+        value = result.stdout.strip().splitlines()
+        if value:
+            try:
+                stopped = int(value[-1].strip())
+            except ValueError:
+                stopped = 0
 
-    print_success(f"Updated {installer_file.name}")
-
-
-def build_frontend():
-    """Build the React frontend with Vite"""
-    print_header("STEP 1: Building Frontend")
-
-    frontend_dir = Path(__file__).parent.parent / "frontend"
-
-    if not frontend_dir.exists():
-        print_error("Frontend directory not found!")
-        return False
-
-    print_info("Running: bun run build")
-
-    try:
-        # Use shell=True on Windows to find bun.exe/bun.cmd
-        result = subprocess.run(
-            "bun run build",
-            cwd=frontend_dir,
-            check=True,
-            capture_output=True,
-            text=True,
-            shell=True,
+    if stopped > 0:
+        print_warning(
+            f"Stopped {stopped} conflicting process(es) before bundling to avoid file locks"
         )
+        time.sleep(1)
 
-        print_command_output("Frontend build", result.stdout, result.stderr)
-        print_success("Frontend build completed successfully!")
+    return stopped
 
-        # Verify dist folder exists
-        dist_dir = frontend_dir / "dist"
-        if dist_dir.exists():
-            print_success(f"Build output: {dist_dir}")
-        else:
-            print_warning("dist folder not found after build")
 
+def build_tauri_bundle() -> bool:
+    """Build native Tauri desktop bundles."""
+    print_header("STEP 3: TAURI BUNDLE")
+
+    stop_conflicting_processes_for_bundle()
+
+    ok = run_command(
+        ["cargo", "tauri", "build"],
+        cwd=PROJECT_ROOT,
+        step_name="tauri build",
+    )
+    if not ok:
+        print_warning("Retrying tauri build once after another process cleanup")
+        stop_conflicting_processes_for_bundle()
+        ok = run_command(
+            ["cargo", "tauri", "build"],
+            cwd=PROJECT_ROOT,
+            step_name="tauri build (retry)",
+        )
+        if not ok:
+            return False
+
+    artifacts = _collect_bundle_artifacts()
+    if not artifacts:
+        print_warning("No bundle artifacts found under src-tauri/target/release/bundle")
         return True
 
-    except subprocess.CalledProcessError as e:
-        print_error("Frontend build failed!")
-        print_command_output("Frontend build", e.stdout, e.stderr)
-        return False
+    print_success("Bundle artifacts:")
+    for artifact in artifacts[:6]:
+        size_mb = artifact.stat().st_size / (1024 * 1024)
+        print(f"  - {artifact} ({size_mb:.1f} MB)")
+    return True
 
 
-def build_executable():
-    """Build the executable using BuildExe.py (ensures onefile mode)"""
-    print_header("STEP 2: Building Executable")
+def main() -> int:
+    """Run interactive build flow."""
+    print_header("ZZZ Bot Build Script")
 
-    product_dir = Path(__file__).parent
-    build_exe_script = product_dir / "BuildExe.py"
-
-    if not build_exe_script.exists():
-        print_error("BuildExe.py not found!")
-        return False
-
-    print_info("Running: python BuildExe.py (onefile mode)")
-
-    try:
-        # Run BuildExe.py without MODE env var to ensure onefile build
-        env = os.environ.copy()
-        env.pop("MODE", None)  # Remove MODE if it exists to ensure onefile
-
-        result = subprocess.run(
-            [sys.executable, "BuildExe.py"],
-            cwd=product_dir,
-            check=True,
-            capture_output=True,
-            text=True,
-            env=env,
-        )
-
-        print_command_output("Backend build", result.stdout, result.stderr)
-        print_success("Executable build completed successfully!")
-
-        # Verify exe exists
-        exe_file = product_dir / "dist" / "ZZZ Bot.exe"
-        if exe_file.exists():
-            size_mb = exe_file.stat().st_size / (1024 * 1024)
-            print_success(f"Executable created: {exe_file.name} ({size_mb:.1f} MB)")
-        else:
-            print_warning("Executable not found after build")
-
-        return True
-
-    except subprocess.CalledProcessError as e:
-        print_error("Executable build failed!")
-        print_command_output("Backend build", e.stdout, e.stderr)
-        return False
-
-
-def find_iscc():
-    """Find iscc.exe via override, PATH, registry, then common install paths."""
-
-    # 1) Explicit override for custom installations/portable setups.
-    override_path = os.getenv("ISCC_EXE")
-    if override_path:
-        candidate = Path(override_path)
-        if candidate.exists():
-            return candidate
-
-    # 2) PATH-based lookup.
-    which_path = shutil.which("iscc.exe") or shutil.which("iscc")
-    if which_path:
-        return Path(which_path)
-
-    # 3) Registry lookup for typical Inno Setup uninstall keys.
-    registry_candidates = []
-    if winreg is not None:
-        subkeys = [
-            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1",
-            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 5_is1",
-        ]
-        hives = [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]
-        views = [0]
-        if hasattr(winreg, "KEY_WOW64_64KEY"):
-            views.append(winreg.KEY_WOW64_64KEY)
-        if hasattr(winreg, "KEY_WOW64_32KEY"):
-            views.append(winreg.KEY_WOW64_32KEY)
-
-        for hive in hives:
-            for subkey in subkeys:
-                for view in views:
-                    try:
-                        access = winreg.KEY_READ | view
-                        with winreg.OpenKey(hive, subkey, 0, access) as key:
-                            install_location, _ = winreg.QueryValueEx(
-                                key, "InstallLocation"
-                            )
-                            registry_candidates.append(
-                                Path(install_location) / "iscc.exe"
-                            )
-                    except OSError:
-                        continue
-
-    # 4) Common default installation paths.
-    common_paths = [
-        Path(r"C:\Program Files (x86)\Inno Setup 6\iscc.exe"),
-        Path(r"C:\Program Files\Inno Setup 6\iscc.exe"),
-        Path(r"C:\Program Files (x86)\Inno Setup 5\iscc.exe"),
-        Path(r"C:\Program Files\Inno Setup 5\iscc.exe"),
-    ]
-
-    # Preserve order while deduplicating.
-    seen = set()
-    candidates = []
-    for iscc_path in registry_candidates + common_paths:
-        path_str = str(iscc_path).lower()
-        if path_str in seen:
-            continue
-        seen.add(path_str)
-        candidates.append(iscc_path)
-
-    for iscc_path in candidates:
-        if iscc_path.exists():
-            return iscc_path
-
-    return None
-
-
-def build_installer():
-    """Build the installer with Inno Setup"""
-    print_header("STEP 3: Building Installer")
-
-    installer_script = Path(__file__).parent.parent / "installer.iss"
-
-    if not installer_script.exists():
-        print_error("installer.iss not found!")
-        return False
-
-    # Find iscc.exe without relying on PATH
-    iscc_path = find_iscc()
-
-    if not iscc_path:
-        print_error("Inno Setup Compiler (iscc.exe) not found!")
-        print_warning("Searched via:")
-        print_warning("  - ISCC_EXE environment variable")
-        print_warning("  - PATH (iscc.exe / iscc)")
-        print_warning("  - Registry uninstall keys (Inno Setup 5/6)")
-        print_warning("  - C:\\Program Files (x86)\\Inno Setup 6\\")
-        print_warning("  - C:\\Program Files\\Inno Setup 6\\")
-        print_warning("Install Inno Setup from: https://jrsoftware.org/isinfo.php")
-        return False
-
-    print_info(f"Found iscc.exe at: {iscc_path}")
-    print_info(f"Running: iscc installer.iss")
-
-    try:
-        result = subprocess.run(
-            [str(iscc_path), str(installer_script)],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-
-        print_success("Installer build completed successfully!")
-
-        # Verify installer exists
-        installer_file = Path(__file__).parent / "ZZZ Bot Installer.exe"
-        if installer_file.exists():
-            size_mb = installer_file.stat().st_size / (1024 * 1024)
-            print_success(
-                f"Installer created: {installer_file.name} ({size_mb:.1f} MB)"
-            )
-        else:
-            print_warning("Installer not found after build")
-
-        return True
-
-    except subprocess.CalledProcessError as e:
-        print_error(f"Installer build failed!")
-        if e.stderr:
-            print(e.stderr)
-        return False
-
-
-def main():
-    """Main build process"""
-    print_header("ZZZ Bot Build Script v1.0")
-
-    # Get current version
     current_version = get_current_version()
     print_info(f"Current version: {current_version}")
 
-    # Ask about version increment
-    increment = (
-        input(f"\n{Colors.BOLD}Increment version? (y/N): {Colors.ENDC}").strip().lower()
-    )
+    increment = input(f"\n{Colors.BOLD}Increment version? (y/N): {Colors.ENDC}").strip().lower()
+    if increment in {"y", "yes"}:
+        suggested = increment_version(current_version)
+        user_version = input(
+            f"{Colors.BOLD}New version [{suggested}]: {Colors.ENDC}"
+        ).strip()
+        new_version = user_version or suggested
+        update_version_files(new_version)
 
-    if increment == "y" or increment == "yes":
-        new_version = increment_version(current_version)
-        print_info(f"New version will be: {new_version}")
+    print_warning("Available build steps:")
+    print("  1. Frontend (React + Vite)")
+    print("  2. Sidecar (PyInstaller for Tauri)")
+    print("  3. Desktop Bundle (cargo tauri build)")
+    print()
 
-        confirm = (
+    mode = input(
+        f"{Colors.BOLD}Run all steps or choose specific ones? (All/choose): {Colors.ENDC}"
+    ).strip().lower()
+
+    run_frontend = True
+    run_sidecar = True
+    run_bundle = True
+
+    if mode in {"choose", "c", "select", "s"}:
+        run_frontend = (
+            input(f"{Colors.BOLD}  Build frontend? (Y/n): {Colors.ENDC}").strip().lower()
+            not in {"n", "no"}
+        )
+        run_sidecar = (
+            input(f"{Colors.BOLD}  Build sidecar? (Y/n): {Colors.ENDC}").strip().lower()
+            not in {"n", "no"}
+        )
+        run_bundle = (
             input(
-                f"{Colors.BOLD}Proceed with version {new_version}? (Y/n): {Colors.ENDC}"
+                f"{Colors.BOLD}  Build Tauri desktop bundle? (Y/n): {Colors.ENDC}"
             )
             .strip()
             .lower()
+            not in {"n", "no"}
         )
-        if confirm == "n" or confirm == "no":
-            custom = input(
-                f"{Colors.BOLD}Enter custom version (or press Enter to skip): {Colors.ENDC}"
-            ).strip()
-            if custom:
-                new_version = custom
-            else:
-                print_info("Skipping version increment")
-                new_version = None
 
-        if new_version:
-            update_version_files(new_version)
-            print_success(f"Version updated to {new_version}\n")
-    else:
-        print_info("Skipping version increment\n")
-
-    # Ask which steps to run
-    print_warning("Available build steps:")
-    print("  1. Frontend (React + Vite)")
-    print("  2. Executable (BuildExe.py - onefile)")
-    print("  3. Installer (Inno Setup)")
-    print()
-
-    build_choice = (
-        input(
-            f"{Colors.BOLD}Run all steps or choose specific ones? (All/choose): {Colors.ENDC}"
-        )
-        .strip()
-        .lower()
-    )
-
-    # Determine which steps to run
-    run_frontend = True
-    run_executable = True
-    run_installer = True
-
-    if build_choice in ["choose", "c", "select", "s"]:
-        print()
-        print_info("Select which steps to run:")
-
-        frontend_choice = (
-            input(f"{Colors.BOLD}  Build frontend? (Y/n): {Colors.ENDC}")
-            .strip()
-            .lower()
-        )
-        run_frontend = frontend_choice not in ["n", "no"]
-
-        executable_choice = (
-            input(f"{Colors.BOLD}  Build executable? (Y/n): {Colors.ENDC}")
-            .strip()
-            .lower()
-        )
-        run_executable = executable_choice not in ["n", "no"]
-
-        installer_choice = (
-            input(f"{Colors.BOLD}  Build installer? (Y/n): {Colors.ENDC}")
-            .strip()
-            .lower()
-        )
-        run_installer = installer_choice not in ["n", "no"]
-
-        print()
-
-        # Show selected steps
-        selected_steps = []
-        if run_frontend:
-            selected_steps.append("Frontend")
-        if run_executable:
-            selected_steps.append("Executable")
-        if run_installer:
-            selected_steps.append("Installer")
-
-        if not selected_steps:
-            print_error("No steps selected! Exiting...")
-            return 0
-
-        print_success(f"Selected steps: {', '.join(selected_steps)}")
-        print()
-    else:
-        print_info("Running all steps\n")
-
-    # Final confirmation
-    proceed = (
-        input(f"{Colors.BOLD}Start build process? (Y/n): {Colors.ENDC}").strip().lower()
-    )
-    if proceed == "n" or proceed == "no":
-        print_info("Build cancelled")
-        return 0
-
-    # Build list of steps to execute
     steps = []
     if run_frontend:
         steps.append(("Frontend", build_frontend))
-    if run_executable:
-        steps.append(("Executable", build_executable))
-    if run_installer:
-        steps.append(("Installer", build_installer))
+    if run_sidecar:
+        steps.append(("Sidecar", build_sidecar))
+    if run_bundle:
+        steps.append(("Desktop Bundle", build_tauri_bundle))
 
-    failed_steps = []
+    if not steps:
+        print_error("No steps selected")
+        return 1
 
+    proceed = input(
+        f"\n{Colors.BOLD}Start build process? (Y/n): {Colors.ENDC}"
+    ).strip().lower()
+    if proceed in {"n", "no"}:
+        print_info("Build cancelled")
+        return 0
+
+    failed = []
     for step_name, step_func in steps:
         if not step_func():
-            failed_steps.append(step_name)
+            failed.append(step_name)
+            cont = input(
+                f"\n{Colors.WARNING}Continue to next step? (y/N): {Colors.ENDC}"
+            ).strip().lower()
+            if cont not in {"y", "yes"}:
+                break
 
-            # Ask if we should continue after failure
-            cont = (
-                input(f"\n{Colors.WARNING}Continue to next step? (y/N): {Colors.ENDC}")
-                .strip()
-                .lower()
-            )
-            if cont != "y" and cont != "yes":
-                print_error("Build process aborted")
-                return 1
-
-    # Final summary
     print_header("Build Summary")
-
-    completed_steps = [name for name, _ in steps if name not in failed_steps]
-
-    if not failed_steps:
-        print_success(
-            f"All {len(completed_steps)} build step(s) completed successfully!"
-        )
-        print()
-        print_info("Completed steps:")
-        for step in completed_steps:
-            print(f"  ✓ {step}")
-        print()
-        print_info("Build artifacts:")
-        if run_frontend:
-            print(f"  • Frontend: frontend/dist/")
-        if run_executable:
-            print(f"  • Executable: product/dist/ZZZ Bot.exe")
-        if run_installer:
-            print(f"  • Installer: product/ZZZ Bot Installer.exe")
-        return 0
-    else:
-        print_warning(
-            f"Build completed: {len(completed_steps)} succeeded, {len(failed_steps)} failed"
-        )
-        print()
-        if completed_steps:
-            print_success("Completed steps:")
-            for step in completed_steps:
-                print(f"  ✓ {step}")
-            print()
-        print_error("Failed steps:")
-        for step in failed_steps:
-            print(f"  ✗ {step}")
+    if failed:
+        print_warning(f"Completed with failures: {', '.join(failed)}")
         return 1
+
+    print_success("All selected build steps completed successfully")
+    artifacts = _collect_bundle_artifacts()
+    if artifacts:
+        print_info("Latest installer artifacts:")
+        for artifact in artifacts[:4]:
+            print(f"  - {artifact}")
+    return 0
 
 
 if __name__ == "__main__":
     try:
-        sys.exit(main())
+        raise SystemExit(main())
     except KeyboardInterrupt:
-        print(f"\n\n{Colors.WARNING}Build cancelled by user{Colors.ENDC}")
-        sys.exit(1)
-    except Exception as e:
-        print_error(f"Unexpected error: {e}")
-        import traceback
-
-        traceback.print_exc()
-        sys.exit(1)
+        print_warning("Build cancelled by user")
+        raise SystemExit(1)
