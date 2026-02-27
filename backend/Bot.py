@@ -57,6 +57,30 @@ def _create_file_handler(log_path: str) -> TimedRotatingFileHandler:
     return handler
 
 
+class _SentryWarningHandler(logging.Handler):
+    """Forward Python warnings captured via logging.captureWarnings() to Sentry as issues.
+
+    Attached to the 'py.warnings' logger so that DeprecationWarning, RuntimeWarning,
+    etc. create visible Sentry issues rather than only appearing in log files.
+    """
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            import sentry_sdk
+
+            if sentry_sdk.get_client().is_active():
+                sentry_sdk.capture_message(self.format(record), level="warning")
+        except Exception:
+            self.handleError(record)
+
+
+def _attach_sentry_warning_handler() -> None:
+    """Attach _SentryWarningHandler to 'py.warnings' logger (idempotent)."""
+    warnings_logger = logging.getLogger("py.warnings")
+    if not any(isinstance(h, _SentryWarningHandler) for h in warnings_logger.handlers):
+        warnings_logger.addHandler(_SentryWarningHandler())
+
+
 # Include API routes from separate module
 app.include_router(router)
 
@@ -563,6 +587,8 @@ def configure_sentry_runtime(
                 )
                 sentry_is_active = sentry_sdk.get_client().is_active()
                 reconfigured = True
+                if sentry_is_active:
+                    _attach_sentry_warning_handler()
             else:
                 logger.info("Sentry already initialized during startup bootstrap")
 
@@ -632,7 +658,7 @@ def configure_sentry_runtime(
 if __name__ == "__main__":
     # === 0. Parse Arguments ===
     _parser = argparse.ArgumentParser(description="ZZZ Bot")
-    _parser.add_argument("--port", type=int, default=8000)
+    _parser.add_argument("--port", type=int, default=8001)
     _parser.add_argument("--no-frontend", action="store_true")
     _parser.add_argument("--hosted-by-tauri", action="store_true")
     args = _parser.parse_args()
@@ -671,6 +697,10 @@ if __name__ == "__main__":
         root.addHandler(file_handler)
         root.addHandler(console_handler)
         logger.info("Running in normal Python process (dev mode)")
+
+    # Route Python warnings (DeprecationWarning, RuntimeWarning, etc.) through
+    # the logging system so they appear in the log file and reach _SentryWarningHandler.
+    logging.captureWarnings(True)
 
     logger.info(
         "Sentry startup status: active=%s, dsn_source=%s, dsn_present=%s, environment=%s, logs_enabled=%s, send_test_event=%s, send_test_event_source=%s, traces_sample_rate=%.3f, traces_sample_rate_source=%s, profiles_sample_rate=%.3f, profiles_sample_rate_source=%s, trigger_source=%s, reconfigured=%s, error=%s",

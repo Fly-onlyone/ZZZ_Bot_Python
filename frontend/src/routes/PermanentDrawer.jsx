@@ -24,7 +24,7 @@ import { IconCards } from "@tabler/icons-react";
 
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { AppHeader, NavigationDrawer, ValueAdapter } from "../components";
-import { ManualLogin, Overview, Redeem, Shopping } from "../pages";
+import { Logs, ManualLogin, Overview, Redeem, Shopping } from "../pages";
 import { DataLoader } from "../services";
 import { useThemeContext } from "../theme/ThemeContext";
 
@@ -274,6 +274,19 @@ function AnimatedRoutes() {
               exit="exit"
             >
               <ManualLogin />
+            </motion.div>
+          }
+        />
+        <Route
+          path="/logs"
+          element={
+            <motion.div
+              variants={pageVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              <Logs />
             </motion.div>
           }
         />

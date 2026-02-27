@@ -71,7 +71,7 @@ When testing exe behavior in dev: `set SIMULATE_EXE=1` environment variable.
 ### Development
 
 ```bash
-# Sync Python environment and run backend (auto-opens web UI at http://localhost:8000)
+# Sync Python environment and run backend (port 8001, auto-opens web UI at http://localhost:3000)
 uv sync
 uv run python backend/Bot.py
 
@@ -145,23 +145,31 @@ Stores email credentials for Gmail notifications.
 - **Hunt:** Items to hunt when shop renews (subset of Selected)
 - **Item's list:** Item details including availability and cost
 
+## Port Configuration
+
+Dev and production use **different ports** to avoid conflicts when both run simultaneously.
+
+| Context | Backend | Frontend |
+|---------|---------|----------|
+| Dev (`uv run python backend/Bot.py`) | **8001** | 3000 (Vite, started by Bot.py) |
+| `tauri dev` | **8001** (start `Bot.py --no-frontend` manually; set `ZZZ_DEV_BACKEND_PORT=8001`) | 3000 (Vite, started manually) |
+| Production exe (Tauri sidecar) | **8000** | Tauri WebView (serves `frontend/dist`) |
+
+**How `VITE_BACKEND_URL` resolves:**
+- `bun run dev` → reads `frontend/.env.development` → `http://127.0.0.1:8001`
+- `bun run build` → `.env.development` not loaded → falls back to `http://127.0.0.1:8000` constant in `constants.js`
+
+**Key files:**
+- `backend/Bot.py` — `--port` default is **8001**
+- `frontend/.env.development` — sets `VITE_BACKEND_URL=http://127.0.0.1:8001`
+- `frontend/src/config/constants.js` — fallback `BACKEND_URL` is `http://127.0.0.1:8000` (production)
+- `src-tauri/src/lib.rs` — `backend_port()` defaults to **8000**; override with `ZZZ_DEV_BACKEND_PORT`
+
 ## Logging
 
 - Uses `TimedRotatingFileHandler` (7-day retention) in `backend/logs/`
 - Custom `NoImportFilter` to reduce noise
 - In exe mode: stdout/stderr redirected to log file
-
-## Documentation
-
-Detailed guidelines are in `.claude/rules/`:
-
-- `architecture.md` - System architecture and design decisions
-- `code-guide.md` - Code patterns and animation guidelines
-- `documentation-style.md` - Documentation guidelines
-
-Custom commands are in `.claude/commands/`:
-
-- `commit.md` - Git commit message style (`/commit`)
 
 ## Context7 Library IDs
 

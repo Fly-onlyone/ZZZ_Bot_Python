@@ -5,17 +5,18 @@ Separates API logic from application bootstrapping for better maintainability.
 
 import logging
 import os
+import re
 import sys
 from dataclasses import asdict
 from pathlib import Path
 from secrets import compare_digest
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Query
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 import repositories.MongoRepository as mongo
-from core.GlobalVar import CONFIG, RedeemItem, accounts, is_exe, settings
+from core.GlobalVar import CONFIG, RedeemItem, accounts, is_exe, resource_path, settings
 from core.ManualLogin import run
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,7 @@ async def get_routes():
         "/screenshot",
         "/assets",
         "/playstate",
+        "/logs",
     }
     routes = [
         route.path.lstrip("/")
@@ -492,3 +494,113 @@ def check_run_status():
         "last_run": data.get("last_run"),
         "next_run": calculate_next_run().strftime("%H:%M %d/%m/%y"),
     }
+
+
+# ============================================================================
+# LOGS ROUTES
+# ============================================================================
+
+_LOG_PATTERN = re.compile(
+    r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - (.+?) - (DEBUG|INFO|WARNING|ERROR|CRITICAL) - (.*)"
+)
+
+
+def _get_log_dir() -> Path:
+    """Return the log directory for the current run mode."""
+    if is_exe:
+        return Path(resource_path("logs", outside_path=True))
+    # Development: logs are written to backend/logs/ relative to project root
+    return Path(__file__).parent.parent / "logs"
+
+
+@router.get("/logs")
+def get_logs(
+    log_date: str = Query(None, alias="date"),
+    level: str = Query(None),
+    search: str = Query(None),
+    limit: int = Query(100),
+    offset: int = Query(0),
+):
+    """Return parsed log entries with optional filtering and pagination.
+
+    Args:
+        log_date: Date suffix of rotated log file (e.g. "2026-02-25"). Omit for current log.
+        level: Comma-separated level filter (e.g. "ERROR,WARNING").
+        search: Case-insensitive text search across message and logger fields.
+        limit: Max entries to return.
+        offset: Entries to skip (for pagination).
+
+    Returns:
+        { entries: [...], total: int, files: [str] }
+    """
+    log_dir = _get_log_dir()
+
+    if not log_dir.exists():
+        return {"entries": [], "total": 0, "files": []}
+
+    # Build sorted list of available log files (current first, then rotated)
+    log_files = sorted(log_dir.glob("app.log*"), reverse=True)
+    file_names = [f.name for f in log_files]
+
+    # Determine which file to read
+    if log_date:
+        target_file = (log_dir / f"app.log.{log_date}").resolve()
+        # Security: resolved path must stay inside the log directory
+        try:
+            target_file.relative_to(log_dir.resolve())
+        except ValueError:
+            return JSONResponse({"message": "Invalid date"}, status_code=400)
+        if not target_file.exists():
+            return {"entries": [], "total": 0, "files": file_names}
+        log_file = target_file
+    else:
+        log_file = log_dir / "app.log"
+        if not log_file.exists():
+            return {"entries": [], "total": 0, "files": file_names}
+
+    # Parse log file line-by-line, collecting multiline (traceback) entries
+    entries = []
+    current_entry: dict | None = None
+
+    with open(log_file, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            line = line.rstrip("\n\r")
+            match = _LOG_PATTERN.match(line)
+            if match:
+                if current_entry:
+                    entries.append(current_entry)
+                current_entry = {
+                    "timestamp": match.group(1),
+                    "logger": match.group(2),
+                    "level": match.group(3),
+                    "message": match.group(4),
+                }
+            elif current_entry is not None:
+                # Continuation line (e.g. traceback)
+                current_entry["message"] += "\n" + line
+
+    if current_entry:
+        entries.append(current_entry)
+
+    # Apply level filter
+    if level:
+        level_set = {lv.strip().upper() for lv in level.split(",") if lv.strip()}
+        entries = [e for e in entries if e["level"] in level_set]
+
+    # Apply search filter (message + logger)
+    if search:
+        search_lower = search.lower()
+        entries = [
+            e
+            for e in entries
+            if search_lower in e["message"].lower()
+            or search_lower in e["logger"].lower()
+        ]
+
+    # Newest-first
+    entries = list(reversed(entries))
+
+    total = len(entries)
+    entries = entries[offset : offset + limit]
+
+    return {"entries": entries, "total": total, "files": file_names}

@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZZZ Bot – Logs (Design Mockup)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Nebula theme */
+      --primary:       #8b5cf6;
+      --primary-dark:  #7c3aed;
+      --secondary:     #d946ef;
+      --grad-bg:       linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%);
+      --grad-card:     linear-gradient(135deg, rgba(139,92,246,.15) 0%, rgba(217,70,239,.10) 100%);
+      --grad-header:   linear-gradient(135deg, rgba(124,58,237,.25) 0%, rgba(217,70,239,.25) 100%);
+      --grad-primary:  linear-gradient(135deg, #7c3aed 0%, #d946ef 100%);
+      --border:        rgba(139,92,246,.40);
+      --border-subtle: rgba(139,92,246,.20);
+      --hover-shadow:  rgba(139,92,246,.20);
+      --divider:       rgba(139,92,246,.30);
+      --text-primary:  #f1f5f9;
+      --text-secondary:#e2e8f0;
+      --text-muted:    #94a3b8;
+      --bg-dark:       #0f172a;
+      --bg-paper:      #1e293b;
+      --bg-slate:      #334155;
+      --drawer-width:  240px;
+      --header-height: 64px;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', sans-serif;
+      background: var(--grad-bg);
+      background-attachment: fixed;
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Layout ─────────────────────────────── */
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ── AppBar ──────────────────────────────── */
+    .appbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: var(--header-height);
+      background: rgba(15,23,42,.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex; align-items: center; padding: 0 20px;
+      gap: 12px;
+    }
+    .appbar-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px; font-weight: 700;
+      background: var(--grad-primary);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .appbar-spacer { flex: 1; }
+    .appbar-status {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-muted);
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 6px #10b981;
+    }
+
+    /* ── Navigation Drawer ───────────────────── */
+    .drawer {
+      width: var(--drawer-width);
+      flex-shrink: 0;
+      position: fixed; top: var(--header-height); bottom: 0; left: 0;
+      background: rgba(15,23,42,.90);
+      backdrop-filter: blur(12px);
+      border-right: 1px solid var(--border-subtle);
+      padding: 16px 12px;
+      display: flex; flex-direction: column; gap: 4px;
+      z-index: 50;
+      overflow-y: auto;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; border-radius: 10px;
+      color: var(--text-muted); font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: all .2s;
+      text-decoration: none;
+    }
+    .nav-item:hover { background: rgba(139,92,246,.12); color: var(--text-secondary); }
+    .nav-item.active {
+      background: rgba(139,92,246,.20);
+      color: var(--primary);
+      border: 1px solid rgba(139,92,246,.30);
+    }
+    .nav-icon { width: 20px; height: 20px; opacity: .8; flex-shrink: 0; }
+    .nav-section-label {
+      font-size: 10px; font-weight: 600; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--text-muted);
+      padding: 12px 14px 4px;
+    }
+
+    /* ── Main Content ────────────────────────── */
+    .main {
+      margin-left: var(--drawer-width);
+      margin-top: var(--header-height);
+      flex: 1; padding: 24px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+
+    /* ── Section Card ────────────────────────── */
+    .section-card {
+      border-radius: 16px;
+      background: var(--grad-card);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+    }
+    .card-header {
+      background: var(--grad-header);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 24px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .card-icon-badge {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: var(--grad-primary);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 14px var(--hover-shadow);
+      border: 1px solid var(--divider);
+      flex-shrink: 0;
+    }
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px; font-weight: 700;
+      color: var(--text-primary);
+    }
+    .card-body { padding: 24px; }
+
+    /* ── Filter Bar ──────────────────────────── */
+    .filter-bar {
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+      margin-bottom: 20px;
+    }
+
+    /* Date picker group */
+    .filter-group { display: flex; align-items: center; gap: 8px; }
+    .filter-label {
+      font-size: 12px; font-weight: 500; color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .date-select {
+      background: rgba(139,92,246,.10);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 7px 12px;
+      color: var(--text-primary); font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      appearance: none; cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      min-width: 160px;
+    }
+    .date-select-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 6px;
+    }
+
+    /* Level chips */
+    .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip {
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; letter-spacing: .04em;
+      cursor: pointer; border: 1px solid transparent;
+      transition: all .2s; display: flex; align-items: center; gap: 4px;
+    }
+    .chip.debug   { background: rgba(148,163,184,.12); color: #94a3b8; border-color: rgba(148,163,184,.30); }
+    .chip.info    { background: rgba(6,182,212,.15);   color: #22d3ee; border-color: rgba(6,182,212,.40); }
+    .chip.warning { background: rgba(245,158,11,.15);  color: #fbbf24; border-color: rgba(245,158,11,.40); }
+    .chip.error   { background: rgba(239,68,68,.15);   color: #f87171; border-color: rgba(239,68,68,.40); }
+    .chip.critical{ background: rgba(239,68,68,.25);   color: #fca5a5; border-color: rgba(239,68,68,.60); font-weight:700; }
+    .chip.inactive{ opacity: .4; }
+    .chip-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* Search input */
+    .search-wrap {
+      flex: 1; min-width: 200px;
+      position: relative; display: flex; align-items: center;
+    }
+    .search-icon {
+      position: absolute; left: 10px;
+      color: var(--text-muted); font-size: 16px; line-height: 1;
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      background: rgba(139,92,246,.08);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px 8px 34px;
+      color: var(--text-primary); font-size: 13px;
+      font-family: 'Inter', sans-serif;
+    }
+    .search-input::placeholder { color: var(--text-muted); }
+
+    /* Logger filter */
+    .logger-select {
+      background: rgba(139,92,246,.10);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 7px 12px;
+      color: var(--text-primary); font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      min-width: 140px;
+    }
+
+    /* Auto-refresh */
+    .auto-refresh {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--text-muted);
+      margin-left: auto;
+    }
+    .toggle-track {
+      width: 32px; height: 16px; border-radius: 8px;
+      background: rgba(139,92,246,.40);
+      position: relative; cursor: pointer;
+    }
+    .toggle-thumb {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--primary);
+      position: absolute; top: 2px; left: 18px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.4);
+    }
+
+    /* ── Stats Row ───────────────────────────── */
+    .stats-row {
+      display: flex; gap: 12px; margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .stat-pill {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 8px; padding: 6px 14px;
+      font-size: 12px;
+    }
+    .stat-pill .count { font-weight: 700; font-size: 14px; }
+    .stat-pill.total  .count { color: var(--text-primary); }
+    .stat-pill.info-s .count { color: #22d3ee; }
+    .stat-pill.warn-s .count { color: #fbbf24; }
+    .stat-pill.err-s  .count { color: #f87171; }
+
+    /* ── Log Table ───────────────────────────── */
+    .log-table-wrap {
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .log-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .log-table thead th {
+      background: rgba(139,92,246,.12);
+      padding: 10px 14px;
+      text-align: left; font-weight: 600;
+      color: var(--text-muted); font-size: 11px;
+      letter-spacing: .06em; text-transform: uppercase;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+    }
+    .col-time    { width: 160px; }
+    .col-level   { width: 100px; }
+    .col-logger  { width: 180px; }
+    .col-message { /* remaining */ }
+
+    .log-table tbody tr {
+      border-bottom: 1px solid rgba(139,92,246,.08);
+      transition: background .15s;
+    }
+    .log-table tbody tr:last-child { border-bottom: none; }
+    .log-table tbody tr:hover { background: rgba(139,92,246,.07); }
+
+    .log-table td { padding: 9px 14px; vertical-align: top; }
+
+    .ts {
+      font-family: 'Exo 2', monospace; font-size: 11.5px;
+      color: var(--text-muted); white-space: nowrap;
+    }
+    .logger-name {
+      font-family: 'Exo 2', monospace; font-size: 11.5px;
+      color: #a78bfa; white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; max-width: 180px;
+    }
+    .msg { color: var(--text-secondary); line-height: 1.4; word-break: break-word; }
+
+    /* Level badge */
+    .level-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 5px;
+      font-size: 10px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; white-space: nowrap;
+    }
+    .level-debug    { background: rgba(148,163,184,.12); color: #94a3b8; border: 1px solid rgba(148,163,184,.25); }
+    .level-info     { background: rgba(6,182,212,.12);   color: #22d3ee; border: 1px solid rgba(6,182,212,.30); }
+    .level-warning  { background: rgba(245,158,11,.12);  color: #fbbf24; border: 1px solid rgba(245,158,11,.30); }
+    .level-error    { background: rgba(239,68,68,.15);   color: #f87171; border: 1px solid rgba(239,68,68,.35); }
+    .level-critical { background: rgba(239,68,68,.25);   color: #fca5a5; border: 1px solid rgba(239,68,68,.55); font-weight:900; }
+
+    /* ── Pagination ──────────────────────────── */
+    .pagination {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 16px;
+      font-size: 12px; color: var(--text-muted);
+    }
+    .pagination-info { }
+    .pagination-controls { display: flex; gap: 6px; align-items: center; }
+    .page-btn {
+      width: 30px; height: 30px; border-radius: 6px;
+      background: rgba(139,92,246,.10);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 13px;
+    }
+    .page-btn.active {
+      background: rgba(139,92,246,.30);
+      color: var(--primary); border-color: var(--primary);
+    }
+    .rows-select {
+      background: rgba(139,92,246,.10);
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 3px 8px;
+      color: var(--text-primary); font-size: 12px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* ── SVG icons (inline) ──────────────────── */
+    svg { display: inline-block; vertical-align: middle; }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- AppBar -->
+  <header class="appbar">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="7" height="7" rx="2" fill="#8b5cf6"/>
+      <rect x="14" y="3" width="7" height="7" rx="2" fill="#d946ef"/>
+      <rect x="3" y="14" width="7" height="7" rx="2" fill="#d946ef"/>
+      <rect x="14" y="14" width="7" height="7" rx="2" fill="#8b5cf6"/>
+    </svg>
+    <span class="appbar-title">ZZZ Bot</span>
+    <div class="appbar-spacer"></div>
+    <div class="appbar-status">
+      <div class="status-dot"></div>
+      Running
+    </div>
+  </header>
+
+  <!-- Navigation Drawer -->
+  <nav class="drawer">
+    <div class="nav-section-label">Main</div>
+
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+      </svg>
+      Overview
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96C5 16.1 6.9 18 9 18h12v-2H9.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63H19c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0023.45 5H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+      </svg>
+      Shopping
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
+      </svg>
+      Redeem
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+      </svg>
+      Account
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M9 3v1H4v2h1v13a2 2 0 002 2h10a2 2 0 002-2V6h1V4h-5V3H9zm0 5h2v9H9V8zm4 0h2v9h-2V8z"/>
+      </svg>
+      Manual Login
+    </a>
+
+    <div class="nav-section-label">System</div>
+
+    <a class="nav-item active" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/>
+        <path d="M8 12h8v2H8zm0 3h5v2H8z"/>
+      </svg>
+      Logs
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+      </svg>
+      Settings
+    </a>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- Section Card: Logs -->
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon-badge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/>
+            <path d="M8 12h8v2H8zm0 3h5v2H8z"/>
+          </svg>
+        </div>
+        <span class="card-title">Logs</span>
+      </div>
+      <div class="card-body">
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+
+          <!-- Date Picker -->
+          <div class="filter-group">
+            <span class="filter-label">File:</span>
+            <div class="date-select">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#94a3b8" style="flex-shrink:0">
+                <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+              </svg>
+              <span style="flex:1; font-size:13px;">app.log (today)</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="#94a3b8"><path d="M7 10l5 5 5-5z"/></svg>
+            </div>
+          </div>
+
+          <!-- Level Chips -->
+          <div class="filter-group">
+            <span class="filter-label">Level:</span>
+            <div class="chip-row">
+              <div class="chip debug"><div class="chip-dot"></div>DEBUG</div>
+              <div class="chip info"><div class="chip-dot"></div>INFO</div>
+              <div class="chip warning"><div class="chip-dot"></div>WARN</div>
+              <div class="chip error"><div class="chip-dot"></div>ERROR</div>
+              <div class="chip critical inactive"><div class="chip-dot"></div>CRIT</div>
+            </div>
+          </div>
+
+          <!-- Logger Filter -->
+          <div class="filter-group">
+            <span class="filter-label">Logger:</span>
+            <select class="logger-select">
+              <option>All loggers</option>
+              <option>MissionHandler</option>
+              <option>ShoppingHandler</option>
+              <option>HuntModeHandler</option>
+              <option>DrawHandler</option>
+              <option>Bot</option>
+            </select>
+          </div>
+
+          <!-- Search -->
+          <div class="search-wrap">
+            <span class="search-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#94a3b8">
+                <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+              </svg>
+            </span>
+            <input class="search-input" type="text" placeholder="Search messages…" value="" />
+          </div>
+
+          <!-- Auto-refresh toggle -->
+          <div class="auto-refresh">
+            <span>Auto-refresh</span>
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          </div>
+
+        </div><!-- /filter-bar -->
+
+        <!-- Stats row -->
+        <div class="stats-row">
+          <div class="stat-pill total"><span class="count">1 247</span><span>total</span></div>
+          <div class="stat-pill info-s"><span class="count">1 089</span><span>INFO</span></div>
+          <div class="stat-pill warn-s"><span class="count">112</span><span>WARN</span></div>
+          <div class="stat-pill err-s"><span class="count">46</span><span>ERROR</span></div>
+        </div>
+
+        <!-- Log Table -->
+        <div class="log-table-wrap">
+          <table class="log-table">
+            <thead>
+              <tr>
+                <th class="col-time">Timestamp</th>
+                <th class="col-level">Level</th>
+                <th class="col-logger">Logger</th>
+                <th class="col-message">Message</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="ts">2026-02-27 08:00:01</span></td>
+                <td><span class="level-badge level-info">INFO</span></td>
+                <td><span class="logger-name">Bot</span></td>
+                <td><span class="msg">Scheduler started. Next run at 08:00.</span></td>
+              </tr>
+              <tr>
+                <td><span class="ts">2026-02-27 08:00:03</span></td>
+                <td><span class="level-badge level-info">INFO</span></td>
+                <td><span class="logger-name">MissionHandler</span></td>
+                <td><span class="msg">Starting daily mission check-in…</span></td>
+              </tr>
+              <tr>
+                <td><span class="ts">2026-02-27 08:00:05</span></td>
+                <td><span class="level-badge level-debug">DEBUG</span></td>
+                <td><span class="logger-name">ImageProcessor</span></td>
+                <td><span class="msg">Comparing screenshot with sample/button_checkin.png — diff 2.1%</span></td>
+              </tr>
+              <tr>
+                <td><span class="ts">2026-02-27 08:00:07</span></td>
+                <td><span class="level-badge level-info">INFO</span></td>
+                <td><span class="logger-name">MissionHandler</span></td>
+                <td><span class="msg">Check-in button found. Clicking…</span></td>
+              </tr>
+              <tr>
+                <td><span class="ts">2026-02-27 08:00:12</span></td>
+                <td><span class="level-badge level-info">INFO</span></td>
+                <td><span class="logger-name">ShoppingHandler</span></td>
+                <td><span class="msg">Starting shopping automation. 3 items selected.</span></td>
+              </tr>
+              <tr>
+                <td><span class="ts">2026-02-27 08:00:15</span></td>
+                <td><span class="level-badge level-warning">WARN</span></td>
+                <td><span class="logger-name">ShoppingHandler</span></td>
+                <td><span class="msg">Item "Boopons × 10" not available this cycle. Skipping.</span></td>
+              </tr>
+              <tr>
+                <td><span class="ts">2026-02-27 08:00:19</span></td>
+                <td><span class="level-badge level-info">INFO</span></td>
+                <td><span class="logger-name">ShoppingHandler</span></td>
+                <td><span class="msg">Exchanged "Master Tape" (cost: 280 pts). Remaining: 1 220 pts.</span></td>
+              </tr>
+              <tr>
+                <td><span class="ts">2026-02-27 08:00:34</span></td>
+                <td><span class="level-badge level-info">INFO</span></td>
+                <td><span class="logger-name">DrawHandler</span></td>
+                <td><span class="msg">Performing 10 draws. Waiting for animation…</span></td>
+              </tr>
+              <tr>
+                <td><span class="ts">2026-02-27 08:00:51</span></td>
+                <td><span class="level-badge level-error">ERROR</span></td>
+                <td><span class="logger-name">RetryHelper</span></td>
+                <td><span class="msg">Timeout waiting for reward dialog after 180 s. Screenshot saved to screenshot/err_20260227_080051.png</span></td>
+              </tr>
+              <tr>
+                <td><span class="ts">2026-02-27 08:01:02</span></td>
+                <td><span class="level-badge level-info">INFO</span></td>
+                <td><span class="logger-name">HuntModeHandler</span></td>
+                <td><span class="msg">Hunt mode: Phase 1 — exchanging 2 hunt items.</span></td>
+              </tr>
+              <tr>
+                <td><span class="ts">2026-02-27 08:01:10</span></td>
+                <td><span class="level-badge level-debug">DEBUG</span></td>
+                <td><span class="logger-name">HuntModeHandler</span></td>
+                <td><span class="msg">Code collected: ZZZ-HUNT-XXXXXX. Proceeding to Phase 2.</span></td>
+              </tr>
+              <tr>
+                <td><span class="ts">2026-02-27 08:01:25</span></td>
+                <td><span class="level-badge level-info">INFO</span></td>
+                <td><span class="logger-name">Notification</span></td>
+                <td><span class="msg">Email notification sent to flytheonlyone111@gmail.com</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div><!-- /log-table-wrap -->
+
+        <!-- Pagination -->
+        <div class="pagination">
+          <span class="pagination-info">Showing 1–12 of 1 247 entries</span>
+          <div class="pagination-controls">
+            <span style="margin-right:4px;font-size:12px;color:var(--text-muted)">Rows:</span>
+            <select class="rows-select">
+              <option>25</option>
+              <option>50</option>
+              <option>100</option>
+            </select>
+            <div class="page-btn">‹</div>
+            <div class="page-btn active">1</div>
+            <div class="page-btn">2</div>
+            <div class="page-btn">3</div>
+            <div class="page-btn">…</div>
+            <div class="page-btn">50</div>
+            <div class="page-btn">›</div>
+          </div>
+        </div>
+
+      </div><!-- /card-body -->
+    </div><!-- /section-card -->
+
+  </main>
+</div>
+</body>
+</html>
