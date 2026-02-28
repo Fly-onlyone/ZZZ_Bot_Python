@@ -1,6 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
+import {
+  createRoutesFromChildren,
+  matchRoutes,
+  useLocation,
+  useNavigationType,
+} from "react-router-dom";
 import "./index.css";
 import PermanentDrawer from "./routes/PermanentDrawer";
 import { ThemeProvider, useMediaQuery } from "@mui/material";
@@ -20,9 +26,19 @@ if (SENTRY_DSN) {
     dsn: SENTRY_DSN,
     environment: import.meta.env.MODE,
     integrations: [
-      Sentry.browserTracingIntegration(),
+      Sentry.reactRouterV7BrowserTracingIntegration({
+        useEffect: React.useEffect,
+        useLocation,
+        useNavigationType,
+        createRoutesFromChildren,
+        matchRoutes,
+      }),
       Sentry.browserProfilingIntegration(),
       Sentry.captureConsoleIntegration({ levels: ["log", "warn", "error"] }),
+      Sentry.replayIntegration({
+        maskAllText: true,
+        blockAllMedia: true,
+      }),
     ],
     tracesSampleRate: parseFloat(
       import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || DEFAULT_SAMPLE_RATE
@@ -32,6 +48,8 @@ if (SENTRY_DSN) {
     ),
     tracePropagationTargets: ["localhost", "127.0.0.1"],
     sendDefaultPii: false,
+    replaysSessionSampleRate: import.meta.env.MODE === "development" ? 1.0 : 0.1,
+    replaysOnErrorSampleRate: 1.0,
   });
 }
 

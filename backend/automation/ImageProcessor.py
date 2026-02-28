@@ -258,48 +258,50 @@ def detect_reward(page: Page, img_locator: Locator):
         Reward name (filename without extension) if match found,
         "Unknown reward" otherwise
     """
-    # Fetch the image from the locator
-    target_img = fetch_image_from_locator(page, img_locator)
+    import sentry_sdk
+    with sentry_sdk.start_span(op="cv.template_match", name="detect_reward"):
+        # Fetch the image from the locator
+        target_img = fetch_image_from_locator(page, img_locator)
 
-    # Get list of available reward images
-    reward_images = [
-        f for f in os.listdir(CONFIG["REWARD_FOLDER"]) if f.endswith(".png")
-    ]
+        # Get list of available reward images
+        reward_images = [
+            f for f in os.listdir(CONFIG["REWARD_FOLDER"]) if f.endswith(".png")
+        ]
 
-    if not reward_images:
-        raise ValueError("No reward images found in the configured reward folder.")
+        if not reward_images:
+            raise ValueError("No reward images found in the configured reward folder.")
 
-    best_match_name = "Unknown reward"
-    best_match_diff = float("inf")
+        best_match_name = "Unknown reward"
+        best_match_diff = float("inf")
 
-    logger.debug(
-        f"Comparing reward image against {len(reward_images)} reference images..."
-    )
-
-    for reward_img_name in reward_images:
-        reward_img_path = os.path.join(CONFIG["REWARD_FOLDER"], reward_img_name)
-        diff = compare_images(target_img, reward_img_path)
-
-        reward_name = os.path.splitext(reward_img_name)[0]
-        logger.debug(f"  '{reward_name}': {diff:.2f}% difference")
-
-        # Track best match (lowest difference)
-        if diff < best_match_diff:
-            best_match_diff = diff
-            best_match_name = reward_name
-
-    # Return best match if within 5% threshold (consistent with button detection)
-    if best_match_diff < IMAGE_MATCH_THRESHOLD:
-        logger.info(
-            f"Reward detected: '{best_match_name}' ({best_match_diff:.2f}% difference)"
+        logger.debug(
+            f"Comparing reward image against {len(reward_images)} reference images..."
         )
-        return best_match_name
-    else:
-        logger.warning(
-            f"No reward match found within threshold. Best match: '{best_match_name}' "
-            f"({best_match_diff:.2f}% difference, threshold: {IMAGE_MATCH_THRESHOLD}%)"
-        )
-        return "Unknown reward"
+
+        for reward_img_name in reward_images:
+            reward_img_path = os.path.join(CONFIG["REWARD_FOLDER"], reward_img_name)
+            diff = compare_images(target_img, reward_img_path)
+
+            reward_name = os.path.splitext(reward_img_name)[0]
+            logger.debug(f"  '{reward_name}': {diff:.2f}% difference")
+
+            # Track best match (lowest difference)
+            if diff < best_match_diff:
+                best_match_diff = diff
+                best_match_name = reward_name
+
+        # Return best match if within 5% threshold (consistent with button detection)
+        if best_match_diff < IMAGE_MATCH_THRESHOLD:
+            logger.info(
+                f"Reward detected: '{best_match_name}' ({best_match_diff:.2f}% difference)"
+            )
+            return best_match_name
+        else:
+            logger.warning(
+                f"No reward match found within threshold. Best match: '{best_match_name}' "
+                f"({best_match_diff:.2f}% difference, threshold: {IMAGE_MATCH_THRESHOLD}%)"
+            )
+            return "Unknown reward"
 
 
 class ImageProcessor:
@@ -308,27 +310,29 @@ class ImageProcessor:
         self.page = page
 
     def detect_button_state(self):
-        tick_image = cv2.imread(CONFIG["SAMPLE_FOLDER"] + "/Finished.png")
-        arrow_image = cv2.imread(CONFIG["SAMPLE_FOLDER"] + "/Unfinished.png")
-        reward_image = cv2.imread(CONFIG["SAMPLE_FOLDER"] + "/Reward.png")
+        import sentry_sdk
+        with sentry_sdk.start_span(op="cv.template_match", name="detect_button_state"):
+            tick_image = cv2.imread(CONFIG["SAMPLE_FOLDER"] + "/Finished.png")
+            arrow_image = cv2.imread(CONFIG["SAMPLE_FOLDER"] + "/Unfinished.png")
+            reward_image = cv2.imread(CONFIG["SAMPLE_FOLDER"] + "/Reward.png")
 
-        buttom_img = fetch_image_from_locator(self.page, self.button)
+            buttom_img = fetch_image_from_locator(self.page, self.button)
 
-        tick_diff = compare_images(buttom_img, tick_image)
-        arrow_diff = compare_images(buttom_img, arrow_image)
-        reward_diff = compare_images(buttom_img, reward_image)
+            tick_diff = compare_images(buttom_img, tick_image)
+            arrow_diff = compare_images(buttom_img, arrow_image)
+            reward_diff = compare_images(buttom_img, reward_image)
 
-        print(f"Difference with Finished (tick) image: {tick_diff}%")
-        print(f"Difference with Unfinished (arrow) image: {arrow_diff}%")
-        print(f"Difference with Reward image: {reward_diff}%")
+            print(f"Difference with Finished (tick) image: {tick_diff}%")
+            print(f"Difference with Unfinished (arrow) image: {arrow_diff}%")
+            print(f"Difference with Reward image: {reward_diff}%")
 
-        diffs = {"Finished": tick_diff, "Unfinished": arrow_diff, "Reward": reward_diff}
+            diffs = {"Finished": tick_diff, "Unfinished": arrow_diff, "Reward": reward_diff}
 
-        closest_state = min(diffs, key=diffs.get)
+            closest_state = min(diffs, key=diffs.get)
 
-        if diffs[closest_state] < 5:  # Set a threshold for detection
-            print(f"Button detected as {closest_state}")
-            return closest_state
-        else:
-            print("Unknown button state")
-            return "unknown"
+            if diffs[closest_state] < 5:  # Set a threshold for detection
+                print(f"Button detected as {closest_state}")
+                return closest_state
+            else:
+                print("Unknown button state")
+                return "unknown"

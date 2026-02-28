@@ -424,129 +424,127 @@ def run(page: Page) -> None:
 
     logger.info("Starting prize draw automation...")
 
-    _tx = sentry_sdk.start_transaction(op="task", name="draw-handler")
-    try:
-        # Log diagnostic information before attempting to open screen
-        logger.info(f"Looking for draw button at image index {DRAW_BUTTON_INDEX}")
-        logger.info(
-            f"Looking for screen with selector '{SCREEN_SELECTOR}' containing text '{SCREEN_TEXT}'"
-        )
-
-        # Count total images available
-        all_images = page.get_by_role("img")
-        total_images = all_images.count()
-        logger.info(f"Total image elements found on page: {total_images}")
-
-        # Navigate to prize draw screen
-        draw_button = page.get_by_role("img").nth(DRAW_BUTTON_INDEX)
-        prize_screen = page.locator(SCREEN_SELECTOR).filter(has_text=SCREEN_TEXT)
-
-        if not RetryHelper.retry_until_screen_appears(prize_screen, draw_button):
-            logger.error("Failed to open prize draw screen")
-            logger.error(
-                f"Expected button at index {DRAW_BUTTON_INDEX}, but page has {total_images} images"
+    with sentry_sdk.start_span(op="automation.draw", name="draw-handler") as span:
+        try:
+            # Log diagnostic information before attempting to open screen
+            logger.info(f"Looking for draw button at image index {DRAW_BUTTON_INDEX}")
+            logger.info(
+                f"Looking for screen with selector '{SCREEN_SELECTOR}' containing text '{SCREEN_TEXT}'"
             )
-            logger.error(
-                "Check MongoDB screenshot assets for more details"
+
+            # Count total images available
+            all_images = page.get_by_role("img")
+            total_images = all_images.count()
+            logger.info(f"Total image elements found on page: {total_images}")
+
+            # Navigate to prize draw screen
+            draw_button = page.get_by_role("img").nth(DRAW_BUTTON_INDEX)
+            prize_screen = page.locator(SCREEN_SELECTOR).filter(has_text=SCREEN_TEXT)
+
+            if not RetryHelper.retry_until_screen_appears(prize_screen, draw_button):
+                logger.error("Failed to open prize draw screen")
+                logger.error(
+                    f"Expected button at index {DRAW_BUTTON_INDEX}, but page has {total_images} images"
+                )
+                logger.error(
+                    "Check MongoDB screenshot assets for more details"
+                )
+                return
+
+            logger.info("Prize draw screen opened")
+
+            # Verify correct lottery (ZZZ)
+            if not find_correct_lottery_logo(page):
+                logger.error("ZZZ lottery not found or selected")
+                return
+
+            logger.info("ZZZ lottery verified")
+
+            # Wait for page to fully load and data to refresh
+            logger.debug("Waiting for draw data to load...")
+            page.wait_for_timeout(2000)  # Give page time to load fresh data from server
+
+            # Calculate available draws
+            available_draws = _calculate_available_draws(page)
+
+            if available_draws is None:
+                logger.error("Could not calculate available draws")
+                NotificationHelper.notify(
+                    title="ZZZ Bot - Draw Error",
+                    message="Could not calculate available draws",
+                    app_icon=CONFIG.get("SAD_ICON", ""),
+                )
+                return
+
+            if available_draws <= 0:
+                logger.info(
+                    f"No draws available (calculated: {available_draws} - insufficient points or limit reached)"
+                )
+                NotificationHelper.notify(
+                    title="ZZZ Bot - No Draws",
+                    message="No draws available (insufficient points or limit reached)",
+                    app_icon=CONFIG.get("ICON_PATH", ""),
+                )
+                return
+
+            logger.info(f"Starting {available_draws} prize draw(s)")
+
+            # Perform all draws
+            successful_draws = 0
+            failed_draws = 0
+
+            for i in range(1, available_draws + 1):
+                if _perform_single_draw(page, i, available_draws):
+                    successful_draws += 1
+                else:
+                    failed_draws += 1
+
+                    # If first draw fails, page data was likely stale - log for user
+                    if i == 1:
+                        logger.warning(
+                            f"First draw failed - page may have shown stale data"
+                        )
+                        logger.info(
+                            f"Page showed {available_draws} draws available, but none could be performed"
+                        )
+                        # Re-check actual draw count
+                        page.wait_for_timeout(1000)
+                        actual_available = _calculate_available_draws(page)
+                        if (
+                            actual_available is not None
+                            and actual_available != available_draws
+                        ):
+                            logger.info(
+                                f"After refresh: actually {actual_available} draws available (was showing {available_draws})"
+                            )
+                    else:
+                        logger.warning(f"Draw {i} failed, stopping remaining draws")
+
+                    break
+
+                # Brief pause between draws
+                if i < available_draws:
+                    page.wait_for_timeout(1000)
+
+            # Log summary
+            logger.info(
+                f"Prize draw completed: {successful_draws} successful, "
+                f"{failed_draws} failed out of {available_draws} available"
             )
-            return
 
-        logger.info("Prize draw screen opened")
+            if successful_draws > 0:
+                NotificationHelper.notify(
+                    title="ZZZ Bot - Draws Complete",
+                    message=f"Completed {successful_draws} prize draws",
+                    app_icon=CONFIG.get("ICON_PATH", ""),
+                )
 
-        # Verify correct lottery (ZZZ)
-        if not find_correct_lottery_logo(page):
-            logger.error("ZZZ lottery not found or selected")
-            return
-
-        logger.info("ZZZ lottery verified")
-
-        # Wait for page to fully load and data to refresh
-        logger.debug("Waiting for draw data to load...")
-        page.wait_for_timeout(2000)  # Give page time to load fresh data from server
-
-        # Calculate available draws
-        available_draws = _calculate_available_draws(page)
-
-        if available_draws is None:
-            logger.error("Could not calculate available draws")
+        except Exception as e:
+            span.set_status("internal_error")
+            logger.error(f"Prize draw automation failed: {e}", exc_info=True)
             NotificationHelper.notify(
-                title="ZZZ Bot - Draw Error",
-                message="Could not calculate available draws",
+                title="ZZZ Bot - Error",
+                message="Prize draw automation failed",
                 app_icon=CONFIG.get("SAD_ICON", ""),
             )
-            return
-
-        if available_draws <= 0:
-            logger.info(
-                f"No draws available (calculated: {available_draws} - insufficient points or limit reached)"
-            )
-            NotificationHelper.notify(
-                title="ZZZ Bot - No Draws",
-                message="No draws available (insufficient points or limit reached)",
-                app_icon=CONFIG.get("ICON_PATH", ""),
-            )
-            return
-
-        logger.info(f"Starting {available_draws} prize draw(s)")
-
-        # Perform all draws
-        successful_draws = 0
-        failed_draws = 0
-
-        for i in range(1, available_draws + 1):
-            if _perform_single_draw(page, i, available_draws):
-                successful_draws += 1
-            else:
-                failed_draws += 1
-
-                # If first draw fails, page data was likely stale - log for user
-                if i == 1:
-                    logger.warning(
-                        f"First draw failed - page may have shown stale data"
-                    )
-                    logger.info(
-                        f"Page showed {available_draws} draws available, but none could be performed"
-                    )
-                    # Re-check actual draw count
-                    page.wait_for_timeout(1000)
-                    actual_available = _calculate_available_draws(page)
-                    if (
-                        actual_available is not None
-                        and actual_available != available_draws
-                    ):
-                        logger.info(
-                            f"After refresh: actually {actual_available} draws available (was showing {available_draws})"
-                        )
-                else:
-                    logger.warning(f"Draw {i} failed, stopping remaining draws")
-
-                break
-
-            # Brief pause between draws
-            if i < available_draws:
-                page.wait_for_timeout(1000)
-
-        # Log summary
-        logger.info(
-            f"Prize draw completed: {successful_draws} successful, "
-            f"{failed_draws} failed out of {available_draws} available"
-        )
-
-        if successful_draws > 0:
-            NotificationHelper.notify(
-                title="ZZZ Bot - Draws Complete",
-                message=f"Completed {successful_draws} prize draws",
-                app_icon=CONFIG.get("ICON_PATH", ""),
-            )
-
-    except Exception as e:
-        _tx.set_status("internal_error")
-        logger.error(f"Prize draw automation failed: {e}", exc_info=True)
-        NotificationHelper.notify(
-            title="ZZZ Bot - Error",
-            message="Prize draw automation failed",
-            app_icon=CONFIG.get("SAD_ICON", ""),
-        )
-        raise
-    finally:
-        _tx.finish()
+            raise

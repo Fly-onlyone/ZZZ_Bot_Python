@@ -142,46 +142,48 @@ def wait_for_exchange_button(
     Returns:
         True if Exchange button appeared, False if timeout
     """
-    logger.info(f"Waiting for '{item_name}' to become available...")
+    import sentry_sdk
+    with sentry_sdk.start_span(op="automation.poll", name="wait_for_exchange"):
+        logger.info(f"Waiting for '{item_name}' to become available...")
 
-    start_time = time.time()
-    last_status = None
+        start_time = time.time()
+        last_status = None
 
-    while time.time() - start_time < max_wait_seconds:
-        try:
-            # Locate the item on page
-            item_locator = page.locator(SHOPPING_ITEM).filter(
-                has=page.get_by_text(item_name, exact=True)
-            )
+        while time.time() - start_time < max_wait_seconds:
+            try:
+                # Locate the item on page
+                item_locator = page.locator(SHOPPING_ITEM).filter(
+                    has=page.get_by_text(item_name, exact=True)
+                )
 
-            if item_locator.count() == 0:
-                logger.warning(f"Item '{item_name}' not found on page")
+                if item_locator.count() == 0:
+                    logger.warning(f"Item '{item_name}' not found on page")
+                    time.sleep(POLL_INTERVAL_SECONDS)
+                    continue
+
+                # Get button text
+                button = item_locator.locator(SHOPPING_ITEM_BUTTON)
+                button_text = button.inner_text()
+
+                # Log status changes
+                if button_text != last_status:
+                    logger.info(f"Item '{item_name}' button status: {button_text}")
+                    last_status = button_text
+
+                # Check if Exchange is available
+                if button_text == EXCHANGE_BUTTON_TEXT:
+                    logger.info(f"Exchange button available for '{item_name}'!")
+                    return True
+
+                # Wait before next check
                 time.sleep(POLL_INTERVAL_SECONDS)
-                continue
 
-            # Get button text
-            button = item_locator.locator(SHOPPING_ITEM_BUTTON)
-            button_text = button.inner_text()
+            except Exception as e:
+                logger.error(f"Error while monitoring '{item_name}': {e}")
+                time.sleep(POLL_INTERVAL_SECONDS)
 
-            # Log status changes
-            if button_text != last_status:
-                logger.info(f"Item '{item_name}' button status: {button_text}")
-                last_status = button_text
-
-            # Check if Exchange is available
-            if button_text == EXCHANGE_BUTTON_TEXT:
-                logger.info(f"Exchange button available for '{item_name}'!")
-                return True
-
-            # Wait before next check
-            time.sleep(POLL_INTERVAL_SECONDS)
-
-        except Exception as e:
-            logger.error(f"Error while monitoring '{item_name}': {e}")
-            time.sleep(POLL_INTERVAL_SECONDS)
-
-    logger.warning(f"Timeout waiting for '{item_name}' to become available")
-    return False
+        logger.warning(f"Timeout waiting for '{item_name}' to become available")
+        return False
 
 
 def exchange_item_only(page: Page, item_name: str) -> Optional[str]:
@@ -336,154 +338,157 @@ def run_hunt():
     import sentry_sdk
 
     browser = None
-    _tx = sentry_sdk.start_transaction(op="task", name="hunt-handler")
-    try:
-        with sync_playwright() as p:
-            browser = p.firefox.launch(headless=settings.hide_browser)
-            context_options = build_context_options(CONFIG["STORAGE_PATH"])
-            context = browser.new_context(**context_options)
-            page = context.new_page()
+    with sentry_sdk.start_transaction(op="automation.hunt", name="hunt-handler") as tx:
+        try:
+            with sync_playwright() as p:
+                with sentry_sdk.start_span(op="browser.launch", name="Launch browser"):
+                    browser = p.firefox.launch(headless=settings.hide_browser)
+                    context_options = build_context_options(CONFIG["STORAGE_PATH"])
+                    context = browser.new_context(**context_options)
+                    page = context.new_page()
 
-            try:
-                page.goto(
-                    "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
-                )
+                try:
+                    page.goto(
+                        "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
+                    )
 
-                # Handle manual login only when neither MongoDB nor file has auth state.
-                has_auth_state = (
-                    load_storage_state(CONFIG["STORAGE_PATH"]) is not None
-                    or os.path.exists(CONFIG["STORAGE_PATH"])
-                )
-                if not has_auth_state:
+                    # Handle manual login only when neither MongoDB nor file has auth state.
+                    has_auth_state = (
+                        load_storage_state(CONFIG["STORAGE_PATH"]) is not None
+                        or os.path.exists(CONFIG["STORAGE_PATH"])
+                    )
+                    if not has_auth_state:
+                        NotificationHelper.notify(
+                            title="ZZZ Bot - Hunt Mode",
+                            message="Please log in manually",
+                            app_icon=CONFIG["SAD_ICON"],
+                        )
+                        return
+
+                    # Open shopping screen
+                    if not ShoppingHandler.open_shopping_screen(page):
+                        logger.error("Failed to open shopping screen for hunt mode")
+                        return
+
+                    # Select ZZZ avatar
+                    if not ShoppingHandler.select_zzz_avatar(page):
+                        logger.error("Cannot proceed with hunting")
+                        return
+
+                    # Load shopping data
+                    file_path = Path(CONFIG["SHOPPING_FILE"])
+                    shopping_data = load_shopping_data(file_path)
+
+                    if not shopping_data:
+                        logger.error("No shopping data available for hunting")
+                        return
+
+                    # Phase 1: Exchange all items and collect codes
+                    logger.info("=" * 50)
+                    logger.info("PHASE 1: Exchanging all hunt items...")
+                    logger.info("=" * 50)
+
+                    codes_to_redeem = []  # List of (item_name, redeem_code) tuples
+                    successful_exchanges = []
+                    failed_items = []
+
+                    with sentry_sdk.start_span(op="browser.interact", name="Exchange hunt items"):
+                        for item_name in hunt_items:
+                            logger.info(f"Starting hunt for '{item_name}'")
+
+                            # Wait for Exchange button to appear
+                            if wait_for_exchange_button(page, item_name):
+                                # Item is available, attempt exchange
+                                redeem_code = exchange_item_only(page, item_name)
+
+                                if redeem_code:
+                                    codes_to_redeem.append((item_name, redeem_code))
+                                    successful_exchanges.append(item_name)
+                                    logger.info(f"✓ Successfully exchanged '{item_name}'")
+                                else:
+                                    failed_items.append(item_name)
+                                    logger.warning(f"✗ Failed to exchange '{item_name}'")
+                            else:
+                                failed_items.append(item_name)
+                                logger.warning(f"✗ Hunt timeout for '{item_name}'")
+
+                            # Brief pause between exchanges
+                            time.sleep(1)
+
+                    logger.info(
+                        f"Exchange phase completed: {len(successful_exchanges)} success, {len(failed_items)} failed"
+                    )
+
+                    # Phase 2: Redeem all collected codes
+                    logger.info("=" * 50)
+                    logger.info("PHASE 2: Redeeming all codes...")
+                    logger.info("=" * 50)
+
+                    with sentry_sdk.start_span(op="browser.navigate", name="Redeem all codes"):
+                        if codes_to_redeem:
+                            redeem_all_codes(context, codes_to_redeem)
+                        else:
+                            logger.warning("No codes to redeem")
+
+                    # Phase 3: Remove successful items from hunt list
+                    logger.info("=" * 50)
+                    logger.info("PHASE 3: Updating hunt list...")
+                    logger.info("=" * 50)
+
+                    with sentry_sdk.start_span(op="db.write", name="Update hunt list"):
+                        if successful_exchanges:
+                            remove_items_from_hunt_list(successful_exchanges)
+                            logger.info(
+                                f"Removed {len(successful_exchanges)} item(s) from hunt list"
+                            )
+                        else:
+                            logger.info("No items to remove from hunt list")
+
+                    # Save session state
+                    with sentry_sdk.start_span(op="auth.storage_state", name="save_storage_state"):
+                        save_context_storage_state(context, CONFIG["STORAGE_PATH"])
+
+                    # Send notification
+                    message = (
+                        f"Hunt completed!\n"
+                        f"Exchanged: {len(successful_exchanges)}\n"
+                        f"Failed: {len(failed_items)}\n"
+                        f"Removed from hunt list: {len(successful_exchanges)}"
+                    )
                     NotificationHelper.notify(
                         title="ZZZ Bot - Hunt Mode",
-                        message="Please log in manually",
-                        app_icon=CONFIG["SAD_ICON"],
+                        message=message,
+                        app_icon=(
+                            CONFIG["ICON_PATH"]
+                            if successful_exchanges
+                            else CONFIG["SAD_ICON"]
+                        ),
                     )
-                    return
 
-                # Open shopping screen
-                if not ShoppingHandler.open_shopping_screen(page):
-                    logger.error("Failed to open shopping screen for hunt mode")
-                    return
-
-                # Select ZZZ avatar
-                if not ShoppingHandler.select_zzz_avatar(page):
-                    logger.error("Cannot proceed with hunting")
-                    return
-
-                # Load shopping data
-                file_path = Path(CONFIG["SHOPPING_FILE"])
-                shopping_data = load_shopping_data(file_path)
-
-                if not shopping_data:
-                    logger.error("No shopping data available for hunting")
-                    return
-
-                # Phase 1: Exchange all items and collect codes
-                logger.info("=" * 50)
-                logger.info("PHASE 1: Exchanging all hunt items...")
-                logger.info("=" * 50)
-
-                codes_to_redeem = []  # List of (item_name, redeem_code) tuples
-                successful_exchanges = []
-                failed_items = []
-
-                for item_name in hunt_items:
-                    logger.info(f"Starting hunt for '{item_name}'")
-
-                    # Wait for Exchange button to appear
-                    if wait_for_exchange_button(page, item_name):
-                        # Item is available, attempt exchange
-                        redeem_code = exchange_item_only(page, item_name)
-
-                        if redeem_code:
-                            codes_to_redeem.append((item_name, redeem_code))
-                            successful_exchanges.append(item_name)
-                            logger.info(f"✓ Successfully exchanged '{item_name}'")
-                        else:
-                            failed_items.append(item_name)
-                            logger.warning(f"✗ Failed to exchange '{item_name}'")
-                    else:
-                        failed_items.append(item_name)
-                        logger.warning(f"✗ Hunt timeout for '{item_name}'")
-
-                    # Brief pause between exchanges
-                    time.sleep(1)
-
-                logger.info(
-                    f"Exchange phase completed: {len(successful_exchanges)} success, {len(failed_items)} failed"
-                )
-
-                # Phase 2: Redeem all collected codes
-                logger.info("=" * 50)
-                logger.info("PHASE 2: Redeeming all codes...")
-                logger.info("=" * 50)
-
-                if codes_to_redeem:
-                    redeem_all_codes(context, codes_to_redeem)
-                else:
-                    logger.warning("No codes to redeem")
-
-                # Phase 3: Remove successful items from hunt list
-                logger.info("=" * 50)
-                logger.info("PHASE 3: Updating hunt list...")
-                logger.info("=" * 50)
-
-                if successful_exchanges:
-                    remove_items_from_hunt_list(successful_exchanges)
+                    logger.info("=" * 50)
                     logger.info(
-                        f"Removed {len(successful_exchanges)} item(s) from hunt list"
+                        f"Hunt mode completed: {len(successful_exchanges)} successful, {len(failed_items)} failed"
                     )
-                else:
-                    logger.info("No items to remove from hunt list")
+                    logger.info(f"Items removed from hunt list: {successful_exchanges}")
+                    logger.info("=" * 50)
 
-                # Save session state
-                save_context_storage_state(context, CONFIG["STORAGE_PATH"])
+                finally:
+                    # Always close browser, even if errors occur
+                    if browser:
+                        logger.info("Closing hunt mode browser")
+                        browser.close()
 
-                # Send notification
-                message = (
-                    f"Hunt completed!\n"
-                    f"Exchanged: {len(successful_exchanges)}\n"
-                    f"Failed: {len(failed_items)}\n"
-                    f"Removed from hunt list: {len(successful_exchanges)}"
-                )
-                NotificationHelper.notify(
-                    title="ZZZ Bot - Hunt Mode",
-                    message=message,
-                    app_icon=(
-                        CONFIG["ICON_PATH"]
-                        if successful_exchanges
-                        else CONFIG["SAD_ICON"]
-                    ),
-                )
-
-                logger.info("=" * 50)
-                logger.info(
-                    f"Hunt mode completed: {len(successful_exchanges)} successful, {len(failed_items)} failed"
-                )
-                logger.info(f"Items removed from hunt list: {successful_exchanges}")
-                logger.info("=" * 50)
-
-            finally:
-                # Always close browser, even if errors occur
-                if browser:
-                    logger.info("Closing hunt mode browser")
+        except Exception as e:
+            tx.set_status("internal_error")
+            logger.error(f"Hunt mode failed: {e}", exc_info=True)
+            NotificationHelper.notify(
+                title="ZZZ Bot - Hunt Mode",
+                message=f"Hunt failed: {str(e)}",
+                app_icon=CONFIG["SAD_ICON"],
+            )
+            # Ensure browser is closed in case of exceptions
+            if browser:
+                try:
                     browser.close()
-
-    except Exception as e:
-        _tx.set_status("internal_error")
-        logger.error(f"Hunt mode failed: {e}", exc_info=True)
-        NotificationHelper.notify(
-            title="ZZZ Bot - Hunt Mode",
-            message=f"Hunt failed: {str(e)}",
-            app_icon=CONFIG["SAD_ICON"],
-        )
-        # Ensure browser is closed in case of exceptions
-        if browser:
-            try:
-                browser.close()
-            except:
-                pass  # Browser may already be closed
-    finally:
-        _tx.finish()
+                except:
+                    pass  # Browser may already be closed

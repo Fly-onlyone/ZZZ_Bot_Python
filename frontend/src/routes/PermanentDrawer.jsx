@@ -29,6 +29,9 @@ import { AppHeader, NavigationDrawer, ValueAdapter } from "../components";
 import { Logs, ManualLogin, Overview, Redeem, Shopping } from "../pages";
 import { DataLoader } from "../services";
 import { useThemeContext } from "../theme/ThemeContext";
+import * as Sentry from "@sentry/react";
+
+const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes);
 
 /**
  * Page transition animation variants
@@ -231,7 +234,7 @@ function AnimatedRoutes() {
 
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+      <SentryRoutes location={location} key={location.pathname}>
         <Route
           path="/"
           element={
@@ -332,7 +335,7 @@ function AnimatedRoutes() {
           }
         />
         <Route path="*" element={<Navigate to="/settings" />} />
-      </Routes>
+      </SentryRoutes>
     </AnimatePresence>
   );
 }

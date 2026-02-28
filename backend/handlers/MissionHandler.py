@@ -356,28 +356,26 @@ def run(output_file: str, page: Page, previous_data: Dict, todays_data: Dict) ->
 
     logger.info("Starting mission automation...")
 
-    _tx = sentry_sdk.start_transaction(op="task", name="mission-handler")
-    try:
-        # Navigate to mission screen
-        with sentry_sdk.start_span(op="browser.navigate", name="Open mission screen"):
-            if not open_mission_screen(page):
-                logger.error("Failed to open mission screen, aborting")
-                return
+    with sentry_sdk.start_span(op="automation.mission", name="mission-handler") as span:
+        try:
+            # Navigate to mission screen
+            with sentry_sdk.start_span(op="browser.navigate", name="Open mission screen"):
+                if not open_mission_screen(page):
+                    logger.error("Failed to open mission screen, aborting")
+                    return
 
-        # Count and execute missions
-        with sentry_sdk.start_span(op="browser.interact", name="Count and execute missions"):
-            mission_count = count_mission(page)
-            doing_mission(mission_count, page, todays_data)
+            # Count and execute missions
+            with sentry_sdk.start_span(op="browser.interact", name="Count and execute missions"):
+                mission_count = count_mission(page)
+                doing_mission(mission_count, page, todays_data)
 
-        # Save mission data
-        with sentry_sdk.start_span(op="db.write", name="Save mission data"):
-            maintain_mission_data(previous_data, output_file, todays_data)
+            # Save mission data
+            with sentry_sdk.start_span(op="db.write", name="Save mission data"):
+                maintain_mission_data(previous_data, output_file, todays_data)
 
-        logger.info("Mission automation completed successfully")
+            logger.info("Mission automation completed successfully")
 
-    except Exception as e:
-        _tx.set_status("internal_error")
-        logger.error(f"Mission automation failed: {e}", exc_info=True)
-        raise
-    finally:
-        _tx.finish()
+        except Exception as e:
+            span.set_status("internal_error")
+            logger.error(f"Mission automation failed: {e}", exc_info=True)
+            raise

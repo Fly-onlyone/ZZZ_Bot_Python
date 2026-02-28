@@ -23,33 +23,35 @@ def _storage_asset_id(storage_path: str) -> str:
 
 def load_storage_state(storage_path: str) -> dict | None:
     """Load Playwright storage state from MongoDB, with file fallback handled by caller."""
-    collection = get_db().binary_assets
-    asset_id = _storage_asset_id(storage_path)
-    doc = collection.find_one({"_id": asset_id}, {"payload": 1})
+    import sentry_sdk
+    with sentry_sdk.start_span(op="auth.storage_state", name="load_storage_state"):
+        collection = get_db().binary_assets
+        asset_id = _storage_asset_id(storage_path)
+        doc = collection.find_one({"_id": asset_id}, {"payload": 1})
 
-    if not doc:
-        # Fallback to latest storage_state asset when filename/key changed.
-        doc = collection.find_one(
-            {"category": _STORAGE_STATE_CATEGORY},
-            {"payload": 1},
-            sort=[("updated_at", DESCENDING)],
-        )
+        if not doc:
+            # Fallback to latest storage_state asset when filename/key changed.
+            doc = collection.find_one(
+                {"category": _STORAGE_STATE_CATEGORY},
+                {"payload": 1},
+                sort=[("updated_at", DESCENDING)],
+            )
 
-    if not doc or "payload" not in doc:
+        if not doc or "payload" not in doc:
+            return None
+
+        try:
+            payload = bytes(doc["payload"]).decode("utf-8")
+            data = json.loads(payload)
+        except Exception as exc:
+            logger.warning("Failed to parse Mongo storage state payload: %s", exc)
+            return None
+
+        if isinstance(data, dict):
+            return data
+
+        logger.warning("Invalid Mongo storage state payload type: %s", type(data).__name__)
         return None
-
-    try:
-        payload = bytes(doc["payload"]).decode("utf-8")
-        data = json.loads(payload)
-    except Exception as exc:
-        logger.warning("Failed to parse Mongo storage state payload: %s", exc)
-        return None
-
-    if isinstance(data, dict):
-        return data
-
-    logger.warning("Invalid Mongo storage state payload type: %s", type(data).__name__)
-    return None
 
 
 def build_context_options(storage_path: str) -> dict:
@@ -101,7 +103,9 @@ def save_storage_state(
 
 def save_context_storage_state(context, storage_path: str, write_local_backup: bool = True) -> None:
     """Capture current Playwright context storage state and persist it to MongoDB."""
-    storage_state = context.storage_state()
-    if not isinstance(storage_state, dict):
-        raise ValueError("Playwright storage_state() returned non-dict payload")
-    save_storage_state(storage_path, storage_state, write_local_backup=write_local_backup)
+    import sentry_sdk
+    with sentry_sdk.start_span(op="auth.storage_state", name="save_storage_state"):
+        storage_state = context.storage_state()
+        if not isinstance(storage_state, dict):
+            raise ValueError("Playwright storage_state() returned non-dict payload")
+        save_storage_state(storage_path, storage_state, write_local_backup=write_local_backup)
