@@ -293,11 +293,10 @@ def migrate_if_needed(
     def _path(filename: str) -> str:
         return _resolve_artifact_path(filename, output_dirs)
 
-    with sentry_sdk.start_transaction(
+    with sentry_sdk.start_span(
         op="startup.mongo_migration",
         name="mongo-migration-check",
-        sampled=True,
-    ) as transaction:
+    ) as span:
         counts_before = _collection_counts(MongoRepository, db)
 
         # Settings
@@ -487,8 +486,8 @@ def migrate_if_needed(
             "screenshot_report": screenshot_report,
         }
 
-        transaction.set_data("mongo.connection", get_connection_debug_info())
-        transaction.set_data("mongo.migration_report", report)
+        span.set_data("mongo.connection", get_connection_debug_info())
+        span.set_data("mongo.migration_report", report)
 
     if migrated:
         logger.info(

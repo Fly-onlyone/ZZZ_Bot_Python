@@ -417,45 +417,43 @@ def run(page: Page) -> None:
 
     logger.info("Starting shopping automation...")
 
-    _tx = sentry_sdk.start_transaction(op="task", name="shopping-handler")
-    try:
-        # Open shopping screen
-        with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
-            if not open_shopping_screen(page):
-                return
+    with sentry_sdk.start_span(op="automation.shopping", name="shopping-handler") as span:
+        try:
+            # Open shopping screen
+            with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
+                if not open_shopping_screen(page):
+                    return
 
-        # Select ZZZ avatar
-        with sentry_sdk.start_span(op="browser.navigate", name="Select ZZZ avatar"):
-            if not select_zzz_avatar(page):
-                logger.error("Cannot proceed with shopping")
-                return
+            # Select ZZZ avatar
+            with sentry_sdk.start_span(op="browser.navigate", name="Select ZZZ avatar"):
+                if not select_zzz_avatar(page):
+                    logger.error("Cannot proceed with shopping")
+                    return
 
-        # Extract current points after selecting the game
-        with sentry_sdk.start_span(op="browser.interact", name="Gather shopping data"):
-            current_points = _extract_current_points(page)
-            shopping_data = load_or_gather_shopping_data(page, current_points)
+            # Extract current points after selecting the game
+            with sentry_sdk.start_span(op="browser.interact", name="Gather shopping data"):
+                current_points = _extract_current_points(page)
+                shopping_data = load_or_gather_shopping_data(page, current_points)
 
-        # Save data
-        with sentry_sdk.start_span(op="db.write", name="Save shopping data"):
-            file_path = Path(CONFIG["SHOPPING_FILE"])
-            save_shopping_data(file_path, shopping_data)
-            shopping_data = load_shopping_data(file_path)
+            # Save data
+            with sentry_sdk.start_span(op="db.write", name="Save shopping data"):
+                file_path = Path(CONFIG["SHOPPING_FILE"])
+                save_shopping_data(file_path, shopping_data)
+                shopping_data = load_shopping_data(file_path)
 
-        # Execute shopping if enabled
-        if settings.exchange_good:
-            with sentry_sdk.start_span(op="browser.interact", name="Run shopping exchanges"):
-                run_shopping(page, shopping_data)
-        else:
-            logger.info("Shopping disabled in settings, skipping redemption")
+            # Execute shopping if enabled
+            if settings.exchange_good:
+                with sentry_sdk.start_span(op="browser.interact", name="Run shopping exchanges"):
+                    run_shopping(page, shopping_data)
+            else:
+                logger.info("Shopping disabled in settings, skipping redemption")
 
-        logger.info("Shopping automation completed successfully")
+            logger.info("Shopping automation completed successfully")
 
-    except Exception as e:
-        _tx.set_status("internal_error")
-        logger.error(f"Shopping automation failed: {e}", exc_info=True)
-        raise
-    finally:
-        _tx.finish()
+        except Exception as e:
+            span.set_status("internal_error")
+            logger.error(f"Shopping automation failed: {e}", exc_info=True)
+            raise
 
 
 def _process_single_item(page: Page, item_name: str, item_data: Dict) -> bool:
@@ -620,43 +618,41 @@ def execute_shopping_with_existing_data(page: Page) -> bool:
 
     logger.info("Starting shopping execution phase (before draw)...")
 
-    _tx = sentry_sdk.start_transaction(op="task", name="shopping-execute-existing")
-    try:
-        # Open shopping screen
-        with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
-            if not open_shopping_screen(page):
-                logger.error("Failed to open shopping screen for execution")
-                return False
+    with sentry_sdk.start_span(op="automation.shopping", name="shopping-execute") as span:
+        try:
+            # Open shopping screen
+            with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
+                if not open_shopping_screen(page):
+                    logger.error("Failed to open shopping screen for execution")
+                    return False
 
-        # Select ZZZ avatar
-        with sentry_sdk.start_span(op="browser.navigate", name="Select ZZZ avatar"):
-            if not select_zzz_avatar(page):
-                return False
+            # Select ZZZ avatar
+            with sentry_sdk.start_span(op="browser.navigate", name="Select ZZZ avatar"):
+                if not select_zzz_avatar(page):
+                    return False
 
-        # Load existing shopping data
-        file_path = Path(CONFIG["SHOPPING_FILE"])
-        shopping_data = load_shopping_data(file_path)
+            # Load existing shopping data
+            file_path = Path(CONFIG["SHOPPING_FILE"])
+            shopping_data = load_shopping_data(file_path)
 
-        if not shopping_data:
-            logger.warning("No existing shopping data found, skipping execution")
-            return True  # Not an error, just no data
+            if not shopping_data:
+                logger.warning("No existing shopping data found, skipping execution")
+                return True  # Not an error, just no data
 
-        # Execute shopping if enabled
-        if settings.exchange_good:
-            with sentry_sdk.start_span(op="browser.interact", name="Execute shopping exchanges"):
-                run_shopping(page, shopping_data)
-        else:
-            logger.info("Shopping execution disabled in settings")
+            # Execute shopping if enabled
+            if settings.exchange_good:
+                with sentry_sdk.start_span(op="browser.interact", name="Execute shopping exchanges"):
+                    run_shopping(page, shopping_data)
+            else:
+                logger.info("Shopping execution disabled in settings")
 
-        logger.info("Shopping execution phase completed")
-        return True
+            logger.info("Shopping execution phase completed")
+            return True
 
-    except Exception as e:
-        _tx.set_status("internal_error")
-        logger.error(f"Shopping execution phase failed: {e}", exc_info=True)
-        return False
-    finally:
-        _tx.finish()
+        except Exception as e:
+            span.set_status("internal_error")
+            logger.error(f"Shopping execution phase failed: {e}", exc_info=True)
+            return False
 
 
 def gather_shopping_data_only(page: Page) -> bool:
@@ -674,37 +670,35 @@ def gather_shopping_data_only(page: Page) -> bool:
 
     logger.info("Starting shopping data gathering phase (after draw)...")
 
-    _tx = sentry_sdk.start_transaction(op="task", name="shopping-gather-data")
-    try:
-        # Open shopping screen
-        with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
-            if not open_shopping_screen(page):
-                logger.error("Failed to open shopping screen for data gathering")
-                return False
+    with sentry_sdk.start_span(op="automation.shopping", name="shopping-gather") as span:
+        try:
+            # Open shopping screen
+            with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
+                if not open_shopping_screen(page):
+                    logger.error("Failed to open shopping screen for data gathering")
+                    return False
 
-        # Select ZZZ avatar
-        with sentry_sdk.start_span(op="browser.navigate", name="Select ZZZ avatar"):
-            if not select_zzz_avatar(page):
-                return False
+            # Select ZZZ avatar
+            with sentry_sdk.start_span(op="browser.navigate", name="Select ZZZ avatar"):
+                if not select_zzz_avatar(page):
+                    return False
 
-        # Extract current points and gather data
-        with sentry_sdk.start_span(op="browser.interact", name="Gather shopping data"):
-            current_points = _extract_current_points(page)
-            shopping_data = load_or_gather_shopping_data(page, current_points)
+            # Extract current points and gather data
+            with sentry_sdk.start_span(op="browser.interact", name="Gather shopping data"):
+                current_points = _extract_current_points(page)
+                shopping_data = load_or_gather_shopping_data(page, current_points)
 
-        # Save data
-        with sentry_sdk.start_span(op="db.write", name="Save shopping data"):
-            file_path = Path(CONFIG["SHOPPING_FILE"])
-            save_shopping_data(file_path, shopping_data)
+            # Save data
+            with sentry_sdk.start_span(op="db.write", name="Save shopping data"):
+                file_path = Path(CONFIG["SHOPPING_FILE"])
+                save_shopping_data(file_path, shopping_data)
 
-        logger.info("Shopping data gathering phase completed")
+            logger.info("Shopping data gathering phase completed")
 
-        # Note: Hunt tasks will be rescheduled by Bot.py after this function returns
-        return True
+            # Note: Hunt tasks will be rescheduled by Bot.py after this function returns
+            return True
 
-    except Exception as e:
-        _tx.set_status("internal_error")
-        logger.error(f"Shopping data gathering phase failed: {e}", exc_info=True)
-        return False
-    finally:
-        _tx.finish()
+        except Exception as e:
+            span.set_status("internal_error")
+            logger.error(f"Shopping data gathering phase failed: {e}", exc_info=True)
+            return False

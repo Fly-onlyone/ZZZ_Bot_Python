@@ -322,11 +322,10 @@ def _bootstrap_mongo() -> None:
     from repositories.connection import get_connection_debug_info, get_db
     from utils.migrate_json_to_mongo import migrate_if_needed
 
-    with sentry_sdk.start_transaction(
+    with sentry_sdk.start_span(
         op="startup.mongo_bootstrap",
         name="mongo-bootstrap",
-        sampled=True,
-    ) as transaction:
+    ) as span:
         with sentry_sdk.start_span(op="mongo.connect", name="Connect and ping"):
             db = get_db()
 
@@ -340,9 +339,9 @@ def _bootstrap_mongo() -> None:
                 CONFIG["SCREENSHOT_FOLDER"],
             )
 
-        transaction.set_tag("mongo.db_name", db.name)
-        transaction.set_data("mongo.connection", get_connection_debug_info())
-        transaction.set_data("mongo.migration_report", report)
+        span.set_data("mongo.db_name", db.name)
+        span.set_data("mongo.connection", get_connection_debug_info())
+        span.set_data("mongo.migration_report", report)
 
 
 def _load_settings() -> "AppSettings":
@@ -367,11 +366,10 @@ def _load_settings() -> "AppSettings":
     # settings.mongodb_uri is the primary runtime source after bootstrap.
     set_runtime_uri(loaded.mongodb_uri)
 
-    with sentry_sdk.start_transaction(
+    with sentry_sdk.start_span(
         op="startup.mongo_runtime_uri_sync",
         name="mongo-runtime-uri-sync",
-        sampled=True,
-    ) as transaction:
+    ) as span:
         with sentry_sdk.start_span(
             op="mongo.connect",
             name="Reconnect with settings.mongodb_uri",
@@ -388,9 +386,9 @@ def _load_settings() -> "AppSettings":
                 CONFIG["SCREENSHOT_FOLDER"],
             )
 
-        transaction.set_tag("mongo.db_name", active_db.name)
-        transaction.set_data("mongo.connection", get_connection_debug_info())
-        transaction.set_data("mongo.runtime_migration_report", runtime_report)
+        span.set_data("mongo.db_name", active_db.name)
+        span.set_data("mongo.connection", get_connection_debug_info())
+        span.set_data("mongo.runtime_migration_report", runtime_report)
 
     # Read settings from the active database after applying runtime URI.
     active_data = MongoRepository.get_settings()
@@ -419,9 +417,10 @@ def _load_accounts() -> "Account":
 
 load_runtime_env()
 _init_startup_sentry_if_configured()
-_bootstrap_mongo()
-
-settings = _load_settings()
+import sentry_sdk
+with sentry_sdk.start_transaction(op="startup", name="mongo-bootstrap", sampled=True):
+    _bootstrap_mongo()
+    settings = _load_settings()
 accounts = _load_accounts()
 app = FastAPI()
 app.add_middleware(

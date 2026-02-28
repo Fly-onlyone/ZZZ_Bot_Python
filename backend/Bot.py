@@ -186,124 +186,129 @@ def _close_shopping_screen_helper(page):
 
 def playwright_task():
     """Core logic for the bot task."""
+    import sentry_sdk
 
     previous_data, todays_data = prepare_mission_data(
         CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
     )
-    with sync_playwright() as p:
-        try:
-            browser = p.firefox.launch(headless=settings.hide_browser)
-        except PlaywrightError as firefox_error:
-            firefox_message = str(firefox_error)
-            logger.warning(f"Firefox launch failed: {firefox_message}")
+    with sentry_sdk.start_transaction(op="automation.run", name="playwright-task"):
+        with sync_playwright() as p:
+            with sentry_sdk.start_span(op="browser.launch", name="Launch browser"):
+                try:
+                    browser = p.firefox.launch(headless=settings.hide_browser)
+                except PlaywrightError as firefox_error:
+                    firefox_message = str(firefox_error)
+                    logger.warning(f"Firefox launch failed: {firefox_message}")
 
-            if "Executable doesn't exist" not in firefox_message:
-                raise
+                    if "Executable doesn't exist" not in firefox_message:
+                        raise
 
-            logger.warning("Firefox browser binary is missing. Trying Chromium fallback.")
-            try:
-                browser = p.chromium.launch(headless=settings.hide_browser)
-                logger.info("Launched Chromium as fallback browser.")
-            except PlaywrightError as chromium_error:
-                logger.error(f"Chromium fallback failed: {chromium_error}")
-                NotificationModule.notify(
-                    title="ZZZ Bot",
-                    message=(
-                        "Playwright browser binaries are missing. "
-                        "Run 'playwright install' and try again."
-                    ),
-                    app_icon=CONFIG["SAD_ICON"],
+                    logger.warning("Firefox browser binary is missing. Trying Chromium fallback.")
+                    try:
+                        browser = p.chromium.launch(headless=settings.hide_browser)
+                        logger.info("Launched Chromium as fallback browser.")
+                    except PlaywrightError as chromium_error:
+                        logger.error(f"Chromium fallback failed: {chromium_error}")
+                        NotificationModule.notify(
+                            title="ZZZ Bot",
+                            message=(
+                                "Playwright browser binaries are missing. "
+                                "Run 'playwright install' and try again."
+                            ),
+                            app_icon=CONFIG["SAD_ICON"],
+                        )
+                        return
+
+            with sentry_sdk.start_span(op="auth.storage_state", name="Load auth state"):
+                context_options = build_context_options(CONFIG["STORAGE_PATH"])
+                context = browser.new_context(**context_options)
+                mino_page = context.new_page()
+
+                mino_page.goto(
+                    "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
                 )
-                return
 
-        context_options = build_context_options(CONFIG["STORAGE_PATH"])
-        context = browser.new_context(**context_options)
-        mino_page = context.new_page()
+                # Handle manual login only when neither MongoDB nor file has auth state.
+                has_auth_state = (
+                    load_storage_state(CONFIG["STORAGE_PATH"]) is not None
+                    or os.path.exists(CONFIG["STORAGE_PATH"])
+                )
+                if not has_auth_state:
+                    NotificationModule.notify(
+                        title="ZZZ Bot",
+                        message="Please log in manually",
+                        app_icon=CONFIG["SAD_ICON"],
+                    )
+                    return
 
-        mino_page.goto(
-            "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
-        )
-
-        # Handle manual login only when neither MongoDB nor file has auth state.
-        has_auth_state = (
-            load_storage_state(CONFIG["STORAGE_PATH"]) is not None
-            or os.path.exists(CONFIG["STORAGE_PATH"])
-        )
-        if not has_auth_state:
-            NotificationModule.notify(
-                title="ZZZ Bot",
-                message="Please log in manually",
-                app_icon=CONFIG["SAD_ICON"],
-            )
-            return
-
-        if settings.run_task:
-            Mission.run(CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data)
-            close_button = mino_page.locator(".panelBack--wW5qj")
-            close_button.click()
-            Notification.send_mission_data_via_email_html(todays_data)
-        else:
-            logger.info("Task cancelled due to setting.")
-
-        # Phase 1: Execute shopping with existing data (before draw)
-        if settings.gather_shopping_data and settings.exchange_good:
-            logger.info("=== PHASE 1: Shopping Execution (Before Draw) ===")
-            shopping_execution_success = (
-                ShoppingHandler.execute_shopping_with_existing_data(mino_page)
-            )
-
-            # Always close shopping screen whether execution succeeded or failed
-            # to prevent interference with subsequent tasks (draw, etc.)
-            _close_shopping_screen_helper(mino_page)
-
-            if not shopping_execution_success:
-                logger.warning("Shopping execution phase failed, continuing anyway")
-
-        if settings.draw_item:
-            DrawHandler.run(mino_page)
-            # Wait briefly for any overlays to disappear
-            mino_page.wait_for_timeout(1000)
-            close_button = mino_page.locator(".panelBack--wW5qj")
-            try:
-                close_button.click(
-                    force=True
-                )  # Use force to bypass intercepting elements
-            except Exception as e:
-                logger.warning(f"Could not click back button: {e}")
-                # Try alternative method - press Escape key
-                mino_page.keyboard.press("Escape")
-        else:
-            logger.info("Draw data cancelled due to setting.")
-
-        # Phase 2: Gather shopping data (after draw)
-        if settings.gather_shopping_data:
-            logger.info("=== PHASE 2: Shopping Data Gathering (After Draw) ===")
-            gathering_success = ShoppingHandler.gather_shopping_data_only(mino_page)
-
-            # Always close shopping screen whether gathering succeeded or failed
-            # to ensure browser state is clean for future operations
-            _close_shopping_screen_helper(mino_page)
-
-            if gathering_success:
-                # Reschedule hunt tasks after shopping data is updated
-                schedule_hunt_tasks()
+            if settings.run_task:
+                Mission.run(CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data)
+                close_button = mino_page.locator(".panelBack--wW5qj")
+                close_button.click()
+                Notification.send_mission_data_via_email_html(todays_data)
             else:
-                logger.warning("Shopping data gathering phase failed")
-        else:
-            logger.info("Gather data cancelled due to setting.")
+                logger.info("Task cancelled due to setting.")
 
-        save_last_run()
-        NotificationModule.notify(
-            title="ZZZ Bot", message="Task finished", app_icon=CONFIG["ICON_PATH"]
-        )
+            # Phase 1: Execute shopping with existing data (before draw)
+            if settings.gather_shopping_data and settings.exchange_good:
+                logger.info("=== PHASE 1: Shopping Execution (Before Draw) ===")
+                shopping_execution_success = (
+                    ShoppingHandler.execute_shopping_with_existing_data(mino_page)
+                )
 
-        save_context_storage_state(context, CONFIG["STORAGE_PATH"])
-        if not is_exe:
-            input("Press ENTER to exit...")
-        browser.close()
-        if settings.exit_after_run:
-            logger.info("Exiting after run as per the setting.")
-            sys.exit()
+                # Always close shopping screen whether execution succeeded or failed
+                # to prevent interference with subsequent tasks (draw, etc.)
+                _close_shopping_screen_helper(mino_page)
+
+                if not shopping_execution_success:
+                    logger.warning("Shopping execution phase failed, continuing anyway")
+
+            if settings.draw_item:
+                DrawHandler.run(mino_page)
+                # Wait briefly for any overlays to disappear
+                mino_page.wait_for_timeout(1000)
+                close_button = mino_page.locator(".panelBack--wW5qj")
+                try:
+                    close_button.click(
+                        force=True
+                    )  # Use force to bypass intercepting elements
+                except Exception as e:
+                    logger.warning(f"Could not click back button: {e}")
+                    # Try alternative method - press Escape key
+                    mino_page.keyboard.press("Escape")
+            else:
+                logger.info("Draw data cancelled due to setting.")
+
+            # Phase 2: Gather shopping data (after draw)
+            if settings.gather_shopping_data:
+                logger.info("=== PHASE 2: Shopping Data Gathering (After Draw) ===")
+                gathering_success = ShoppingHandler.gather_shopping_data_only(mino_page)
+
+                # Always close shopping screen whether gathering succeeded or failed
+                # to ensure browser state is clean for future operations
+                _close_shopping_screen_helper(mino_page)
+
+                if gathering_success:
+                    # Reschedule hunt tasks after shopping data is updated
+                    schedule_hunt_tasks()
+                else:
+                    logger.warning("Shopping data gathering phase failed")
+            else:
+                logger.info("Gather data cancelled due to setting.")
+
+            save_last_run()
+            NotificationModule.notify(
+                title="ZZZ Bot", message="Task finished", app_icon=CONFIG["ICON_PATH"]
+            )
+
+            with sentry_sdk.start_span(op="auth.storage_state", name="save_storage_state"):
+                save_context_storage_state(context, CONFIG["STORAGE_PATH"])
+            if not is_exe:
+                input("Press ENTER to exit...")
+            browser.close()
+            if settings.exit_after_run:
+                logger.info("Exiting after run as per the setting.")
+                sys.exit()
 
 
 def calculate_next_run() -> datetime:
