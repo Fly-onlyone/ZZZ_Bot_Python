@@ -104,7 +104,7 @@ def _is_blank_account_payload(data: Any) -> bool:
     """Return True when account payload has no credentials."""
     if not isinstance(data, dict):
         return True
-    fields = ("username", "password", "app_password")
+    fields = ("username", "app_password", "hoyo_username", "hoyo_password")
     return not any(str(data.get(field, "")).strip() for field in fields)
 
 

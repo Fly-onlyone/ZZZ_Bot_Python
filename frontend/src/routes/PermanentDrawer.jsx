@@ -18,7 +18,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import PersonIcon from "@mui/icons-material/Person";
 import PasswordIcon from "@mui/icons-material/Password";
-import AppRegistrationIcon from "@mui/icons-material/AppRegistration";
+import CampaignIcon from "@mui/icons-material/Campaign";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import TaskIcon from "@mui/icons-material/Task";
 import PaletteIcon from "@mui/icons-material/Palette";
@@ -26,6 +26,7 @@ import { IconCards } from "@tabler/icons-react";
 
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { AppHeader, NavigationDrawer, ValueAdapter } from "../components";
+import { BACKEND_URL } from "../config/constants";
 import { Logs, ManualLogin, Overview, Redeem, Shopping } from "../pages";
 import { DataLoader } from "../services";
 import { useThemeContext } from "../theme/ThemeContext";
@@ -258,12 +259,27 @@ function AnimatedRoutes() {
               exit="exit"
             >
               <ValueAdapter
+                customSections={{
+                  "HoYo Account": {
+                    icon: (
+                      <img
+                        src={`${BACKEND_URL}/images/Hoyo.png`}
+                        alt="HoYoLab"
+                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "4px" }}
+                      />
+                    ),
+                    fields: ["hoyo_username", "hoyo_password"],
+                  },
+                  "Apprise Notification": {
+                    icon: <CampaignIcon />,
+                    fields: ["username", "app_password"],
+                  },
+                }}
                 customIcons={{
-                  username: <PersonIcon className="text-blue-500" />,
-                  password: <PasswordIcon className="text-red-500" />,
-                  app_password: (
-                    <AppRegistrationIcon className="text-red-500" />
-                  ),
+                  hoyo_username: <PersonIcon />,
+                  hoyo_password: <PasswordIcon />,
+                  username: <PersonIcon />,
+                  app_password: <PasswordIcon />,
                 }}
               />
             </motion.div>

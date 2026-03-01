@@ -156,10 +156,13 @@ class AppSettings(Serializable):
 
 @dataclass
 class Account(Serializable):
-    """Account credentials for email notifications stored in MongoDB."""
+    """Account credentials for HoYoLab login and email notifications."""
 
+    # HoYo Account
+    hoyo_username: str = ""
+    hoyo_password: str = ""
+    # Apprise Notification (Gmail SMTP)
     username: str = ""
-    password: str = ""
     app_password: str = ""
 
 
@@ -407,6 +410,17 @@ def _load_accounts() -> "Account":
 
     data = MongoRepository.get_account()
     if data:
+        # Migrate old-format documents to new hoyo_username/hoyo_password fields
+        migrated = False
+        if "password" in data and not data.get("hoyo_password"):
+            data["hoyo_password"] = data["password"]
+            migrated = True
+        if not data.get("hoyo_username") and data.get("username"):
+            data["hoyo_username"] = data["username"] + "@gmail.com"
+            migrated = True
+        if migrated:
+            MongoRepository.save_account(data)
+
         valid = Account.__annotations__.keys()
         return Account(**{k: v for k, v in data.items() if k in valid})
 
