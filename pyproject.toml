@@ -15,6 +15,7 @@ dependencies = [
     "click==8.3.0",
     "colorama==0.4.6",
     "fastapi==0.120.4",
+    "graphviz>=0.20.3",
     "fastmcp>=0.1.0",
     "greenlet==3.2.4",
     "h11==0.16.0",

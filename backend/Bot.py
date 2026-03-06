@@ -36,6 +36,7 @@ from utils.storage_state_store import (
     save_context_storage_state,
 )
 from core import Notification
+from core.mission_email import schedule_mission_email_delivery
 from api.routes import router
 
 # Configure logger
@@ -79,6 +80,26 @@ def _attach_sentry_warning_handler() -> None:
     warnings_logger = logging.getLogger("py.warnings")
     if not any(isinstance(h, _SentryWarningHandler) for h in warnings_logger.handlers):
         warnings_logger.addHandler(_SentryWarningHandler())
+
+
+def _resolve_log_dir() -> str:
+    """Resolve the runtime log directory to an absolute, writable path."""
+    if is_exe:
+        return os.path.abspath(GlobalVar.resource_path("logs", outside_path=True))
+    return os.path.abspath(os.path.join("backend", "logs"))
+
+
+def _configure_external_log_levels() -> None:
+    """Reduce noisy third-party debug logs in packaged production runs."""
+    if not is_exe:
+        return
+
+    if os.getenv("ZZZ_VERBOSE_EXTERNAL_LOGS", "0").lower() in {"1", "true", "yes"}:
+        return
+
+    logging.getLogger("pymongo").setLevel(logging.WARNING)
+    logging.getLogger("pymongo.serverSelection").setLevel(logging.WARNING)
+    logging.getLogger("pymongo.topology").setLevel(logging.WARNING)
 
 
 # Include API routes from separate module
@@ -184,6 +205,22 @@ def _close_shopping_screen_helper(page):
     return False
 
 
+def _send_mission_email(payload: dict) -> None:
+    """Send mission email with tracing and error logging."""
+
+    import sentry_sdk
+
+    with sentry_sdk.start_span(
+        op="notification.email", name="send_mission_email"
+    ) as span:
+        span.set_data("workflow.phase", "notify")
+        try:
+            Notification.send_mission_data_via_email_html(payload)
+        except Exception as exc:
+            span.set_status("internal_error")
+            logger.error("Mission email send failed: %s", exc, exc_info=True)
+
+
 def playwright_task():
     """Core logic for the bot task."""
     import sentry_sdk
@@ -191,7 +228,8 @@ def playwright_task():
     previous_data, todays_data = prepare_mission_data(
         CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
     )
-    with sentry_sdk.start_transaction(op="automation.run", name="playwright-task"):
+    with sentry_sdk.start_transaction(op="automation.run", name="playwright-task") as tx:
+        tx.set_data("workflow.phase", "automation_run")
         with sync_playwright() as p:
             with sentry_sdk.start_span(op="browser.launch", name="Launch browser"):
                 try:
@@ -242,64 +280,93 @@ def playwright_task():
                     return
 
             if settings.run_task:
-                Mission.run(CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data)
-                close_button = mino_page.locator(".panelBack--wW5qj")
-                close_button.click()
-                Notification.send_mission_data_via_email_html(todays_data)
+                with sentry_sdk.start_span(
+                    op="automation.phase", name="mission_phase"
+                ) as mission_phase_span:
+                    mission_phase_span.set_data("workflow.phase", "mission")
+                    Mission.run(CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data)
+                    close_button = mino_page.locator(".panelBack--wW5qj")
+                    close_button.click()
+
+                schedule_mission_email_delivery(
+                    todays_data,
+                    exit_after_run=settings.exit_after_run,
+                    send_func=_send_mission_email,
+                )
             else:
                 logger.info("Task cancelled due to setting.")
 
             # Phase 1: Execute shopping with existing data (before draw)
             if settings.gather_shopping_data and settings.exchange_good:
                 logger.info("=== PHASE 1: Shopping Execution (Before Draw) ===")
-                shopping_execution_success = (
-                    ShoppingHandler.execute_shopping_with_existing_data(mino_page)
-                )
+                with sentry_sdk.start_span(
+                    op="automation.phase", name="shopping_execute_phase"
+                ) as shopping_execute_span:
+                    shopping_execute_span.set_data("workflow.phase", "shopping_execute")
+                    shopping_execution_success = (
+                        ShoppingHandler.execute_shopping_with_existing_data(mino_page)
+                    )
 
-                # Always close shopping screen whether execution succeeded or failed
-                # to prevent interference with subsequent tasks (draw, etc.)
-                _close_shopping_screen_helper(mino_page)
+                    # Always close shopping screen whether execution succeeded or failed
+                    # to prevent interference with subsequent tasks (draw, etc.)
+                    _close_shopping_screen_helper(mino_page)
 
-                if not shopping_execution_success:
-                    logger.warning("Shopping execution phase failed, continuing anyway")
+                    if not shopping_execution_success:
+                        logger.warning("Shopping execution phase failed, continuing anyway")
 
             if settings.draw_item:
-                DrawHandler.run(mino_page)
-                # Wait briefly for any overlays to disappear
-                mino_page.wait_for_timeout(1000)
-                close_button = mino_page.locator(".panelBack--wW5qj")
-                try:
-                    close_button.click(
-                        force=True
-                    )  # Use force to bypass intercepting elements
-                except Exception as e:
-                    logger.warning(f"Could not click back button: {e}")
-                    # Try alternative method - press Escape key
-                    mino_page.keyboard.press("Escape")
+                with sentry_sdk.start_span(op="automation.phase", name="draw_phase") as draw_phase_span:
+                    draw_phase_span.set_data("workflow.phase", "draw")
+                    draw_result = DrawHandler.run(mino_page)
+                    if not draw_result.get("cleanup_ok", True):
+                        logger.warning("Draw phase left residual UI state before returning")
+
+                    if not DrawHandler.ensure_draw_ui_cleared(mino_page):
+                        logger.warning("Could not fully clear draw dialog before leaving draw screen")
+
+                    mino_page.wait_for_timeout(500)
+                    close_button = mino_page.locator(".panelBack--wW5qj")
+                    try:
+                        close_button.click(
+                            force=True
+                        )  # Use force to bypass intercepting elements
+                    except Exception as e:
+                        logger.warning(f"Could not click back button: {e}")
+                        # Try alternative method - press Escape key
+                        mino_page.keyboard.press("Escape")
             else:
                 logger.info("Draw data cancelled due to setting.")
 
             # Phase 2: Gather shopping data (after draw)
             if settings.gather_shopping_data:
                 logger.info("=== PHASE 2: Shopping Data Gathering (After Draw) ===")
-                gathering_success = ShoppingHandler.gather_shopping_data_only(mino_page)
+                with sentry_sdk.start_span(
+                    op="automation.phase", name="shopping_gather_phase"
+                ) as shopping_gather_span:
+                    shopping_gather_span.set_data("workflow.phase", "shopping_gather")
+                    DrawHandler.ensure_draw_ui_cleared(mino_page)
+                    gathering_success = ShoppingHandler.gather_shopping_data_only(mino_page)
 
-                # Always close shopping screen whether gathering succeeded or failed
-                # to ensure browser state is clean for future operations
-                _close_shopping_screen_helper(mino_page)
+                    # Always close shopping screen whether gathering succeeded or failed
+                    # to ensure browser state is clean for future operations
+                    _close_shopping_screen_helper(mino_page)
 
-                if gathering_success:
-                    # Reschedule hunt tasks after shopping data is updated
-                    schedule_hunt_tasks()
-                else:
-                    logger.warning("Shopping data gathering phase failed")
+                    if gathering_success:
+                        # Reschedule hunt tasks after shopping data is updated
+                        schedule_hunt_tasks()
+                    else:
+                        logger.warning("Shopping data gathering phase failed")
             else:
                 logger.info("Gather data cancelled due to setting.")
 
             save_last_run()
-            NotificationModule.notify(
-                title="ZZZ Bot", message="Task finished", app_icon=CONFIG["ICON_PATH"]
-            )
+            with sentry_sdk.start_span(
+                op="notification.local", name="notify_task_finished"
+            ) as notify_span:
+                notify_span.set_data("workflow.phase", "notify")
+                NotificationModule.notify(
+                    title="ZZZ Bot", message="Task finished", app_icon=CONFIG["ICON_PATH"]
+                )
 
             with sentry_sdk.start_span(op="auth.storage_state", name="save_storage_state"):
                 save_context_storage_state(context, CONFIG["STORAGE_PATH"])
@@ -566,11 +633,7 @@ def configure_sentry_runtime(
         traces_sample_rate_source = "forced:test_event"
         profiles_sample_rate_source = "forced:test_event"
 
-    enable_sentry_logs = os.getenv("SENTRY_ENABLE_LOGS", "1").lower() not in {
-        "0",
-        "false",
-        "no",
-    }
+    enable_sentry_logs = GlobalVar.sentry_logs_enabled_from_env()
 
     sentry_is_active = sentry_sdk.get_client().is_active()
     reconfigured = False
@@ -680,9 +743,11 @@ if __name__ == "__main__":
     )
 
     # === 1. Setup Log Path and Initialize Logger (only in EXE mode) ===
+    log_dir = _resolve_log_dir()
+    os.makedirs(log_dir, exist_ok=True)
+    _configure_external_log_levels()
+
     if is_exe:
-        log_dir = GlobalVar.resource_path("logs", outside_path=True)
-        os.makedirs(log_dir, exist_ok=True)
         root = logging.getLogger()
         root.setLevel(logging.DEBUG)
         root.addHandler(_create_file_handler(os.path.join(log_dir, "app.log")))
@@ -691,8 +756,7 @@ if __name__ == "__main__":
         sys.stderr = StreamToLogger(app_log, logging.ERROR)
     else:
         # Development mode - log to both console and file
-        os.makedirs("backend/logs", exist_ok=True)
-        file_handler = _create_file_handler("backend/logs/app.log")
+        file_handler = _create_file_handler(os.path.join(log_dir, "app.log"))
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
         console_handler.setLevel(logging.INFO)
