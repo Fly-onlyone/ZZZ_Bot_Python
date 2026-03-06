@@ -10,7 +10,9 @@ from utils.screenshot_store import get_screenshot_bytes
 
 def send_mission_data_via_email_html(todays_data):
     import sentry_sdk
-    with sentry_sdk.start_span(op="notification.email", name="send_mission_email"):
+
+    with sentry_sdk.start_span(op="notification.email", name="send_mission_email") as span:
+        span.set_data("workflow.phase", "notify")
         current_date = datetime.now().strftime("%d/%m/%Y")
 
         if todays_data["day"] != current_date:

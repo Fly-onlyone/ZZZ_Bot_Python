@@ -18,6 +18,7 @@ from starlette.responses import JSONResponse, Response
 import repositories.MongoRepository as mongo
 from core.GlobalVar import CONFIG, RedeemItem, accounts, is_exe, resource_path, settings
 from core.ManualLogin import run
+from core.settings_contract import extract_advanced_settings
 
 logger = logging.getLogger(__name__)
 
@@ -403,42 +404,46 @@ def get_settings():
     return asdict(settings)
 
 
-@router.post("/settings")
-async def update_settings(request: Request):
-    """Update application settings dynamically.
+@router.get("/settings/advanced")
+def get_advanced_settings():
+    """Return only the advanced settings edited on the advanced page."""
+    return extract_advanced_settings(asdict(settings))
 
-    Args:
-        request: HTTP request with settings data
 
-    Returns:
-        Success message
-    """
+async def _update_settings_payload(request: Request) -> JSONResponse:
+    """Persist settings updates to the shared settings document."""
     from Bot import calculate_next_run, configure_sentry_runtime, schedule_tasks
     from repositories.connection import get_db, set_runtime_uri
 
     data = await request.json()
+    current_settings = asdict(settings)
+    updated_settings = dict(current_settings)
 
-    applied_updates: dict[str, tuple[object, object]] = {}
     for key, value in data.items():
-        if hasattr(settings, key):
-            applied_updates[key] = (getattr(settings, key), value)
-            setattr(settings, key, value)
+        if key in current_settings:
+            updated_settings[key] = value
+
+    applied_updates = {
+        key: (current_settings[key], updated_settings[key])
+        for key in current_settings
+        if current_settings[key] != updated_settings[key]
+    }
+
+    for key, value in updated_settings.items():
+        setattr(settings, key, value)
 
     try:
         if "mongodb_uri" in applied_updates:
             set_runtime_uri(settings.mongodb_uri)
             get_db()
 
-        # Save and reschedule
         mongo.save_settings(asdict(settings))
     except Exception as exc:
-        # Roll back in-memory settings.
-        for key, (old_value, _) in applied_updates.items():
-            setattr(settings, key, old_value)
+        for key, value in current_settings.items():
+            setattr(settings, key, value)
 
-        # Restore previous Mongo connection if URI update failed.
         if "mongodb_uri" in applied_updates:
-            previous_uri = applied_updates["mongodb_uri"][0]
+            previous_uri = current_settings["mongodb_uri"]
             try:
                 set_runtime_uri(previous_uri if isinstance(previous_uri, str) else "")
                 get_db()
@@ -480,7 +485,6 @@ async def update_settings(request: Request):
             sentry_status["error"],
         )
 
-    # Update next_run when schedule_times change
     if "schedule_times" in applied_updates:
         run_data = mongo.get_last_run() or {}
         next_run = calculate_next_run()
@@ -489,6 +493,25 @@ async def update_settings(request: Request):
         logger.info("Updated next run to: %s", run_data["next_run"])
 
     return JSONResponse({"message": "Settings updated"})
+
+
+@router.post("/settings")
+async def update_settings(request: Request):
+    """Update application settings dynamically.
+
+    Args:
+        request: HTTP request with settings data
+
+    Returns:
+        Success message
+    """
+    return await _update_settings_payload(request)
+
+
+@router.post("/settings/advanced")
+async def update_advanced_settings(request: Request):
+    """Update advanced settings using the shared settings storage."""
+    return await _update_settings_payload(request)
 
 
 @router.get("/check-run-status")

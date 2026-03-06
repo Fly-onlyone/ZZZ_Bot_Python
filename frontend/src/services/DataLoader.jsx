@@ -10,6 +10,10 @@ import {
 const STARTUP_RETRY_COUNT = 12;
 const STARTUP_RETRY_DELAY_MS = 500;
 const STARTUP_MAX_RETRY_DELAY_MS = 3000;
+const RELATED_QUERY_KEYS_BY_ROUTE = {
+  settings: [["settings"], ["settings/advanced"]],
+  "settings/advanced": [["settings"], ["settings/advanced"]],
+};
 
 const getStartupRetryDelay = (attemptIndex) =>
   Math.min(
@@ -125,8 +129,15 @@ export const DataLoader = () => {
 
     return useMutation({
       mutationFn: saveData,
-      onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: [route] });
+      onSuccess: async () => {
+        const relatedQueryKeys = RELATED_QUERY_KEYS_BY_ROUTE[route] || [
+          [route],
+        ];
+        await Promise.all(
+          relatedQueryKeys.map((queryKey) =>
+            queryClient.invalidateQueries({ queryKey })
+          )
+        );
       },
     });
   };

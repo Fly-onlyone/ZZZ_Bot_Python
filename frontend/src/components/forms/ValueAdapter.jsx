@@ -30,6 +30,10 @@ export default function ValueAdapter({
   const [actionLoading, setActionLoading] = React.useState({});
   /** @type {{key: string, label: string, onClick: Function, successMessage?: string | Function, errorMessage?: string}[]} */
   const actions = Array.isArray(extraActions) ? extraActions : [];
+  const resolvedSections =
+    typeof customSections === "function"
+      ? customSections(value)
+      : customSections;
 
   if (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -180,13 +184,13 @@ export default function ValueAdapter({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="mb-10">
-        {customSections
-          ? Object.keys(customSections).map((sectionKey, index) =>
+        {resolvedSections
+          ? Object.keys(resolvedSections).map((sectionKey, index) =>
               renderSection(
                 sectionKey,
-                customSections[sectionKey],
+                resolvedSections[sectionKey],
                 index,
-                Object.keys(customSections).length
+                Object.keys(resolvedSections).length
               )
             )
           : renderStandaloneFields()}
