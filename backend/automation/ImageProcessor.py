@@ -322,17 +322,17 @@ class ImageProcessor:
             arrow_diff = compare_images(buttom_img, arrow_image)
             reward_diff = compare_images(buttom_img, reward_image)
 
-            print(f"Difference with Finished (tick) image: {tick_diff}%")
-            print(f"Difference with Unfinished (arrow) image: {arrow_diff}%")
-            print(f"Difference with Reward image: {reward_diff}%")
+            logger.debug("Difference with Finished (tick) image: %s%%", tick_diff)
+            logger.debug("Difference with Unfinished (arrow) image: %s%%", arrow_diff)
+            logger.debug("Difference with Reward image: %s%%", reward_diff)
 
             diffs = {"Finished": tick_diff, "Unfinished": arrow_diff, "Reward": reward_diff}
 
             closest_state = min(diffs, key=diffs.get)
 
             if diffs[closest_state] < 5:  # Set a threshold for detection
-                print(f"Button detected as {closest_state}")
+                logger.info("Mission button detected as %s", closest_state)
                 return closest_state
             else:
-                print("Unknown button state")
+                logger.warning("Mission button state is unknown")
                 return "unknown"

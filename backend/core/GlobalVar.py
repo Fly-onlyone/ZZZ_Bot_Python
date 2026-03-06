@@ -12,6 +12,7 @@ from starlette.staticfiles import StaticFiles
 
 from utils.DataHandler import Serializable
 from utils.StringUtil import clean_leading_dots
+from core.settings_compat import normalize_hunt_early_exit_default
 
 logger = logging.getLogger(__name__)
 
@@ -134,10 +135,10 @@ def generate_config(outside_folder, exclude_keys=None):
 
 @dataclass
 class AppSettings(Serializable):
-
     schedule_times: List[str] = field(default_factory=lambda: ["08:00", "20:00"])
     exit_after_run: bool = False
     open_web_ui: bool = True
+    autostart_on_login: bool | None = None
     hide_browser: bool = False
     run_task: bool = True
     gather_shopping_data: bool = True
@@ -146,6 +147,10 @@ class AppSettings(Serializable):
     draw_item: bool = False
     enable_hunt_mode: bool = False
     stop_on_failed_exchange: bool = False
+    hunt_poll_max_wait_seconds: int = 180
+    hunt_poll_interval_seconds: int = 1
+    hunt_poll_backoff_enabled: bool = True
+    hunt_early_exit_on_unavailable: bool = False
     theme: str = "purple"  # purple, green, blue
     sentry_dsn: str = ""  # Override SENTRY_DSN env var if set
     sentry_send_test_event: bool = False
@@ -265,12 +270,24 @@ def resolve_sentry_sample_rate(
 
     return fallback_value, "fallback"
 
-
 def _env_flag_enabled(env_name: str, default_value: bool = True) -> bool:
     raw_value = os.getenv(env_name)
     if raw_value is None:
         return default_value
     return raw_value.lower() not in {"0", "false", "no"}
+
+
+def default_sentry_logs_enabled() -> bool:
+    """Keep Sentry log collection quieter in packaged production builds by default."""
+    return not is_exe
+
+
+def sentry_logs_enabled_from_env() -> bool:
+    """Resolve Sentry log collection using the runtime default for the current mode."""
+    return _env_flag_enabled(
+        "SENTRY_ENABLE_LOGS",
+        default_value=default_sentry_logs_enabled(),
+    )
 
 
 def _init_startup_sentry_if_configured() -> None:
@@ -298,7 +315,7 @@ def _init_startup_sentry_if_configured() -> None:
         "SENTRY_PROFILES_SAMPLE_RATE",
         default_sample_rate,
     )
-    enable_logs = _env_flag_enabled("SENTRY_ENABLE_LOGS", default_value=True)
+    enable_logs = sentry_logs_enabled_from_env()
 
     try:
         sentry_sdk.init(
@@ -359,9 +376,9 @@ def _load_settings() -> "AppSettings":
     )
     from utils.migrate_json_to_mongo import migrate_if_needed
 
+    valid = AppSettings.__annotations__.keys()
     data = MongoRepository.get_settings()
     if data:
-        valid = AppSettings.__annotations__.keys()
         loaded = AppSettings(**{k: v for k, v in data.items() if k in valid})
     else:
         loaded = AppSettings()
@@ -395,11 +412,30 @@ def _load_settings() -> "AppSettings":
 
     # Read settings from the active database after applying runtime URI.
     active_data = MongoRepository.get_settings()
-    if active_data:
-        valid = AppSettings.__annotations__.keys()
-        return AppSettings(**{k: v for k, v in active_data.items() if k in valid})
+    source_data = active_data if active_data is not None else data
+    normalized_data = normalize_hunt_early_exit_default(
+        source_data,
+        has_marker=MongoRepository.has_app_metadata_marker,
+        set_marker=MongoRepository.set_app_metadata_marker,
+        save_settings=MongoRepository.save_settings,
+        logger=logger,
+    )
+    if normalized_data:
+        active_loaded = AppSettings(
+            **{k: v for k, v in normalized_data.items() if k in valid}
+        )
+        if active_data is None or any(key not in valid for key in normalized_data):
+            MongoRepository.save_settings(asdict(active_loaded))
+        return active_loaded
 
     # Ensure settings document exists in the active database.
+    normalize_hunt_early_exit_default(
+        None,
+        has_marker=MongoRepository.has_app_metadata_marker,
+        set_marker=MongoRepository.set_app_metadata_marker,
+        save_settings=MongoRepository.save_settings,
+        logger=logger,
+    )
     MongoRepository.save_settings(asdict(loaded))
     return loaded
 
