@@ -224,6 +224,10 @@ class SettingsRepository(JsonFileRepository):
                 "draw_item": True,
                 "enable_hunt_mode": False,
                 "stop_on_failed_exchange": False,
+                "hunt_poll_max_wait_seconds": 180,
+                "hunt_poll_interval_seconds": 1,
+                "hunt_poll_backoff_enabled": True,
+                "hunt_early_exit_on_unavailable": False,
                 "theme": "purple",
             },
         )

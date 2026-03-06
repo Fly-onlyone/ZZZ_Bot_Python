@@ -15,6 +15,7 @@ from repositories.connection import get_db
 logger = logging.getLogger(__name__)
 
 _indexed_db_identity: tuple[int, str] | None = None
+APP_METADATA_COLLECTION = "app_metadata"
 
 
 # ============================================================================
@@ -78,6 +79,19 @@ def save_settings(data: Dict) -> None:
     except Exception:
         logger.error("save_settings: failed to upsert settings", exc_info=True)
         raise
+
+
+def has_app_metadata_marker(marker_id: str) -> bool:
+    doc = get_db()[APP_METADATA_COLLECTION].find_one({"_id": marker_id}, {"_id": 1})
+    return doc is not None
+
+
+def set_app_metadata_marker(marker_id: str) -> None:
+    get_db()[APP_METADATA_COLLECTION].find_one_and_replace(
+        {"_id": marker_id},
+        {"_id": marker_id, "updated_at": _now_utc()},
+        upsert=True,
+    )
 
 
 # ============================================================================

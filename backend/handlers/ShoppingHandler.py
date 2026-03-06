@@ -14,6 +14,7 @@ from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeout
 from automation import RedeemAutofill, RetryHelper
 from automation.ImageProcessor import find_correct_avatar
 from automation.Selectors import (
+    AVATAR_SELECTOR,
     SHOPPING_SCREEN,
     SHOPPING_CURRENT_POINTS,
     SHOPPING_ITEM,
@@ -43,6 +44,9 @@ logger = logging.getLogger(__name__)
 SHOPPING_BUTTON_SELECTOR = 1  # nth image role for shopping button
 TIME_PATTERN = re.compile(r"^\d+:\d{2}:\d{2}$")  # Allow any number of digits for hours
 EXCHANGE_BUTTON_TEXT = "Exchange"
+SHOPPING_OPEN_RETRY_WAIT = 1000
+SHOPPING_OPEN_MAX_RETRIES = 5
+SHOPPING_MODAL_CLOSE_TIMEOUT = 2000
 
 
 # ===== UTILITY FUNCTIONS =====
@@ -57,15 +61,80 @@ def open_shopping_screen(page: Page) -> bool:
     Returns:
         True if shopping screen opened successfully, False otherwise
     """
+    def _shopping_ready() -> bool:
+        duration = page.locator(SHOPPING_DURATION)
+        points = page.locator(SHOPPING_CURRENT_POINTS)
+        avatars = page.locator(AVATAR_SELECTOR)
+
+        try:
+            if duration.count() > 0 and duration.first.is_visible(timeout=1000):
+                return True
+        except Exception:
+            pass
+
+        try:
+            return (
+                points.count() > 0
+                and avatars.count() > 0
+                and points.first.is_visible(timeout=1000)
+                and avatars.first.is_visible(timeout=1000)
+            )
+        except Exception:
+            return False
+
+    def _close_blocking_reward_dialog() -> None:
+        close_button = page.locator(SHOPPING_CLOSE_BUTTON).first
+        try:
+            if close_button.count() > 0 and close_button.is_visible(timeout=1000):
+                logger.info("Closing lingering reward dialog before opening shopping")
+                close_button.click(force=True, timeout=SHOPPING_MODAL_CLOSE_TIMEOUT)
+                page.wait_for_timeout(500)
+        except Exception as close_error:
+            logger.debug("No blocking reward dialog to close: %s", close_error)
+
+    if _shopping_ready():
+        logger.info("Shopping screen already open")
+        return True
+
     shopping_button = page.get_by_role("img").nth(SHOPPING_BUTTON_SELECTOR)
-    shopping_screen = page.locator(SHOPPING_SCREEN)
 
-    if not RetryHelper.retry_until_screen_appears(shopping_screen, shopping_button):
-        logger.error("Failed to open shopping screen")
-        return False
+    for attempt in range(1, SHOPPING_OPEN_MAX_RETRIES + 1):
+        _close_blocking_reward_dialog()
 
-    logger.info("Shopping screen opened")
-    return True
+        try:
+            shopping_button.click(force=True, timeout=5000)
+            page.wait_for_timeout(SHOPPING_OPEN_RETRY_WAIT)
+        except Exception as exc:
+            logger.warning(
+                "Shopping button click failed on attempt %s/%s: %s",
+                attempt,
+                SHOPPING_OPEN_MAX_RETRIES,
+                exc,
+            )
+
+        if _shopping_ready():
+            logger.info("Shopping screen opened")
+            return True
+
+        try:
+            page.wait_for_load_state("domcontentloaded", timeout=3000)
+        except Exception:
+            pass
+
+        if _shopping_ready():
+            logger.info("Shopping screen opened")
+            return True
+
+    logger.error("Failed to open shopping screen")
+    logger.error(
+        "Shopping diagnostics: wrapper_count=%s, duration_count=%s, point_count=%s, avatar_count=%s, image_count=%s",
+        page.locator(SHOPPING_SCREEN).count(),
+        page.locator(SHOPPING_DURATION).count(),
+        page.locator(SHOPPING_CURRENT_POINTS).count(),
+        page.locator(AVATAR_SELECTOR).count(),
+        page.get_by_role("img").count(),
+    )
+    return False
 
 
 def select_zzz_avatar(page: Page) -> bool:
@@ -296,6 +365,7 @@ def _extract_current_points(page: Page) -> int:
         ValueError: If points cannot be extracted
     """
     logger.info("Extracting current points...")
+    point_text = ""
 
     try:
         point_element = page.locator(SHOPPING_CURRENT_POINTS)
@@ -329,9 +399,7 @@ def _extract_current_points(page: Page) -> int:
 
     except (ValueError, AttributeError, IndexError) as e:
         logger.error(f"Failed to extract points: {e}")
-        logger.error(
-            f"Point text was: '{point_text if 'point_text' in locals() else 'N/A'}'"
-        )
+        logger.error(f"Point text was: '{point_text or 'N/A'}'")
         raise ValueError(
             f"Could not parse point balance from element {SHOPPING_CURRENT_POINTS}"
         ) from e
@@ -418,6 +486,7 @@ def run(page: Page) -> None:
     logger.info("Starting shopping automation...")
 
     with sentry_sdk.start_span(op="automation.shopping", name="shopping-handler") as span:
+        span.set_data("workflow.phase", "shopping")
         try:
             # Open shopping screen
             with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
@@ -619,6 +688,7 @@ def execute_shopping_with_existing_data(page: Page) -> bool:
     logger.info("Starting shopping execution phase (before draw)...")
 
     with sentry_sdk.start_span(op="automation.shopping", name="shopping-execute") as span:
+        span.set_data("workflow.phase", "shopping_execute")
         try:
             # Open shopping screen
             with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
@@ -671,6 +741,7 @@ def gather_shopping_data_only(page: Page) -> bool:
     logger.info("Starting shopping data gathering phase (after draw)...")
 
     with sentry_sdk.start_span(op="automation.shopping", name="shopping-gather") as span:
+        span.set_data("workflow.phase", "shopping_gather")
         try:
             # Open shopping screen
             with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):

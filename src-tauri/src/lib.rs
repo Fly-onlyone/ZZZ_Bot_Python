@@ -10,6 +10,18 @@ use tauri::{
     AppHandle, Manager, RunEvent, WindowEvent,
 };
 use tauri_plugin_shell::{process::CommandChild, process::CommandEvent, ShellExt};
+use tauri_plugin_autostart::ManagerExt as _;
+
+const AUTOSTART_RECONCILE_ATTEMPTS: u32 = 20;
+const AUTOSTART_RECONCILE_DELAY_MS: u64 = 500;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AutostartSyncAction {
+    None,
+    Persist(bool),
+    Enable,
+    Disable,
+}
 
 #[derive(Debug)]
 struct AppRuntime {
@@ -68,6 +80,31 @@ fn read_settings(runtime: &AppRuntime) -> Result<Value, String> {
     response.json::<Value>().map_err(|error| error.to_string())
 }
 
+fn write_settings(runtime: &AppRuntime, payload: &Value) -> Result<(), String> {
+    let client = http_client()?;
+    client
+        .post(format!("{}/settings", runtime.backend_url))
+        .json(payload)
+        .send()
+        .map_err(|error| error.to_string())?
+        .error_for_status()
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+fn update_setting_value(runtime: &AppRuntime, key: &str, value: Value) -> Result<(), String> {
+    let mut payload = read_settings(runtime)?;
+
+    if let Some(object) = payload.as_object_mut() {
+        object.insert(key.to_string(), value);
+    } else {
+        return Err("Settings payload is not a JSON object".to_string());
+    }
+
+    write_settings(runtime, &payload)
+}
+
 fn get_tray_settings(runtime: &AppRuntime) -> TraySettings {
     if let Ok(settings) = read_settings(runtime) {
         let open_web_ui = settings
@@ -89,8 +126,7 @@ fn get_tray_settings(runtime: &AppRuntime) -> TraySettings {
 }
 
 fn toggle_backend_setting(runtime: &AppRuntime, key: &str) -> Result<bool, String> {
-    let client = http_client()?;
-    let mut payload = read_settings(runtime)?;
+    let payload = read_settings(runtime)?;
 
     let current_value = payload
         .get(key)
@@ -98,21 +134,82 @@ fn toggle_backend_setting(runtime: &AppRuntime, key: &str) -> Result<bool, Strin
         .ok_or_else(|| format!("Setting '{key}' is not a boolean"))?;
     let next_value = !current_value;
 
-    if let Some(object) = payload.as_object_mut() {
-        object.insert(key.to_string(), Value::Bool(next_value));
-    } else {
-        return Err("Settings payload is not a JSON object".to_string());
+    update_setting_value(runtime, key, Value::Bool(next_value))?;
+    Ok(next_value)
+}
+
+fn determine_autostart_sync_action(
+    persisted_preference: Option<bool>,
+    live_enabled: bool,
+) -> AutostartSyncAction {
+    match (persisted_preference, live_enabled) {
+        (None, value) => AutostartSyncAction::Persist(value),
+        (Some(true), false) => AutostartSyncAction::Enable,
+        (Some(false), true) => AutostartSyncAction::Disable,
+        _ => AutostartSyncAction::None,
+    }
+}
+
+fn reconcile_autostart_preference_once(app: &AppHandle) -> Result<AutostartSyncAction, String> {
+    let runtime = app.state::<AppRuntime>();
+    let settings = read_settings(&runtime)?;
+    let persisted_preference = settings.get("autostart_on_login").and_then(Value::as_bool);
+    let autolaunch = app.autolaunch();
+    let live_enabled = autolaunch.is_enabled().map_err(|error| error.to_string())?;
+    let action = determine_autostart_sync_action(persisted_preference, live_enabled);
+
+    match action {
+        AutostartSyncAction::Persist(value) => {
+            update_setting_value(&runtime, "autostart_on_login", Value::Bool(value))?;
+        }
+        AutostartSyncAction::Enable => {
+            autolaunch.enable().map_err(|error| error.to_string())?;
+        }
+        AutostartSyncAction::Disable => {
+            autolaunch.disable().map_err(|error| error.to_string())?;
+        }
+        AutostartSyncAction::None => {}
     }
 
-    client
-        .post(format!("{}/settings", runtime.backend_url))
-        .json(&payload)
-        .send()
-        .map_err(|error| error.to_string())?
-        .error_for_status()
-        .map_err(|error| error.to_string())?;
+    Ok(action)
+}
 
-    Ok(next_value)
+fn reconcile_autostart_preference(app: AppHandle) {
+    std::thread::spawn(move || {
+        for attempt in 1..=AUTOSTART_RECONCILE_ATTEMPTS {
+            match reconcile_autostart_preference_once(&app) {
+                Ok(AutostartSyncAction::None) => return,
+                Ok(AutostartSyncAction::Persist(value)) => {
+                    log::info!(
+                        "Persisted current autostart state during compatibility migration: {}",
+                        value
+                    );
+                    return;
+                }
+                Ok(AutostartSyncAction::Enable) => {
+                    log::info!("Re-enabled autostart from persisted preference");
+                    return;
+                }
+                Ok(AutostartSyncAction::Disable) => {
+                    log::info!("Disabled autostart to match persisted preference");
+                    return;
+                }
+                Err(error) => {
+                    if attempt == AUTOSTART_RECONCILE_ATTEMPTS {
+                        log::warn!(
+                            "Failed to reconcile autostart preference after {} attempts: {}",
+                            AUTOSTART_RECONCILE_ATTEMPTS,
+                            error
+                        );
+                        return;
+                    }
+                    std::thread::sleep(Duration::from_millis(
+                        AUTOSTART_RECONCILE_DELAY_MS,
+                    ));
+                }
+            }
+        }
+    });
 }
 
 fn trigger_playwright_run(runtime: &AppRuntime) -> Result<(), String> {
@@ -429,6 +526,7 @@ pub fn run() {
             }
 
             spawn_backend_sidecar(app);
+            reconcile_autostart_preference(app.handle().clone());
             build_tray(app)?;
 
             // Hide window on autostart launch so the app starts minimized to tray.
@@ -463,4 +561,53 @@ pub fn run() {
         }
         _ => {}
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{determine_autostart_sync_action, AutostartSyncAction};
+
+    #[test]
+    fn autostart_sync_persists_existing_enabled_state() {
+        assert_eq!(
+            determine_autostart_sync_action(None, true),
+            AutostartSyncAction::Persist(true)
+        );
+    }
+
+    #[test]
+    fn autostart_sync_persists_existing_disabled_state() {
+        assert_eq!(
+            determine_autostart_sync_action(None, false),
+            AutostartSyncAction::Persist(false)
+        );
+    }
+
+    #[test]
+    fn autostart_sync_enables_when_preference_requires_it() {
+        assert_eq!(
+            determine_autostart_sync_action(Some(true), false),
+            AutostartSyncAction::Enable
+        );
+    }
+
+    #[test]
+    fn autostart_sync_disables_when_preference_requires_it() {
+        assert_eq!(
+            determine_autostart_sync_action(Some(false), true),
+            AutostartSyncAction::Disable
+        );
+    }
+
+    #[test]
+    fn autostart_sync_noops_when_state_matches_preference() {
+        assert_eq!(
+            determine_autostart_sync_action(Some(true), true),
+            AutostartSyncAction::None
+        );
+        assert_eq!(
+            determine_autostart_sync_action(Some(false), false),
+            AutostartSyncAction::None
+        );
+    }
 }

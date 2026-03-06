@@ -41,12 +41,32 @@ CLOSE_DIALOG_SELECTOR = ".gainClose-7Q0hz8"
 DRAW_RESULT_WAIT = 5000
 CLOSE_DIALOG_TIMEOUT = 2000
 REDEEM_CODE_WAIT = 3000  # Wait for redemption code element
+SUCCESS_DIALOG_TIMEOUT = 5000
+DRAW_DIALOG_SETTLE_WAIT = 500
 
 # Reward constants
 UNKNOWN_REWARD = "Unknown reward"
 
 
-def _find_reward_image(page: Page, draw_number: int) -> Optional[Locator]:
+def _wait_for_success_dialog(page: Page, draw_number: int) -> Optional[Locator]:
+    """Wait for the draw success dialog container to become visible."""
+    success_dialog = page.locator(SUCCESS_DIALOG_SELECTOR).filter(
+        has_text=SUCCESS_DIALOG_TEXT
+    ).first
+
+    try:
+        success_dialog.wait_for(state="visible", timeout=SUCCESS_DIALOG_TIMEOUT)
+        logger.debug("Draw %s: Success dialog is visible", draw_number)
+        return success_dialog
+    except PlaywrightTimeoutError:
+        logger.warning(
+            "Draw %s: Success dialog did not become visible after clicking draw",
+            draw_number,
+        )
+        return None
+
+
+def _find_reward_image(success_dialog: Locator, draw_number: int) -> Optional[Locator]:
     """Find the reward image element using multiple selectors with escalating timeouts.
 
     Args:
@@ -57,11 +77,7 @@ def _find_reward_image(page: Page, draw_number: int) -> Optional[Locator]:
         Locator for the reward image if found, None otherwise
     """
     # Try multiple selectors in order of preference
-    selectors_to_try = [
-        REWARD_IMAGE_SELECTOR,
-        REWARD_IMAGE_SELECTOR_ALT,
-        f"{SUCCESS_DIALOG_SELECTOR} img",  # Any img in success dialog
-    ]
+    selectors_to_try = [REWARD_IMAGE_SELECTOR, REWARD_IMAGE_SELECTOR_ALT, "img"]
 
     # Escalating timeouts: 3s → 5s → 8s to handle animation + CDN load delays
     timeouts = [3000, 5000, 8000]
@@ -69,7 +85,7 @@ def _find_reward_image(page: Page, draw_number: int) -> Optional[Locator]:
     for selector_idx, selector in enumerate(selectors_to_try):
         timeout = timeouts[min(selector_idx, len(timeouts) - 1)]
         try:
-            reward_image = page.locator(selector)
+            reward_image = success_dialog.locator(selector)
 
             # Wait for element with escalating timeout
             if reward_image.count() > 0:
@@ -130,7 +146,7 @@ def _save_debug_artifacts(page: Page, draw_number: int) -> None:
         logger.error(f"Failed to save DOM snapshot: {e}")
 
 
-def _extract_redemption_code(page: Page, draw_number: int) -> Optional[str]:
+def _extract_redemption_code(success_dialog: Locator, draw_number: int) -> Optional[str]:
     """Extract redemption code from the reward dialog.
 
     Args:
@@ -145,7 +161,7 @@ def _extract_redemption_code(page: Page, draw_number: int) -> Optional[str]:
 
     for selector_idx, selector in enumerate(selectors_to_try):
         try:
-            code_element = page.locator(selector)
+            code_element = success_dialog.locator(selector)
 
             # Check if element exists in DOM
             if code_element.count() == 0:
@@ -214,6 +230,43 @@ def _extract_redemption_code(page: Page, draw_number: int) -> Optional[str]:
         f"Draw {draw_number}: Could not extract redemption code after trying all methods"
     )
     return None
+
+
+def ensure_draw_ui_cleared(page: Page) -> bool:
+    """Close any lingering draw result dialog before the next automation phase."""
+    success_dialog = page.locator(SUCCESS_DIALOG_SELECTOR).first
+    close_button = page.locator(CLOSE_DIALOG_SELECTOR).first
+
+    for attempt in range(1, 4):
+        try:
+            dialog_visible = success_dialog.count() > 0 and success_dialog.is_visible(
+                timeout=500
+            )
+        except Exception:
+            dialog_visible = False
+
+        if not dialog_visible:
+            return True
+
+        try:
+            if close_button.count() > 0 and close_button.is_visible(timeout=1000):
+                close_button.click(force=True, timeout=CLOSE_DIALOG_TIMEOUT)
+            else:
+                page.keyboard.press("Escape")
+            page.wait_for_timeout(DRAW_DIALOG_SETTLE_WAIT)
+        except Exception as exc:
+            logger.debug(
+                "Attempt %s to close draw dialog failed during cleanup: %s",
+                attempt,
+                exc,
+            )
+
+    try:
+        return not (
+            success_dialog.count() > 0 and success_dialog.is_visible(timeout=500)
+        )
+    except Exception:
+        return True
 
 
 def _calculate_available_draws(page: Page) -> Optional[int]:
@@ -304,12 +357,8 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
         # Wait for result
         page.wait_for_timeout(DRAW_RESULT_WAIT)
 
-        # Check for success dialog
-        success_dialog = page.get_by_text(SUCCESS_DIALOG_TEXT)
-        if not success_dialog.is_visible(timeout=3000):
-            logger.warning(
-                f"Draw {draw_number}: Draw result dialog not visible after clicking button"
-            )
+        success_dialog = _wait_for_success_dialog(page, draw_number)
+        if success_dialog is None:
 
             # This usually means no draws are actually available (page data was stale)
             if draw_number == 1:
@@ -334,7 +383,7 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
         page.wait_for_timeout(2000)
 
         # Find and detect reward from image
-        reward_image = _find_reward_image(page, draw_number)
+        reward_image = _find_reward_image(success_dialog, draw_number)
 
         if reward_image is None:
             logger.error(
@@ -353,7 +402,7 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
             logger.info(f"Draw {draw_number}: Received '{reward_name}'")
 
             # Get and process redemption code
-            redeem_code = _extract_redemption_code(page, draw_number)
+            redeem_code = _extract_redemption_code(success_dialog, draw_number)
             if redeem_code:
                 try:
                     RedeemAutofill.run(page.context, redeem_code, reward_name)
@@ -363,58 +412,26 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
                 except Exception as e:
                     logger.error(f"Error running autofill for '{reward_name}': {e}")
             else:
-                logger.warning(
-                    f"No redemption code found for '{reward_name}' (may not require one)"
+                logger.info(
+                    "Draw %s: No redemption code found for '%s' (points-only reward or code not required)",
+                    draw_number,
+                    reward_name,
                 )
-
-        # Close dialog
-        try:
-            close_button = page.locator(CLOSE_DIALOG_SELECTOR)
-            # Use force=True to bypass any intercepting elements
-            close_button.click(force=True, timeout=CLOSE_DIALOG_TIMEOUT)
-            logger.debug("Closed draw dialog")
-        except PlaywrightTimeoutError:
-            logger.warning(
-                "Close button not found, dialog may have closed automatically"
-            )
-        except Exception as e:
-            logger.warning(f"Error closing dialog: {e}, attempting to continue")
 
         return True
 
     except PlaywrightTimeoutError as e:
         logger.error(f"Timeout during draw {draw_number}: {e}")
-
-        # Try to close any open dialog before returning
-        try:
-            logger.debug("Attempting to close any open dialog after timeout")
-            close_button = page.locator(CLOSE_DIALOG_SELECTOR)
-            if close_button.count() > 0:
-                close_button.click(force=True, timeout=2000)
-                logger.debug("Closed dialog after timeout")
-                page.wait_for_timeout(500)
-        except Exception as cleanup_error:
-            logger.debug(f"Could not close dialog after timeout: {cleanup_error}")
-
         return False
     except Exception as e:
         logger.error(f"Error during draw {draw_number}: {e}")
-
-        # Try to close any open dialog before returning
-        try:
-            logger.debug("Attempting to close any open dialog after error")
-            close_button = page.locator(CLOSE_DIALOG_SELECTOR)
-            if close_button.count() > 0:
-                close_button.click(force=True, timeout=2000)
-                logger.debug("Closed dialog after error")
-                page.wait_for_timeout(500)
-        except Exception as cleanup_error:
-            logger.debug(f"Could not close dialog after error: {cleanup_error}")
-
         return False
+    finally:
+        if not ensure_draw_ui_cleared(page):
+            logger.warning("Draw %s: Could not fully clear reward dialog", draw_number)
 
 
-def run(page: Page) -> None:
+def run(page: Page) -> dict[str, int | bool]:
     """Main entry point for prize draw automation.
 
     Args:
@@ -423,8 +440,15 @@ def run(page: Page) -> None:
     import sentry_sdk
 
     logger.info("Starting prize draw automation...")
+    result: dict[str, int | bool] = {
+        "screen_opened": False,
+        "successful_draws": 0,
+        "failed_draws": 0,
+        "cleanup_ok": True,
+    }
 
     with sentry_sdk.start_span(op="automation.draw", name="draw-handler") as span:
+        span.set_data("workflow.phase", "draw")
         try:
             # Log diagnostic information before attempting to open screen
             logger.info(f"Looking for draw button at image index {DRAW_BUTTON_INDEX}")
@@ -449,14 +473,17 @@ def run(page: Page) -> None:
                 logger.error(
                     "Check MongoDB screenshot assets for more details"
                 )
-                return
+                result["cleanup_ok"] = ensure_draw_ui_cleared(page)
+                return result
 
             logger.info("Prize draw screen opened")
+            result["screen_opened"] = True
 
             # Verify correct lottery (ZZZ)
             if not find_correct_lottery_logo(page):
                 logger.error("ZZZ lottery not found or selected")
-                return
+                result["cleanup_ok"] = ensure_draw_ui_cleared(page)
+                return result
 
             logger.info("ZZZ lottery verified")
 
@@ -474,7 +501,8 @@ def run(page: Page) -> None:
                     message="Could not calculate available draws",
                     app_icon=CONFIG.get("SAD_ICON", ""),
                 )
-                return
+                result["cleanup_ok"] = ensure_draw_ui_cleared(page)
+                return result
 
             if available_draws <= 0:
                 logger.info(
@@ -485,7 +513,8 @@ def run(page: Page) -> None:
                     message="No draws available (insufficient points or limit reached)",
                     app_icon=CONFIG.get("ICON_PATH", ""),
                 )
-                return
+                result["cleanup_ok"] = ensure_draw_ui_cleared(page)
+                return result
 
             logger.info(f"Starting {available_draws} prize draw(s)")
 
@@ -526,6 +555,10 @@ def run(page: Page) -> None:
                 if i < available_draws:
                     page.wait_for_timeout(1000)
 
+            result["successful_draws"] = successful_draws
+            result["failed_draws"] = failed_draws
+            result["cleanup_ok"] = ensure_draw_ui_cleared(page)
+
             # Log summary
             logger.info(
                 f"Prize draw completed: {successful_draws} successful, "
@@ -542,9 +575,12 @@ def run(page: Page) -> None:
         except Exception as e:
             span.set_status("internal_error")
             logger.error(f"Prize draw automation failed: {e}", exc_info=True)
+            result["cleanup_ok"] = ensure_draw_ui_cleared(page)
             NotificationHelper.notify(
                 title="ZZZ Bot - Error",
                 message="Prize draw automation failed",
                 app_icon=CONFIG.get("SAD_ICON", ""),
             )
             raise
+
+    return result
