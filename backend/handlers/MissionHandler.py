@@ -4,6 +4,7 @@ Handles daily check-ins, mission completion, and reward collection.
 """
 
 import logging
+import time
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -38,11 +39,15 @@ DIALOG_WAIT_TIMEOUT = 5000
 MISSION_CLICK_WAIT = 2000
 RETRY_WAIT = 1000
 CHECK_IN_READY_TIMEOUT = 10000
+CHECK_IN_POLL_INTERVAL = 250
 
 # Status messages
 STATUS_SUCCESS = "Login Success"
 STATUS_FAILED = "Login Failed"
 STATUS_LINK_NOT_OPENED = "Link isn't opened"
+POPUP_OUTCOME_NONE = "none"
+POPUP_OUTCOME_SUCCESS = "success"
+POPUP_OUTCOME_FAILED = "failed"
 
 
 def _close_dialog_if_visible(page: Page) -> None:
@@ -62,6 +67,36 @@ def _close_dialog_if_visible(page: Page) -> None:
         logger.warning(f"Error closing dialog: {e}")
 
 
+def _locator_is_visible(locator: Locator, timeout: int = 500) -> bool:
+    """Return whether the first locator match is visible without raising."""
+    try:
+        return locator.first.is_visible(timeout=timeout)
+    except Exception:
+        return False
+
+
+def _record_check_in_failure(todays_data: Dict, message: str) -> None:
+    """Persist and report a check-in failure once the popup is known to exist."""
+    todays_data["check_in"] = STATUS_FAILED
+    logger.error(message)
+
+
+def _wait_for_check_in_ready(day_btn: Locator, success_msg: Locator) -> str:
+    """Wait until the check-in popup is actionable or already completed."""
+    deadline = time.monotonic() + (CHECK_IN_READY_TIMEOUT / 1000)
+
+    while time.monotonic() < deadline:
+        if _locator_is_visible(success_msg):
+            return STATUS_SUCCESS
+        if _locator_is_visible(day_btn):
+            return "ready"
+        day_btn.page.wait_for_timeout(CHECK_IN_POLL_INTERVAL)
+
+    if _locator_is_visible(success_msg):
+        return STATUS_SUCCESS
+    return "timeout"
+
+
 def handle_check_in(new_page: Page, todays_data: Dict) -> None:
     """Perform daily check-in and update status.
 
@@ -75,41 +110,55 @@ def handle_check_in(new_page: Page, todays_data: Dict) -> None:
         return
 
     logger.info("Starting check-in process...")
-    new_page.wait_for_load_state("domcontentloaded", timeout=CHECK_IN_READY_TIMEOUT)
-    new_page.wait_for_timeout(1000)
+    try:
+        new_page.wait_for_load_state("domcontentloaded", timeout=3000)
+    except PlaywrightTimeoutError:
+        logger.debug("Check-in popup did not report domcontentloaded before locator wait")
+    new_page.wait_for_timeout(500)
 
     _close_dialog_if_visible(new_page)
 
     # Compute current day and locate button
     today = datetime.now().day
     day_text = f"Day {today}"
-    logger.info(f"Attempting check-in for {day_text}")
-
     day_btn = new_page.get_by_text(day_text, exact=True)
     success_msg = new_page.locator(DIALOG_BODY_SELECTOR)
 
-    try:
-        day_btn.wait_for(state="visible", timeout=CHECK_IN_READY_TIMEOUT)
-    except PlaywrightTimeoutError:
-        if success_msg.count() > 0 and success_msg.first.is_visible(timeout=1000):
-            logger.info("Check-in success dialog already visible")
-            todays_data["check_in"] = STATUS_SUCCESS
-            return
-        logger.warning("Check-in button for %s did not become visible in time", day_text)
-        todays_data["check_in"] = STATUS_FAILED
+    readiness = _wait_for_check_in_ready(day_btn, success_msg)
+    if readiness == STATUS_SUCCESS:
+        logger.info("Check-in success dialog already visible")
+        todays_data["check_in"] = STATUS_SUCCESS
         return
 
-    # Retry until success message appears
-    clicked = RetryHelper.retry_until_screen_appears(success_msg, day_btn)
+    if readiness != "ready":
+        _record_check_in_failure(
+            todays_data,
+            f"Check-in popup opened but '{day_text}' never became actionable",
+        )
+        return
 
-    if clicked:
+    logger.info(f"Attempting check-in for {day_text}")
+
+    # Retry until success message appears
+    try:
+        clicked = RetryHelper.retry_until_screen_appears(success_msg, day_btn)
+    except Exception as exc:
+        _record_check_in_failure(
+            todays_data,
+            f"Check-in popup opened but retry flow failed: {exc}",
+        )
+        return
+
+    if clicked or _locator_is_visible(success_msg, timeout=1000):
         logger.info("Check-in successful!")
         todays_data["check_in"] = STATUS_SUCCESS
         asset_id = save_locator_screenshot(success_msg, "login_reward.png")
         logger.info("Saved login reward screenshot to MongoDB asset: %s", asset_id)
     else:
-        logger.error("Check-in failed")
-        todays_data["check_in"] = STATUS_FAILED
+        _record_check_in_failure(
+            todays_data,
+            f"Check-in popup opened but clicking '{day_text}' did not produce success",
+        )
 
 
 # --- Mission Logic ---
@@ -133,18 +182,25 @@ class Mission:
         self._pending_popups.append(new_page)
         logger.info("Queued mission popup for deferred handling")
 
-    def process_pending_popups(self) -> bool:
+    def process_pending_popups(self) -> str:
         """Process and close any queued popup pages."""
-        handled_popup = False
+        popup_outcome = POPUP_OUTCOME_NONE
 
         while self._pending_popups:
             popup_page = self._pending_popups.pop(0)
             try:
-                handled_popup = handle_pop_up(popup_page, self.todays_data) or handled_popup
+                current_outcome = handle_pop_up(popup_page, self.todays_data)
+                if current_outcome == POPUP_OUTCOME_FAILED:
+                    popup_outcome = POPUP_OUTCOME_FAILED
+                elif (
+                    current_outcome == POPUP_OUTCOME_SUCCESS
+                    and popup_outcome != POPUP_OUTCOME_FAILED
+                ):
+                    popup_outcome = POPUP_OUTCOME_SUCCESS
             except Exception as exc:
                 logger.warning("Error processing mission popup: %s", exc)
 
-        return handled_popup
+        return popup_outcome
 
     def attach_page_listener(self) -> None:
         """Attach event listener to handle popup pages (e.g., check-in)."""
@@ -169,8 +225,6 @@ class Mission:
         Returns:
             True if mission completed successfully, False otherwise
         """
-        initial_check_in_status = self.todays_data.get("check_in")
-
         for attempt in range(1, max_retries + 1):
             try:
                 if mission_button.is_enabled(timeout=1000):
@@ -180,7 +234,7 @@ class Mission:
                     )
                     self.page.wait_for_timeout(MISSION_CLICK_WAIT)
 
-                handled_popup = self.process_pending_popups()
+                popup_outcome = self.process_pending_popups()
 
                 # Check for success popup
                 claimed_popup = self.page.locator(f"text={CLAIMED_POPUP_TEXT}")
@@ -188,15 +242,11 @@ class Mission:
                     logger.info("Mission reward claimed successfully")
                     return True
 
-                if (
-                    handled_popup
-                    and self.todays_data.get("check_in") == STATUS_SUCCESS
-                    and initial_check_in_status != STATUS_SUCCESS
-                ):
+                if popup_outcome == POPUP_OUTCOME_SUCCESS:
                     logger.info("Mission completed successfully via check-in popup")
                     return True
 
-                if handled_popup and self.todays_data.get("check_in") == STATUS_FAILED:
+                if popup_outcome == POPUP_OUTCOME_FAILED:
                     logger.warning("Mission popup completed without a successful check-in")
                     return False
 
@@ -212,20 +262,29 @@ class Mission:
         return False
 
 
-def handle_pop_up(new_page: Page, todays_data: Dict) -> bool:
+def handle_pop_up(new_page: Page, todays_data: Dict) -> str:
     """Handle popup pages, specifically check-in dialogs.
 
     Args:
         new_page: Newly opened page
         todays_data: Dictionary to store mission results
     """
-    handled_popup = False
+    popup_outcome = POPUP_OUTCOME_NONE
 
     try:
         if CHECK_IN_URL in new_page.url:
             logger.info("Check-in popup detected")
             handle_check_in(new_page, todays_data)
-            handled_popup = True
+            if todays_data.get("check_in") == STATUS_SUCCESS:
+                popup_outcome = POPUP_OUTCOME_SUCCESS
+            elif todays_data.get("check_in") == STATUS_FAILED:
+                popup_outcome = POPUP_OUTCOME_FAILED
+            else:
+                _record_check_in_failure(
+                    todays_data,
+                    "Check-in popup was detected but no final status was recorded",
+                )
+                popup_outcome = POPUP_OUTCOME_FAILED
         else:
             logger.info(f"Closing unrelated popup: {new_page.url}")
     finally:
@@ -234,7 +293,7 @@ def handle_pop_up(new_page: Page, todays_data: Dict) -> bool:
         except Exception as exc:
             logger.debug("Popup page was already closed: %s", exc)
 
-    return handled_popup
+    return popup_outcome
 
 
 def open_mission_screen(page: Page) -> bool:
@@ -331,7 +390,8 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
     # Initialize mission handler (reusable instance)
     mission_handler = Mission(page, todays_data)
     image_processor = None
-    listener_attached = False
+    mission_handler.attach_page_listener()
+    listener_attached = True
 
     for idx in range(1, mission_count + 1):
         logger.info(f"Processing mission {idx}/{mission_count}")
@@ -374,25 +434,20 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
             logger.info(
                 f"Mission '{mission_name}' already finished (detected via image)"
             )
-        elif button_state == "Reward":
-            # Attach listener for first mission to handle check-in popup
-            if not listener_attached:
-                mission_handler.attach_page_listener()
-                listener_attached = True
-
-            mission_done = mission_handler.perform_mission(mission_btn_loc)
         else:
-            mission_done = False
-            if button_state == "Unfinished":
+            if button_state == "Reward":
+                logger.info("Mission '%s' is directly claimable; attempting action", mission_name)
+            elif button_state == "Unfinished":
                 logger.info(
-                    "Mission '%s' is not directly claimable yet; recording as unfinished",
+                    "Mission '%s' is unfinished; attempting action in case it opens a popup",
                     mission_name,
                 )
             else:
                 logger.warning(
-                    "Mission '%s' button state is unknown; skipping automatic claim",
+                    "Mission '%s' button state is unknown; attempting action anyway",
                     mission_name,
                 )
+            mission_done = mission_handler.perform_mission(mission_btn_loc)
 
         # Update mission record
         status = "Finished" if mission_done else "Unfinished"

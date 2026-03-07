@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Type aliases
 ImageType = Union[str, np.ndarray]
+AVATAR_FETCH_RETRY_ATTEMPTS = 2
 
 # Connection pooling for image fetches
 _http_session = None
@@ -207,23 +208,43 @@ def find_correct_avatar(page: Page) -> Optional[Locator]:
         logger.error(f"Could not load ZZZ icon from {zzz_icon_path}")
         return None
 
+    transient_failures = 0
+
     for i in range(avatar_count):
         avatar_locator = avatar_locators.nth(i)
 
-        try:
-            avatar_image = fetch_image_from_locator(page, avatar_locator)
-            diff = compare_images(avatar_image, zzz_icon_img)
+        for attempt in range(1, AVATAR_FETCH_RETRY_ATTEMPTS + 1):
+            try:
+                avatar_image = fetch_image_from_locator(page, avatar_locator)
+                diff = compare_images(avatar_image, zzz_icon_img)
 
-            logger.debug(f"Avatar {i + 1}: {diff:.2f}% difference from ZZZ icon")
+                logger.debug(f"Avatar {i + 1}: {diff:.2f}% difference from ZZZ icon")
 
-            if diff < IMAGE_MATCH_THRESHOLD:
-                logger.info(f"ZZZ avatar found at position {i + 1}")
-                return avatar_locator
+                if diff < IMAGE_MATCH_THRESHOLD:
+                    logger.info(f"ZZZ avatar found at position {i + 1}")
+                    return avatar_locator
+                break
 
-        except Exception as e:
-            logger.warning(f"Error checking avatar {i + 1}: {e}")
-            continue
+            except Exception as e:
+                transient_failures += 1
+                logger.warning(
+                    "Error checking avatar %s on attempt %s/%s: %s",
+                    i + 1,
+                    attempt,
+                    AVATAR_FETCH_RETRY_ATTEMPTS,
+                    e,
+                )
+                if attempt < AVATAR_FETCH_RETRY_ATTEMPTS:
+                    page.wait_for_timeout(250)
+                    continue
 
+                break
+
+    if transient_failures:
+        logger.error(
+            "ZZZ avatar lookup exhausted %s transient fetch/read errors",
+            transient_failures,
+        )
     logger.warning("ZZZ avatar not found among available avatars")
     return None
 
