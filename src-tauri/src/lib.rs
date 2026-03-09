@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use reqwest::blocking::Client;
-use serde_json::Value;
+use serde_json::{json, Value};
 use tauri::{
     menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
@@ -14,6 +14,10 @@ use tauri_plugin_autostart::ManagerExt as _;
 
 const AUTOSTART_RECONCILE_ATTEMPTS: u32 = 20;
 const AUTOSTART_RECONCILE_DELAY_MS: u64 = 500;
+const APP_NAME: &str = "ZZZ Bot";
+const BACKEND_SHUTDOWN_GRACEFUL_WAIT_MS: u64 = 2000;
+const BACKEND_SHUTDOWN_POST_KILL_WAIT_MS: u64 = 500;
+const BACKEND_SHUTDOWN_POLL_INTERVAL_MS: u64 = 100;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AutostartSyncAction {
@@ -28,6 +32,15 @@ struct AppRuntime {
     backend_url: String,
     desktop_token: String,
     backend_child: Mutex<Option<CommandChild>>,
+    backend_terminated: Mutex<bool>,
+    shutdown_in_progress: Mutex<bool>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShutdownEscalation {
+    Graceful,
+    DirectKill,
+    ForceTaskkill,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -233,6 +246,59 @@ fn show_main_window(app: &AppHandle) {
     }
 }
 
+fn is_backend_terminated(runtime: &AppRuntime) -> bool {
+    runtime
+        .backend_terminated
+        .lock()
+        .map(|guard| *guard)
+        .unwrap_or(false)
+}
+
+fn set_backend_terminated(runtime: &AppRuntime, terminated: bool) {
+    if let Ok(mut guard) = runtime.backend_terminated.lock() {
+        *guard = terminated;
+    }
+}
+
+fn begin_shutdown(runtime: &AppRuntime) -> bool {
+    if let Ok(mut guard) = runtime.shutdown_in_progress.lock() {
+        if *guard {
+            return false;
+        }
+        *guard = true;
+        return true;
+    }
+
+    false
+}
+
+fn wait_for_backend_termination(runtime: &AppRuntime, timeout_ms: u64) -> bool {
+    let mut waited_ms = 0;
+    while waited_ms <= timeout_ms {
+        if is_backend_terminated(runtime) {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(BACKEND_SHUTDOWN_POLL_INTERVAL_MS));
+        waited_ms += BACKEND_SHUTDOWN_POLL_INTERVAL_MS;
+    }
+
+    is_backend_terminated(runtime)
+}
+
+fn determine_shutdown_escalation(
+    terminated_after_graceful_wait: bool,
+    tracked_child_available: bool,
+    terminated_after_direct_kill_wait: bool,
+) -> ShutdownEscalation {
+    if terminated_after_graceful_wait {
+        ShutdownEscalation::Graceful
+    } else if tracked_child_available && terminated_after_direct_kill_wait {
+        ShutdownEscalation::DirectKill
+    } else {
+        ShutdownEscalation::ForceTaskkill
+    }
+}
+
 #[cfg(target_os = "windows")]
 fn run_taskkill(args: &[&str], label: &str) {
     use std::os::windows::process::CommandExt;
@@ -302,8 +368,12 @@ fn resolve_sidecar_sentry_dsn() -> Option<(String, &'static str)> {
     None
 }
 
-fn stop_backend_sidecar(app: &AppHandle) {
+fn stop_backend_sidecar(app: &AppHandle, run_event: &str, reason: &str) {
     let runtime = app.state::<AppRuntime>();
+    if !begin_shutdown(&runtime) {
+        return;
+    }
+
     let mut tracked_pid: Option<u32> = None;
 
     // Grab PID before taking the child so force_kill can use it as a fallback.
@@ -313,29 +383,74 @@ fn stop_backend_sidecar(app: &AppHandle) {
         }
     }
 
+    let shutdown_started_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|value| value.as_millis())
+        .unwrap_or(0)
+        .to_string();
+
     // Send graceful shutdown request (best-effort, 1 s timeout).
     if let Ok(client) = Client::builder()
         .timeout(Duration::from_millis(1000))
         .build()
     {
-        let _ = client
+        if let Err(error) = client
             .post(format!("{}/shutdown", runtime.backend_url))
             .header("x-desktop-token", runtime.desktop_token.clone())
-            .send();
-    }
-
-    // Brief wait for the process to exit cleanly before force-killing.
-    std::thread::sleep(Duration::from_millis(500));
-
-    if let Ok(mut child_guard) = runtime.backend_child.lock() {
-        if let Some(child) = child_guard.take() {
-            if let Err(error) = child.kill() {
-                log::warn!("Failed to kill tracked backend sidecar: {error}");
-            }
+            .json(&json!({
+                "source": "tauri",
+                "run_event": run_event,
+                "reason": reason,
+                "tracked_pid": tracked_pid,
+                "shutdown_started_at": shutdown_started_at,
+            }))
+            .send()
+        {
+            log::warn!("Failed to request graceful backend shutdown: {error}");
         }
     }
 
-    force_kill_backend_processes(tracked_pid);
+    let terminated_after_graceful_wait =
+        wait_for_backend_termination(&runtime, BACKEND_SHUTDOWN_GRACEFUL_WAIT_MS);
+    let mut tracked_child_available = false;
+    let mut terminated_after_direct_kill_wait = false;
+
+    if !terminated_after_graceful_wait {
+        if let Ok(mut child_guard) = runtime.backend_child.lock() {
+            if let Some(child) = child_guard.take() {
+                tracked_child_available = true;
+                if let Err(error) = child.kill() {
+                    log::warn!("Failed to kill tracked backend sidecar: {error}");
+                } else {
+                    log::warn!(
+                        "Graceful backend shutdown timed out; killed tracked sidecar process"
+                    );
+                }
+            }
+        }
+
+        if tracked_child_available {
+            terminated_after_direct_kill_wait =
+                wait_for_backend_termination(&runtime, BACKEND_SHUTDOWN_POST_KILL_WAIT_MS);
+        }
+    }
+
+    match determine_shutdown_escalation(
+        terminated_after_graceful_wait,
+        tracked_child_available,
+        terminated_after_direct_kill_wait,
+    ) {
+        ShutdownEscalation::Graceful => {
+            log::info!("Backend sidecar exited after graceful shutdown request");
+        }
+        ShutdownEscalation::DirectKill => {
+            log::warn!("Backend sidecar exited after tracked child kill");
+        }
+        ShutdownEscalation::ForceTaskkill => {
+            log::warn!("Backend sidecar still running; using taskkill fallback");
+            force_kill_backend_processes(tracked_pid);
+        }
+    }
 }
 
 fn spawn_backend_sidecar(app: &tauri::App) {
@@ -377,15 +492,19 @@ fn spawn_backend_sidecar(app: &tauri::App) {
 
     match spawn_result {
         Ok((mut rx, child)) => {
+            set_backend_terminated(&runtime, false);
             if let Ok(mut child_guard) = runtime.backend_child.lock() {
                 child_guard.replace(child);
             }
 
+            let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 while let Some(event) = rx.recv().await {
                     match event {
                         CommandEvent::Stdout(_) | CommandEvent::Stderr(_) => {}
                         CommandEvent::Terminated(payload) => {
+                            let runtime = app_handle.state::<AppRuntime>();
+                            set_backend_terminated(&runtime, true);
                             log::info!(
                                 "Backend sidecar terminated with code {:?}",
                                 payload.code
@@ -439,6 +558,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 
     TrayIconBuilder::with_id("main")
         .menu(&menu)
+        .tooltip(APP_NAME)
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "run_playwright" => {
@@ -470,7 +590,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
                 }
             }
             "exit" => {
-                stop_backend_sidecar(app);
+                stop_backend_sidecar(app, "menu_exit", "tray_menu");
                 app.exit(0);
             }
             _ => {}
@@ -517,6 +637,8 @@ pub fn run() {
                 backend_url,
                 desktop_token,
                 backend_child: Mutex::new(None),
+                backend_terminated: Mutex::new(false),
+                shutdown_in_progress: Mutex::new(false),
             });
 
             if let Some(window) = app.get_webview_window("main") {
@@ -556,8 +678,11 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(|app_handle, event| match event {
-        RunEvent::ExitRequested { .. } | RunEvent::Exit => {
-            stop_backend_sidecar(app_handle);
+        RunEvent::ExitRequested { .. } => {
+            stop_backend_sidecar(app_handle, "exit_requested", "app_run_event");
+        }
+        RunEvent::Exit => {
+            stop_backend_sidecar(app_handle, "exit", "app_run_event");
         }
         _ => {}
     });
@@ -565,7 +690,10 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{determine_autostart_sync_action, AutostartSyncAction};
+    use super::{
+        determine_autostart_sync_action, determine_shutdown_escalation, AutostartSyncAction,
+        ShutdownEscalation,
+    };
 
     #[test]
     fn autostart_sync_persists_existing_enabled_state() {
@@ -608,6 +736,38 @@ mod tests {
         assert_eq!(
             determine_autostart_sync_action(Some(false), false),
             AutostartSyncAction::None
+        );
+    }
+
+    #[test]
+    fn shutdown_escalation_prefers_graceful_exit() {
+        assert_eq!(
+            determine_shutdown_escalation(true, true, false),
+            ShutdownEscalation::Graceful
+        );
+    }
+
+    #[test]
+    fn shutdown_escalation_accepts_direct_kill_exit() {
+        assert_eq!(
+            determine_shutdown_escalation(false, true, true),
+            ShutdownEscalation::DirectKill
+        );
+    }
+
+    #[test]
+    fn shutdown_escalation_uses_force_kill_when_tracked_child_survives() {
+        assert_eq!(
+            determine_shutdown_escalation(false, true, false),
+            ShutdownEscalation::ForceTaskkill
+        );
+    }
+
+    #[test]
+    fn shutdown_escalation_uses_force_kill_without_tracked_child() {
+        assert_eq!(
+            determine_shutdown_escalation(false, false, false),
+            ShutdownEscalation::ForceTaskkill
         );
     }
 }

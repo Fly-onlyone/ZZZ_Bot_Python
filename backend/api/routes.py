@@ -3,10 +3,13 @@
 Separates API logic from application bootstrapping for better maintainability.
 """
 
+import json
 import logging
 import os
 import re
 import sys
+import threading
+import time
 from dataclasses import asdict
 from pathlib import Path
 from secrets import compare_digest
@@ -15,7 +18,7 @@ from fastapi import APIRouter, BackgroundTasks, Query
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-import repositories.MongoRepository as mongo
+import repositories.MongoRepository as MongoRepository
 from core.GlobalVar import CONFIG, RedeemItem, accounts, is_exe, resource_path, settings
 from core.ManualLogin import run
 from core.settings_contract import extract_advanced_settings
@@ -24,6 +27,24 @@ logger = logging.getLogger(__name__)
 
 # Create router instance
 router = APIRouter()
+
+INTERNAL_ROUTE_PREFIXES = {
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+    "/manual",
+    "/images",
+    "/screenshot",
+    "/assets",
+    "/playstate",
+    "/logs",
+    "/health",
+    "/shutdown",
+    "/tasks",
+    "/maintenance",
+}
+SHUTDOWN_RESPONSE_DELAY_SECONDS = 0.2
+SHUTDOWN_SENTRY_FLUSH_TIMEOUT_SECONDS = 2.0
 
 
 def _has_valid_desktop_token(request: Request) -> bool:
@@ -35,6 +56,137 @@ def _has_valid_desktop_token(request: Request) -> bool:
         return False
 
     return compare_digest(expected, provided)
+
+
+def _is_public_route(path: str) -> bool:
+    """Filter out internal endpoints from dynamic frontend route discovery."""
+    return path != "/routes" and not any(
+        path.startswith(prefix) for prefix in INTERNAL_ROUTE_PREFIXES
+    )
+
+
+def _build_shutdown_context(payload: object) -> dict[str, object]:
+    """Normalize desktop shutdown metadata into a trace-safe payload."""
+    raw_payload = payload if isinstance(payload, dict) else {}
+
+    tracked_pid = raw_payload.get("tracked_pid")
+    if not isinstance(tracked_pid, int):
+        tracked_pid = None
+
+    shutdown_started_at = raw_payload.get("shutdown_started_at")
+    if not isinstance(shutdown_started_at, str):
+        shutdown_started_at = ""
+
+    return {
+        "source": str(raw_payload.get("source") or "tauri"),
+        "run_event": str(raw_payload.get("run_event") or "unknown"),
+        "reason": str(raw_payload.get("reason") or "desktop_shell"),
+        "tracked_pid": tracked_pid,
+        "shutdown_started_at": shutdown_started_at,
+        "hosted_by_tauri": True,
+        "is_exe": bool(is_exe),
+    }
+
+
+def _perform_desktop_shutdown(
+    shutdown_context: dict[str, object],
+    *,
+    sentry_sdk_module=None,
+    exit_func=os._exit,
+    sleep_func=time.sleep,
+) -> None:
+    """Trace desktop-triggered shutdown and flush telemetry before exiting."""
+    transaction = None
+    sentry_active = False
+
+    try:
+        if sentry_sdk_module is None:
+            try:
+                import sentry_sdk as sentry_sdk_module
+            except ImportError:
+                sentry_sdk_module = None
+
+        if sentry_sdk_module is not None:
+            sentry_active = sentry_sdk_module.get_client().is_active()
+
+        if sentry_active:
+            transaction = sentry_sdk_module.start_transaction(
+                op="app.shutdown",
+                name="desktop-sidecar-shutdown",
+                sampled=True,
+            )
+            transaction.set_tag("shutdown.source", str(shutdown_context["source"]))
+            transaction.set_tag(
+                "shutdown.run_event", str(shutdown_context["run_event"])
+            )
+            transaction.set_tag("shutdown.reason", str(shutdown_context["reason"]))
+            for key, value in shutdown_context.items():
+                transaction.set_data(key, value)
+
+            with transaction.start_child(
+                op="shutdown.request.accepted",
+                description="desktop shutdown accepted",
+            ):
+                logger.info(
+                    "Graceful shutdown accepted by backend "
+                    "(source=%s, run_event=%s, reason=%s, tracked_pid=%s)",
+                    shutdown_context["source"],
+                    shutdown_context["run_event"],
+                    shutdown_context["reason"],
+                    shutdown_context["tracked_pid"],
+                )
+
+            with transaction.start_child(
+                op="shutdown.response.delay",
+                description="allow shutdown response to flush",
+            ):
+                sleep_func(SHUTDOWN_RESPONSE_DELAY_SECONDS)
+
+            with transaction.start_child(
+                op="shutdown.process.exit",
+                description="terminate sidecar process",
+            ):
+                transaction.set_status("ok")
+        else:
+            logger.info(
+                "Graceful shutdown accepted by backend "
+                "(source=%s, run_event=%s, reason=%s, tracked_pid=%s)",
+                shutdown_context["source"],
+                shutdown_context["run_event"],
+                shutdown_context["reason"],
+                shutdown_context["tracked_pid"],
+            )
+            sleep_func(SHUTDOWN_RESPONSE_DELAY_SECONDS)
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        logger.exception("Desktop shutdown trace failed")
+        if transaction is not None:
+            transaction.set_status("internal_error")
+        if sentry_active:
+            sentry_sdk_module.capture_exception()
+    finally:
+        try:
+            if transaction is not None:
+                transaction.finish()
+            if sentry_active:
+                sentry_sdk_module.flush(timeout=SHUTDOWN_SENTRY_FLUSH_TIMEOUT_SECONDS)
+        finally:
+            exit_func(0)
+
+
+def _start_shutdown_worker(
+    shutdown_context: dict[str, object],
+    *,
+    thread_factory=threading.Thread,
+):
+    """Start the deferred shutdown worker so the HTTP response can complete."""
+    worker = thread_factory(
+        target=_perform_desktop_shutdown,
+        args=(shutdown_context,),
+        name="desktop-shutdown-worker",
+        daemon=True,
+    )
+    worker.start()
+    return worker
 
 
 # ============================================================================
@@ -53,24 +205,11 @@ async def get_routes():
     """Return list of available API routes (excluding internal endpoints)."""
     from core.GlobalVar import app
 
-    exclude_prefixes = {
-        "/docs",
-        "/openapi.json",
-        "/redoc",
-        "/manual",
-        "/images",
-        "/screenshot",
-        "/assets",
-        "/playstate",
-        "/logs",
-        "/health",
-    }
-    routes = [
-        route.path.lstrip("/")
-        for route in app.routes
-        if not any(route.path.startswith(prefix) for prefix in exclude_prefixes)
-        and route.path != "/routes"
-    ]
+    routes = []
+    for route in app.routes:
+        path = getattr(route, "path", "")
+        if path and _is_public_route(path):
+            routes.append(path.lstrip("/"))
     return {"routes": list(dict.fromkeys(routes))}  # Deduplicate
 
 
@@ -102,7 +241,7 @@ def get_screenshot_asset(filename: str):
 @router.get("/shopping")
 def get_shopping_data():
     """Retrieve current shopping data from storage."""
-    return mongo.get_shopping()
+    return MongoRepository.get_shopping()
 
 
 @router.post("/shopping")
@@ -115,10 +254,10 @@ def update_shopping_data(selected: dict):
     Returns:
         Success message
     """
-    shopping_data = mongo.get_shopping() or {}
+    shopping_data = MongoRepository.get_shopping() or {}
     shopping_data["Selected"] = selected.get("Selected", [])
     shopping_data["Hunt"] = selected.get("Hunt", [])
-    mongo.save_shopping(shopping_data)
+    MongoRepository.save_shopping(shopping_data)
 
     from Bot import schedule_hunt_tasks
 
@@ -135,7 +274,7 @@ def update_shopping_data(selected: dict):
 @router.get("/redeem")
 def get_redeem_data():
     """Retrieve redemption code history."""
-    return mongo.get_redemptions()
+    return MongoRepository.get_redemptions()
 
 
 @router.post("/redeem")
@@ -148,7 +287,7 @@ def update_redeem_data(redeem_data: list[RedeemItem]):
     Returns:
         Success message
     """
-    mongo.replace_all_redemptions([item.model_dump() for item in redeem_data])
+    MongoRepository.replace_all_redemptions([item.model_dump() for item in redeem_data])
     return {"message": "Redeem data updated successfully"}
 
 
@@ -163,7 +302,7 @@ def get_mission_report():
     from datetime import datetime
 
     today_str = datetime.now().strftime("%d/%m/%Y")
-    todays_data = mongo.get_today_mission(today_str) or {
+    todays_data = MongoRepository.get_today_mission(today_str) or {
         "day": today_str,
         "check_in": "Link isn't opened",
         "missions": [],
@@ -184,7 +323,7 @@ def get_hunt_info():
     hunt_enabled = settings.enable_hunt_mode
 
     # Get detailed item information
-    shopping_data = mongo.get_shopping()
+    shopping_data = MongoRepository.get_shopping()
     items_list = shopping_data.get("Item's list", {}) if shopping_data else {}
 
     # Build hunt items with scheduled times
@@ -252,7 +391,7 @@ async def update_account(request: Request):
     for key, value in data.items():
         if hasattr(accounts, key):
             setattr(accounts, key, value)
-    mongo.save_account(asdict(accounts))
+    MongoRepository.save_account(asdict(accounts))
     return JSONResponse({"message": "Account updated"})
 
 
@@ -343,7 +482,7 @@ async def get_play_state():
 
 
 @router.post("/shutdown")
-def shutdown(request: Request):
+async def shutdown(request: Request):
     """Gracefully shut down the backend process.
 
     Requires a desktop token header — only callable from the Tauri shell.
@@ -351,8 +490,17 @@ def shutdown(request: Request):
     if not _has_valid_desktop_token(request):
         return JSONResponse({"status": "rejected"}, status_code=401)
 
-    logger.info("Graceful shutdown requested by desktop shell.")
-    os._exit(0)
+    raw_body = await request.body()
+    payload: object = {}
+    if raw_body:
+        try:
+            payload = json.loads(raw_body)
+        except json.JSONDecodeError:
+            logger.warning("Desktop shutdown request included invalid JSON payload")
+
+    shutdown_context = _build_shutdown_context(payload)
+    _start_shutdown_worker(shutdown_context)
+    return JSONResponse({"status": "accepted"}, status_code=202)
 
 
 @router.post("/tasks/run-playwright")
@@ -437,7 +585,7 @@ async def _update_settings_payload(request: Request) -> JSONResponse:
             set_runtime_uri(settings.mongodb_uri)
             get_db()
 
-        mongo.save_settings(asdict(settings))
+        MongoRepository.save_settings(asdict(settings))
     except Exception as exc:
         for key, value in current_settings.items():
             setattr(settings, key, value)
@@ -486,10 +634,10 @@ async def _update_settings_payload(request: Request) -> JSONResponse:
         )
 
     if "schedule_times" in applied_updates:
-        run_data = mongo.get_last_run() or {}
+        run_data = MongoRepository.get_last_run() or {}
         next_run = calculate_next_run()
         run_data["next_run"] = next_run.strftime("%H:%M %d/%m/%y")
-        mongo.save_last_run(run_data)
+        MongoRepository.save_last_run(run_data)
         logger.info("Updated next run to: %s", run_data["next_run"])
 
     return JSONResponse({"message": "Settings updated"})
@@ -519,7 +667,7 @@ def check_run_status():
     """Check last run status with dynamically calculated next run."""
     from Bot import calculate_next_run
 
-    data = mongo.get_last_run() or {}
+    data = MongoRepository.get_last_run() or {}
     return {
         "last_run": data.get("last_run"),
         "next_run": calculate_next_run().strftime("%H:%M %d/%m/%y"),
