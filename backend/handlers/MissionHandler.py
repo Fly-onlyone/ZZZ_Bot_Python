@@ -13,7 +13,8 @@ from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeout
 from automation import RetryHelper
 from automation.ImageProcessor import ImageProcessor, find_correct_avatar
 from utils.DataHandler import maintain_mission_data
-from utils.screenshot_store import save_locator_screenshot
+from utils.NotificationHelper import NotificationModule
+from utils.screenshot_store import save_locator_screenshot, save_page_screenshot
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -33,6 +34,8 @@ MISSION_BUTTON_TEXT = "Carry out missions to earn"
 AVATAR_SELECTOR = "div.avatarsItemImg-AiUG1h"
 TASK_ITEM_SELECTOR = ".taskItemPcLeft-Aetp6m"
 CLAIMED_POPUP_TEXT = "Claimed!"
+LOGIN_MODAL_TITLE_TEXT = "Account Log In"
+LOGIN_MODAL_EMAIL_PLACEHOLDER = "Username/Email"
 
 # Timing constants
 DIALOG_WAIT_TIMEOUT = 5000
@@ -45,9 +48,13 @@ CHECK_IN_POLL_INTERVAL = 250
 STATUS_SUCCESS = "Login Success"
 STATUS_FAILED = "Login Failed"
 STATUS_LINK_NOT_OPENED = "Link isn't opened"
+CHECK_IN_DETAIL_AUTH_REQUIRED = "auth_required"
 POPUP_OUTCOME_NONE = "none"
 POPUP_OUTCOME_SUCCESS = "success"
 POPUP_OUTCOME_FAILED = "failed"
+CHECK_IN_READY = "ready"
+CHECK_IN_TIMEOUT = "timeout"
+CHECK_IN_AUTH_REQUIRED = "auth_required"
 
 
 def _close_dialog_if_visible(page: Page) -> None:
@@ -75,26 +82,158 @@ def _locator_is_visible(locator: Locator, timeout: int = 500) -> bool:
         return False
 
 
-def _record_check_in_failure(todays_data: Dict, message: str) -> None:
+def _set_check_in_status(
+    todays_data: Dict,
+    status: str,
+    *,
+    detail: Optional[str] = None,
+) -> None:
+    """Store check-in status and optional detail for the current day."""
+    todays_data["check_in"] = status
+    if detail:
+        todays_data["check_in_detail"] = detail
+    else:
+        todays_data.pop("check_in_detail", None)
+
+
+def _build_check_in_context(
+    page: Page,
+    day_text: str,
+    *,
+    result: str,
+    auth_required: bool,
+    reason: str,
+    screenshot_asset_id: Optional[str] = None,
+) -> Dict[str, object]:
+    """Create a consistent check-in context payload for tracing and alerts."""
+    return {
+        "day": day_text,
+        "result": result,
+        "auth_required": auth_required,
+        "page_url": page.url,
+        "reason": reason,
+        "screenshot_asset_id": screenshot_asset_id,
+        "manual_login_url": CHECK_IN_URL_WITH_AUTH if auth_required else None,
+    }
+
+
+def _annotate_check_in_span(span, context: Dict[str, object]) -> None:
+    """Attach structured check-in metadata to the active Sentry span."""
+    span.set_tag("check_in.result", str(context["result"]))
+    span.set_tag("check_in.auth_required", str(context["auth_required"]).lower())
+    span.set_data("check_in.day", context["day"])
+    span.set_data("check_in.page_url", context["page_url"])
+    span.set_data("check_in.reason", context["reason"])
+    span.set_data("check_in.manual_login_url", context["manual_login_url"])
+    if context.get("screenshot_asset_id"):
+        span.set_data("check_in.screenshot_asset_id", context["screenshot_asset_id"])
+
+
+def _record_check_in_failure(
+    todays_data: Dict,
+    message: str,
+    *,
+    detail: Optional[str] = None,
+) -> None:
     """Persist and report a check-in failure once the popup is known to exist."""
-    todays_data["check_in"] = STATUS_FAILED
+    _set_check_in_status(todays_data, STATUS_FAILED, detail=detail)
     logger.error(message)
 
 
-def _wait_for_check_in_ready(day_btn: Locator, success_msg: Locator) -> str:
+def _is_check_in_login_modal_visible(page: Page, timeout: int = 500) -> bool:
+    """Return whether the HoYoVerse account login modal is blocking check-in."""
+    title = page.get_by_text(LOGIN_MODAL_TITLE_TEXT, exact=True)
+    username_field = page.get_by_placeholder(LOGIN_MODAL_EMAIL_PLACEHOLDER)
+    return _locator_is_visible(title, timeout=timeout) and _locator_is_visible(
+        username_field, timeout=timeout
+    )
+
+
+def _capture_check_in_screenshot(page: Page, prefix: str) -> Optional[str]:
+    """Capture the current page state to MongoDB for failed check-in diagnostics."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{prefix}_{timestamp}.png"
+    try:
+        asset_id = save_page_screenshot(page, filename)
+        logger.info(
+            "Saved check-in diagnostic screenshot to MongoDB asset: %s", asset_id
+        )
+        return asset_id
+    except Exception as exc:
+        logger.warning("Failed to capture check-in diagnostic screenshot: %s", exc)
+        return None
+
+
+def _notify_check_in_auth_required() -> None:
+    """Send a desktop notification when check-in needs a fresh login."""
+    from core.GlobalVar import CONFIG
+
+    NotificationModule.notify(
+        title="ZZZ Bot",
+        message="Check-in needs manual login. Open Manual Login and choose CHECK_IN_URL.",
+        app_icon=CONFIG["SAD_ICON"],
+    )
+
+
+def _capture_check_in_auth_required_event(context: Dict[str, object]) -> None:
+    """Emit a dedicated Sentry warning for auth-required check-in failures."""
+    import sentry_sdk
+
+    with sentry_sdk.isolation_scope():
+        sentry_sdk.set_tag("check_in.result", str(context["result"]))
+        sentry_sdk.set_tag("check_in.auth_required", "true")
+        sentry_sdk.set_context("check_in", context)
+        sentry_sdk.capture_message(
+            "Check-in requires manual login",
+            level="warning",
+        )
+
+
+def _record_check_in_auth_required(
+    page: Page,
+    todays_data: Dict,
+    day_text: str,
+    span,
+    reason: str,
+) -> None:
+    """Persist, notify, and trace when the check-in popup requires re-auth."""
+    screenshot_asset_id = _capture_check_in_screenshot(page, "checkin_auth_required")
+    _record_check_in_failure(
+        todays_data,
+        reason,
+        detail=CHECK_IN_DETAIL_AUTH_REQUIRED,
+    )
+    context = _build_check_in_context(
+        page,
+        day_text,
+        result=STATUS_FAILED,
+        auth_required=True,
+        reason=reason,
+        screenshot_asset_id=screenshot_asset_id,
+    )
+    _annotate_check_in_span(span, context)
+    _capture_check_in_auth_required_event(context)
+    _notify_check_in_auth_required()
+
+
+def _wait_for_check_in_ready(page: Page, day_btn: Locator, success_msg: Locator) -> str:
     """Wait until the check-in popup is actionable or already completed."""
     deadline = time.monotonic() + (CHECK_IN_READY_TIMEOUT / 1000)
 
     while time.monotonic() < deadline:
         if _locator_is_visible(success_msg):
             return STATUS_SUCCESS
+        if _is_check_in_login_modal_visible(page):
+            return CHECK_IN_AUTH_REQUIRED
         if _locator_is_visible(day_btn):
-            return "ready"
+            return CHECK_IN_READY
         day_btn.page.wait_for_timeout(CHECK_IN_POLL_INTERVAL)
 
     if _locator_is_visible(success_msg):
         return STATUS_SUCCESS
-    return "timeout"
+    if _is_check_in_login_modal_visible(page):
+        return CHECK_IN_AUTH_REQUIRED
+    return CHECK_IN_TIMEOUT
 
 
 def handle_check_in(new_page: Page, todays_data: Dict) -> None:
@@ -110,55 +249,136 @@ def handle_check_in(new_page: Page, todays_data: Dict) -> None:
         return
 
     logger.info("Starting check-in process...")
-    try:
-        new_page.wait_for_load_state("domcontentloaded", timeout=3000)
-    except PlaywrightTimeoutError:
-        logger.debug("Check-in popup did not report domcontentloaded before locator wait")
-    new_page.wait_for_timeout(500)
-
-    _close_dialog_if_visible(new_page)
+    import sentry_sdk
 
     # Compute current day and locate button
     today = datetime.now().day
     day_text = f"Day {today}"
-    day_btn = new_page.get_by_text(day_text, exact=True)
-    success_msg = new_page.locator(DIALOG_BODY_SELECTOR)
 
-    readiness = _wait_for_check_in_ready(day_btn, success_msg)
-    if readiness == STATUS_SUCCESS:
-        logger.info("Check-in success dialog already visible")
-        todays_data["check_in"] = STATUS_SUCCESS
-        return
+    with sentry_sdk.start_span(op="browser.interact", name="check-in") as check_in_span:
+        check_in_span.set_data("workflow.phase", "mission")
+        check_in_span.set_data("check_in.day", day_text)
 
-    if readiness != "ready":
-        _record_check_in_failure(
-            todays_data,
-            f"Check-in popup opened but '{day_text}' never became actionable",
-        )
-        return
+        try:
+            new_page.wait_for_load_state("domcontentloaded", timeout=3000)
+        except PlaywrightTimeoutError:
+            logger.debug(
+                "Check-in popup did not report domcontentloaded before locator wait"
+            )
+        new_page.wait_for_timeout(500)
 
-    logger.info(f"Attempting check-in for {day_text}")
+        _close_dialog_if_visible(new_page)
 
-    # Retry until success message appears
-    try:
-        clicked = RetryHelper.retry_until_screen_appears(success_msg, day_btn)
-    except Exception as exc:
-        _record_check_in_failure(
-            todays_data,
-            f"Check-in popup opened but retry flow failed: {exc}",
-        )
-        return
+        day_btn = new_page.get_by_text(day_text, exact=True)
+        success_msg = new_page.locator(DIALOG_BODY_SELECTOR)
 
-    if clicked or _locator_is_visible(success_msg, timeout=1000):
-        logger.info("Check-in successful!")
-        todays_data["check_in"] = STATUS_SUCCESS
-        asset_id = save_locator_screenshot(success_msg, "login_reward.png")
-        logger.info("Saved login reward screenshot to MongoDB asset: %s", asset_id)
-    else:
-        _record_check_in_failure(
-            todays_data,
-            f"Check-in popup opened but clicking '{day_text}' did not produce success",
-        )
+        readiness = _wait_for_check_in_ready(new_page, day_btn, success_msg)
+        if readiness == STATUS_SUCCESS:
+            logger.info("Check-in success dialog already visible")
+            _set_check_in_status(todays_data, STATUS_SUCCESS)
+            _annotate_check_in_span(
+                check_in_span,
+                _build_check_in_context(
+                    new_page,
+                    day_text,
+                    result=STATUS_SUCCESS,
+                    auth_required=False,
+                    reason="Success dialog already visible",
+                ),
+            )
+            return
+
+        if readiness == CHECK_IN_AUTH_REQUIRED:
+            _record_check_in_auth_required(
+                new_page,
+                todays_data,
+                day_text,
+                check_in_span,
+                "Check-in requires login before the reward day became actionable",
+            )
+            return
+
+        if readiness != CHECK_IN_READY:
+            reason = f"Check-in popup opened but '{day_text}' never became actionable"
+            _record_check_in_failure(
+                todays_data,
+                reason,
+            )
+            _annotate_check_in_span(
+                check_in_span,
+                _build_check_in_context(
+                    new_page,
+                    day_text,
+                    result=STATUS_FAILED,
+                    auth_required=False,
+                    reason=reason,
+                ),
+            )
+            return
+
+        logger.info(f"Attempting check-in for {day_text}")
+
+        # Retry until success message appears
+        try:
+            clicked = RetryHelper.retry_until_screen_appears(success_msg, day_btn)
+        except Exception as exc:
+            reason = f"Check-in popup opened but retry flow failed: {exc}"
+            _record_check_in_failure(
+                todays_data,
+                reason,
+            )
+            _annotate_check_in_span(
+                check_in_span,
+                _build_check_in_context(
+                    new_page,
+                    day_text,
+                    result=STATUS_FAILED,
+                    auth_required=False,
+                    reason=reason,
+                ),
+            )
+            return
+
+        if clicked or _locator_is_visible(success_msg, timeout=1000):
+            logger.info("Check-in successful!")
+            _set_check_in_status(todays_data, STATUS_SUCCESS)
+            asset_id = save_locator_screenshot(success_msg, "login_reward.png")
+            logger.info("Saved login reward screenshot to MongoDB asset: %s", asset_id)
+            _annotate_check_in_span(
+                check_in_span,
+                _build_check_in_context(
+                    new_page,
+                    day_text,
+                    result=STATUS_SUCCESS,
+                    auth_required=False,
+                    reason="Day button click produced success dialog",
+                    screenshot_asset_id=asset_id,
+                ),
+            )
+        elif _is_check_in_login_modal_visible(new_page):
+            _record_check_in_auth_required(
+                new_page,
+                todays_data,
+                day_text,
+                check_in_span,
+                f"Check-in opened the HoYoVerse login modal after clicking '{day_text}'",
+            )
+        else:
+            reason = f"Check-in popup opened but clicking '{day_text}' did not produce success"
+            _record_check_in_failure(
+                todays_data,
+                reason,
+            )
+            _annotate_check_in_span(
+                check_in_span,
+                _build_check_in_context(
+                    new_page,
+                    day_text,
+                    result=STATUS_FAILED,
+                    auth_required=False,
+                    reason=reason,
+                ),
+            )
 
 
 # --- Mission Logic ---
@@ -247,7 +467,9 @@ class Mission:
                     return True
 
                 if popup_outcome == POPUP_OUTCOME_FAILED:
-                    logger.warning("Mission popup completed without a successful check-in")
+                    logger.warning(
+                        "Mission popup completed without a successful check-in"
+                    )
                     return False
 
             except PlaywrightTimeoutError:
@@ -401,9 +623,7 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
             idx, TASK_ITEM_SELECTOR
         )
         mission_button_selector = (
-            "div:nth-child({}) > .taskItemPcRight-3-Kwr1 > .icon2-Y7R3Mu".format(
-                idx
-            )
+            "div:nth-child({}) > .taskItemPcRight-3-Kwr1 > .icon2-Y7R3Mu".format(idx)
         )
         mission_text_loc = page.locator(mission_text_selector)
         mission_btn_loc = page.locator(mission_button_selector)
@@ -436,7 +656,10 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
             )
         else:
             if button_state == "Reward":
-                logger.info("Mission '%s' is directly claimable; attempting action", mission_name)
+                logger.info(
+                    "Mission '%s' is directly claimable; attempting action",
+                    mission_name,
+                )
             elif button_state == "Unfinished":
                 logger.info(
                     "Mission '%s' is unfinished; attempting action in case it opens a popup",
@@ -470,13 +693,15 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
     logger.info(f"Check-in status: {check_in_status}")
 
 
-def run(output_file: str, page: Page, previous_data: Dict, todays_data: Dict) -> None:
+def run(
+    output_file: str, page: Page, previous_data: List[Dict], todays_data: Dict
+) -> None:
     """Main entry point for mission automation.
 
     Args:
         output_file: Path to save mission data
         page: Playwright Page instance
-        previous_data: Historical mission data
+        previous_data: Historical mission data records
         todays_data: Today's mission data to populate
     """
     import sentry_sdk
@@ -487,13 +712,17 @@ def run(output_file: str, page: Page, previous_data: Dict, todays_data: Dict) ->
         span.set_data("workflow.phase", "mission")
         try:
             # Navigate to mission screen
-            with sentry_sdk.start_span(op="browser.navigate", name="Open mission screen"):
+            with sentry_sdk.start_span(
+                op="browser.navigate", name="Open mission screen"
+            ):
                 if not open_mission_screen(page):
                     logger.error("Failed to open mission screen, aborting")
                     return
 
             # Count and execute missions
-            with sentry_sdk.start_span(op="browser.interact", name="Count and execute missions"):
+            with sentry_sdk.start_span(
+                op="browser.interact", name="Count and execute missions"
+            ):
                 mission_count = count_mission(page)
                 doing_mission(mission_count, page, todays_data)
 

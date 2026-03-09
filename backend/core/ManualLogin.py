@@ -1,4 +1,5 @@
 import logging
+import os
 import threading
 from enum import Enum
 from typing import Optional
@@ -249,11 +250,19 @@ class ManualLoginManager:
                     logger.info("Stop button clicked, saving session...")
 
                 try:
-                    # Save the session state
-                    save_context_storage_state(self._context, CONFIG["STORAGE_PATH"])
-                    logger.info(
-                        f"✓ Session saved successfully to: {CONFIG['STORAGE_PATH']}"
+                    # Manual login should refresh MongoDB auth state directly.
+                    save_context_storage_state(
+                        self._context,
+                        CONFIG["STORAGE_PATH"],
+                        write_local_backup=False,
                     )
+                    if os.path.exists(CONFIG["STORAGE_PATH"]):
+                        os.remove(CONFIG["STORAGE_PATH"])
+                        logger.info(
+                            "Removed stale local storage-state fallback: %s",
+                            CONFIG["STORAGE_PATH"],
+                        )
+                    logger.info("✓ Session saved successfully to MongoDB storage state")
 
                     NotificationHelper.notify(
                         title="ZZZ Bot",

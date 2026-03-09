@@ -1,5 +1,6 @@
 import sys
 import threading
+import asyncio
 from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
@@ -7,6 +8,7 @@ from typing import Any, cast
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 image_processor_module = import_module("automation.ImageProcessor")
+routes_module = import_module("api.routes")
 from handlers import MissionHandler, ShoppingHandler
 from core.mission_email import schedule_mission_email_delivery
 from core.settings_compat import (
@@ -101,7 +103,8 @@ def test_doing_mission_attempts_unfinished_missions(monkeypatch):
     monkeypatch.setattr(
         MissionHandler.Mission,
         "perform_mission",
-        lambda self, mission_button, max_retries=5: calls.append(mission_button) or True,
+        lambda self, mission_button, max_retries=5: calls.append(mission_button)
+        or True,
     )
 
     todays_data = {}
@@ -112,7 +115,9 @@ def test_doing_mission_attempts_unfinished_missions(monkeypatch):
 
 
 def test_handle_pop_up_marks_missing_popup_outcome_as_failed(monkeypatch):
-    monkeypatch.setattr(MissionHandler, "handle_check_in", lambda page, todays_data: None)
+    monkeypatch.setattr(
+        MissionHandler, "handle_check_in", lambda page, todays_data: None
+    )
 
     closed = {"value": False}
 
@@ -212,10 +217,14 @@ def test_execute_shopping_with_existing_data_forces_reopen(monkeypatch):
     monkeypatch.setattr(
         ShoppingHandler,
         "open_shopping_screen",
-        lambda page, force_reopen=False: force_reopen_calls.append(force_reopen) or False,
+        lambda page, force_reopen=False: force_reopen_calls.append(force_reopen)
+        or False,
     )
 
-    assert ShoppingHandler.execute_shopping_with_existing_data(cast(Any, object())) is False
+    assert (
+        ShoppingHandler.execute_shopping_with_existing_data(cast(Any, object()))
+        is False
+    )
     assert force_reopen_calls == [True]
 
 
@@ -246,7 +255,9 @@ def test_select_zzz_avatar_retries_after_detached_click(monkeypatch):
         find_attempt["value"] += 1
         return locator
 
-    monkeypatch.setattr(ShoppingHandler, "find_correct_avatar", fake_find_correct_avatar)
+    monkeypatch.setattr(
+        ShoppingHandler, "find_correct_avatar", fake_find_correct_avatar
+    )
     monkeypatch.setattr(
         ShoppingHandler,
         "open_shopping_screen",
@@ -432,3 +443,148 @@ def test_settings_repository_uses_safe_hunt_early_exit_default(tmp_path: Path):
     settings = repository.get_settings()
 
     assert settings["hunt_early_exit_on_unavailable"] is False
+
+
+def test_dynamic_routes_hide_internal_action_endpoints():
+    assert routes_module._is_public_route("/shopping") is True
+    assert routes_module._is_public_route("/overview/mission") is True
+    assert routes_module._is_public_route("/shutdown") is False
+    assert routes_module._is_public_route("/tasks/run-playwright") is False
+    assert routes_module._is_public_route("/maintenance/local-cleanup") is False
+
+
+def test_shutdown_rejects_invalid_desktop_token(monkeypatch):
+    monkeypatch.setenv("ZZZ_DESKTOP_TOKEN", "expected-token")
+
+    class FakeRequest:
+        headers = {"x-desktop-token": "wrong-token"}
+
+        async def body(self):
+            return b""
+
+    response = asyncio.run(routes_module.shutdown(FakeRequest()))
+
+    assert response.status_code == 401
+    assert response.body == b'{"status":"rejected"}'
+
+
+def test_shutdown_accepts_request_and_starts_worker(monkeypatch):
+    monkeypatch.setenv("ZZZ_DESKTOP_TOKEN", "expected-token")
+    started_contexts: list[dict[str, object]] = []
+
+    class FakeRequest:
+        headers = {"x-desktop-token": "expected-token"}
+
+        async def body(self):
+            return (
+                b'{"source":"tauri","run_event":"exit_requested","reason":"app_run_event",'
+                b'"tracked_pid":321,"shutdown_started_at":"123456"}'
+            )
+
+    monkeypatch.setattr(
+        routes_module,
+        "_start_shutdown_worker",
+        lambda shutdown_context: started_contexts.append(dict(shutdown_context)),
+    )
+
+    response = asyncio.run(routes_module.shutdown(FakeRequest()))
+
+    assert response.status_code == 202
+    assert response.body == b'{"status":"accepted"}'
+    assert started_contexts == [
+        {
+            "source": "tauri",
+            "run_event": "exit_requested",
+            "reason": "app_run_event",
+            "tracked_pid": 321,
+            "shutdown_started_at": "123456",
+            "hosted_by_tauri": True,
+            "is_exe": False,
+        }
+    ]
+
+
+def test_perform_desktop_shutdown_flushes_sentry_before_exit():
+    exit_codes: list[int] = []
+
+    class FakeSpan:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeTransaction:
+        def __init__(self):
+            self.tags: dict[str, object] = {}
+            self.data: dict[str, object] = {}
+            self.statuses: list[str] = []
+            self.finished = False
+            self.children: list[tuple[str, str]] = []
+
+        def set_tag(self, key, value):
+            self.tags[key] = value
+
+        def set_data(self, key, value):
+            self.data[key] = value
+
+        def set_status(self, value):
+            self.statuses.append(value)
+
+        def start_child(self, *, op, description):
+            self.children.append((op, description))
+            return FakeSpan()
+
+        def finish(self):
+            self.finished = True
+
+    class FakeSentry:
+        def __init__(self):
+            self.transaction = FakeTransaction()
+            self.flush_calls: list[float] = []
+            self.captured = 0
+
+        class _Client:
+            @staticmethod
+            def is_active():
+                return True
+
+        def get_client(self):
+            return self._Client()
+
+        def start_transaction(self, **_kwargs):
+            return self.transaction
+
+        def flush(self, timeout):
+            self.flush_calls.append(timeout)
+
+        def capture_exception(self):
+            self.captured += 1
+
+    fake_sentry = FakeSentry()
+    routes_module._perform_desktop_shutdown(
+        {
+            "source": "tauri",
+            "run_event": "exit",
+            "reason": "app_run_event",
+            "tracked_pid": 444,
+            "shutdown_started_at": "123456",
+            "hosted_by_tauri": True,
+            "is_exe": True,
+        },
+        sentry_sdk_module=fake_sentry,
+        exit_func=lambda code: exit_codes.append(code),
+        sleep_func=lambda _seconds: None,
+    )
+
+    assert fake_sentry.transaction.tags == {
+        "shutdown.source": "tauri",
+        "shutdown.run_event": "exit",
+        "shutdown.reason": "app_run_event",
+    }
+    assert fake_sentry.transaction.data["tracked_pid"] == 444
+    assert fake_sentry.transaction.finished is True
+    assert fake_sentry.flush_calls == [
+        routes_module.SHUTDOWN_SENTRY_FLUSH_TIMEOUT_SECONDS
+    ]
+    assert exit_codes == [0]
