@@ -14,6 +14,8 @@ export default function ManualLogin() {
   const MINO_URL =
     "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...";
   const REDEEM_URL = "https://zenless.hoyoverse.com/redemption";
+  const CHECK_IN_URL =
+    "https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091&hyl_auth_required=true";
 
   const [url, setUrl] = useState(MINO_URL); // Default to MINO_URL
   const [playState, setPlayState] = useState(false);
@@ -84,6 +86,7 @@ export default function ManualLogin() {
         >
           <MenuItem value={MINO_URL}>MINO_URL</MenuItem>
           <MenuItem value={REDEEM_URL}>REDEEM_URL</MenuItem>
+          <MenuItem value={CHECK_IN_URL}>CHECK_IN_URL</MenuItem>
         </Select>
       </FormControl>
       <IconButton onClick={handleIconClick}>
