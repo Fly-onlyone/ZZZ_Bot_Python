@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, statSync } from "node:fs";
 import { execSync, spawnSync } from "node:child_process";
 import { join } from "node:path";
 
@@ -14,13 +14,28 @@ const hostTarget = execSync("rustc --print host-tuple", {
 }).trim();
 const targetName = `zzz-backend-${hostTarget}${extension}`;
 
-mkdirSync(distDir, { recursive: true });
-mkdirSync(binariesDir, { recursive: true });
+function ensureDirectory(path: string) {
+  if (existsSync(path)) {
+    if (!statSync(path).isDirectory()) {
+      throw new Error(
+        `Expected directory at ${path}, but found a file instead`
+      );
+    }
+    return;
+  }
+
+  mkdirSync(path, { recursive: true });
+}
+
+ensureDirectory(distDir);
+ensureDirectory(binariesDir);
 
 const buildResult = spawnSync(
   "uv",
   [
     "run",
+    "--group",
+    "dev",
     "pyinstaller",
     "product/BotSidecar.spec",
     "--distpath",
