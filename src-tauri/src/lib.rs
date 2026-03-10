@@ -15,6 +15,7 @@ use tauri_plugin_autostart::ManagerExt as _;
 const AUTOSTART_RECONCILE_ATTEMPTS: u32 = 20;
 const AUTOSTART_RECONCILE_DELAY_MS: u64 = 500;
 const APP_NAME: &str = "ZZZ Bot";
+const APP_NAME_DEV: &str = "ZZZ Bot Dev";
 const BACKEND_SHUTDOWN_GRACEFUL_WAIT_MS: u64 = 2000;
 const BACKEND_SHUTDOWN_POST_KILL_WAIT_MS: u64 = 500;
 const BACKEND_SHUTDOWN_POLL_INTERVAL_MS: u64 = 100;
@@ -64,6 +65,14 @@ fn backend_port() -> u16 {
         .and_then(|v| v.parse::<u16>().ok())
         .filter(|port| *port > 0)
         .unwrap_or(8000)
+}
+
+fn tray_tooltip() -> &'static str {
+    if cfg!(debug_assertions) {
+        APP_NAME_DEV
+    } else {
+        APP_NAME
+    }
 }
 
 fn generate_desktop_token() -> String {
@@ -532,7 +541,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
         MenuItemBuilder::with_id("run_playwright", "Run Playwright").build(app)?;
     let toggle_open_web_ui_item = CheckMenuItemBuilder::with_id(
         "toggle_open_web_ui",
-        "Toggle Web UI",
+        "Open Browser on Startup",
     )
     .checked(tray_settings.open_web_ui)
     .build(app)?;
@@ -558,7 +567,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 
     TrayIconBuilder::with_id("main")
         .menu(&menu)
-        .tooltip(APP_NAME)
+        .tooltip(tray_tooltip())
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "run_playwright" => {
