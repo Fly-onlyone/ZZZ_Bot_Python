@@ -33,6 +33,12 @@ Runtime precedence for installed app:
 2. Embedded fallback DSN from build time
 3. Disabled Sentry when neither source exists
 
+For log visibility in installed app:
+
+- Release builds now default backend `enable_logs=True`.
+- Rebuild and reinstall after changing any frontend or Sentry config. The copy under
+  `C:\Users\PC\AppData\Local\Programs\ZZZ Bot` does not live-update from the repository.
+
 For profile visibility in installed app:
 
 - Keep `sentry_traces_sample_rate` and `sentry_profiles_sample_rate` at `1.0` in Settings -> Monitoring, or set env vars

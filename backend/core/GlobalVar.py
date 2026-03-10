@@ -279,8 +279,8 @@ def _env_flag_enabled(env_name: str, default_value: bool = True) -> bool:
 
 
 def default_sentry_logs_enabled() -> bool:
-    """Keep Sentry log collection quieter in packaged production builds by default."""
-    return not is_exe
+    """Keep Sentry Logs on in both dev and installed builds."""
+    return True
 
 
 def sentry_logs_enabled_from_env() -> bool:

@@ -25,17 +25,27 @@ const getStartupRetryDelay = (attemptIndex) =>
 export const DataLoader = () => {
   const queryClient = useQueryClient();
 
-  const fetchJson = useCallback(async (url, context) => {
+  const fetchJson = useCallback(async (url, context, options = {}) => {
+    const {
+      requestFailureSeverity = "error",
+      requestFailureMessage = "Frontend API request failed",
+    } = options;
     let response;
 
     try {
       response = await fetch(url);
     } catch (error) {
-      logError("Frontend API request failed", error, {
+      const attributes = {
         context,
         url,
         phase: "request",
-      });
+        error: error instanceof Error ? error.message : String(error),
+      };
+      if (requestFailureSeverity === "warn") {
+        logWarn(requestFailureMessage, attributes);
+      } else {
+        logError(requestFailureMessage, error, attributes);
+      }
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`${context}: ${message}`);
     }
@@ -138,7 +148,11 @@ export const DataLoader = () => {
   const useBackendHealth = () => {
     return useQuery({
       queryKey: ["backend-health"],
-      queryFn: () => fetchJson(`${BACKEND_URL}/health`, "Backend unavailable"),
+      queryFn: () =>
+        fetchJson(`${BACKEND_URL}/health`, "Backend unavailable", {
+          requestFailureSeverity: "warn",
+          requestFailureMessage: "Frontend backend health probe failed",
+        }),
       staleTime: 1000 * 5,
       retry: STARTUP_RETRY_COUNT,
       retryDelay: getStartupRetryDelay,
