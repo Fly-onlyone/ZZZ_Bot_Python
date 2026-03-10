@@ -24,15 +24,26 @@ const THEMES = [
 
 export default function ThemePicker() {
   const { themeName, themeColors, changeTheme } = useThemeContext();
-  const { useSaveData, useRouteData } = DataLoader();
+  const { useBackendHealth, useSaveData, useRouteData } = DataLoader();
+  const { data: healthData } = useBackendHealth();
+  const isBackendReady = healthData?.status === "ok";
   const saveMutation = useSaveData("settings");
-  const { data: settings } = useRouteData("settings");
+  const { data: settings = {} } = useRouteData("settings", {
+    enabled: isBackendReady,
+    retry: 6,
+    retryDelay: (attemptIndex) => Math.min(500 * 2 ** attemptIndex, 3000),
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
   const [anchorEl, setAnchorEl] = useState(null);
 
   const handleOpen = (event) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
   const handleSelect = (name) => {
+    if (!isBackendReady) {
+      return;
+    }
     changeTheme(name);
     handleClose();
     saveMutation.mutate({ ...settings, theme: name });
@@ -43,6 +54,7 @@ export default function ThemePicker() {
       <Tooltip title="Theme">
         <IconButton
           onClick={handleOpen}
+          disabled={!isBackendReady}
           sx={{ color: themeColors.primary.light }}
         >
           <PaletteIcon />
