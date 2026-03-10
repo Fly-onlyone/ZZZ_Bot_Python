@@ -111,6 +111,13 @@
     background: #475569;
 }
 
+/* Root overflow handling */
+#root {
+    width: 100%;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
 /* Global fade-in animation */
 body {
     animation: fadeIn 0.5s ease-in-out;

@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { Box, Grid2, Typography } from "@mui/material";
 import { useLocation } from "react-router-dom";
 import { DataLoader } from "../services";
 import { SaveButton } from "../components";
 import { usePriorityManagement, useShoppingState } from "../hooks";
+import { logInfo, logWarn } from "../services/sentryLogger.js";
 
 export default function Shopping() {
   const [alert, setAlert] = useState({
@@ -33,6 +34,29 @@ export default function Shopping() {
     setSelectedRows
   );
 
+  useEffect(() => {
+    if (!shopping) {
+      return;
+    }
+
+    logInfo("Shopping page data ready", {
+      itemCount: Object.keys(shopping["Item's list"] || {}).length,
+      purchasedCount: (shopping.Purchased || []).length,
+      selectedCount: selectedRows.length,
+      point: shopping.Point ?? 0,
+    });
+  }, [selectedRows.length, shopping]);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+
+    logWarn("Shopping page data load failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }, [error]);
+
   if (!shopping) {
     return <Typography>Loading...</Typography>;
   }
@@ -55,8 +79,8 @@ export default function Shopping() {
     })),
     // Add regular shopping items
     ...Object.entries(shopping["Item's list"])
-      .filter(([key, item]) => !(shopping.Purchased || []).includes(item.Name))
-      .map(([key, item]) => ({
+      .filter(([, item]) => !(shopping.Purchased || []).includes(item.Name))
+      .map(([, item]) => ({
         id: item.Name,
         ...item,
         Priority:
@@ -127,10 +151,17 @@ export default function Shopping() {
       Hunt: huntItems,
     };
 
-    console.log("Payload:", payload);
+    logInfo("Shopping save payload prepared", {
+      selectedCount: payload.Selected.length,
+      huntCount: payload.Hunt.length,
+    });
 
     mutation.mutate(payload, {
       onSuccess: () => {
+        logInfo("Shopping save succeeded", {
+          selectedCount: payload.Selected.length,
+          huntCount: payload.Hunt.length,
+        });
         setAlert({
           open: true,
           type: "success",
@@ -138,7 +169,11 @@ export default function Shopping() {
         });
       },
       onError: (error) => {
-        console.error("Save error:", error);
+        logWarn("Shopping save failed in page handler", {
+          error: error instanceof Error ? error.message : String(error),
+          selectedCount: payload.Selected.length,
+          huntCount: payload.Hunt.length,
+        });
         setAlert({
           open: true,
           type: "error",

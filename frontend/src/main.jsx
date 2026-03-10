@@ -20,11 +20,15 @@ import ErrorFallback from "./components/common/ErrorFallback";
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
 const DEFAULT_SAMPLE_RATE =
   import.meta.env.MODE === "development" ? "1.0" : "0.1";
+const SENTRY_INIT_KEY = "__ZZZ_BOT_SENTRY_INITIALIZED__";
+const SENTRY_BOOT_LOG_KEY = "__ZZZ_BOT_SENTRY_BOOT_LOGGED__";
 
-if (SENTRY_DSN) {
+if (SENTRY_DSN && !window[SENTRY_INIT_KEY]) {
+  window[SENTRY_INIT_KEY] = true;
   Sentry.init({
     dsn: SENTRY_DSN,
     environment: import.meta.env.MODE,
+    enableLogs: true,
     integrations: [
       Sentry.reactRouterV7BrowserTracingIntegration({
         useEffect: React.useEffect,
@@ -33,22 +37,21 @@ if (SENTRY_DSN) {
         createRoutesFromChildren,
         matchRoutes,
       }),
-      Sentry.browserProfilingIntegration(),
       Sentry.captureConsoleIntegration({ levels: ["log", "warn", "error"] }),
+      Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
       Sentry.replayIntegration({
         maskAllText: true,
         blockAllMedia: true,
       }),
+      Sentry.httpClientIntegration(),
     ],
     tracesSampleRate: parseFloat(
       import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || DEFAULT_SAMPLE_RATE
     ),
-    profilesSampleRate: parseFloat(
-      import.meta.env.VITE_SENTRY_PROFILES_SAMPLE_RATE || DEFAULT_SAMPLE_RATE
-    ),
     tracePropagationTargets: ["localhost", "127.0.0.1"],
     sendDefaultPii: false,
-    replaysSessionSampleRate: import.meta.env.MODE === "development" ? 1.0 : 0.1,
+    replaysSessionSampleRate:
+      import.meta.env.MODE === "development" ? 1.0 : 0.1,
     replaysOnErrorSampleRate: 1.0,
   });
 }
@@ -75,6 +78,18 @@ function ThemedApp() {
 const queryClient = new QueryClient();
 
 function App() {
+  React.useEffect(() => {
+    if (!SENTRY_DSN || window[SENTRY_BOOT_LOG_KEY]) {
+      return;
+    }
+
+    window[SENTRY_BOOT_LOG_KEY] = true;
+    Sentry.logger.info("ZZZ Bot frontend started", {
+      environment: import.meta.env.MODE,
+      route: window.location.pathname,
+    });
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeContextProvider>

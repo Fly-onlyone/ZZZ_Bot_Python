@@ -1,19 +1,79 @@
-import React from "react";
-import { AppBar, Box, Toolbar, Typography } from "@mui/material";
+import React, { useState } from "react";
+import {
+  AppBar,
+  Box,
+  Button,
+  Chip,
+  Popover,
+  Toolbar,
+  Typography,
+} from "@mui/material";
 import zIndex from "@mui/material/styles/zIndex";
 import { COMMON_COLORS } from "../../theme/colors";
 import { TRANSITIONS } from "../../theme/styles";
 import { useThemeContext } from "../../theme/ThemeContext";
+import { useZoom } from "../../hooks/useZoom.jsx";
+import ThemePicker from "./ThemePicker";
+
+function ZoomChip({ zoomPercent, onRestore }) {
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  const handleClick = (event) => setAnchorEl(event.currentTarget);
+  const handleClose = () => setAnchorEl(null);
+  const handleRestore = () => {
+    onRestore();
+    handleClose();
+  };
+
+  return (
+    <>
+      <Chip
+        label={`${zoomPercent}%`}
+        size="small"
+        onClick={handleClick}
+        sx={{
+          cursor: "pointer",
+          color: COMMON_COLORS.text.secondary,
+          borderColor: COMMON_COLORS.background.slate,
+          fontSize: "0.75rem",
+        }}
+        variant="outlined"
+      />
+      <Popover
+        open={Boolean(anchorEl)}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        transformOrigin={{ vertical: "top", horizontal: "center" }}
+        slotProps={{
+          paper: {
+            sx: {
+              mt: 1,
+              p: 1.5,
+              background: COMMON_COLORS.background.paper,
+              border: `1px solid ${COMMON_COLORS.background.slate}`,
+            },
+          },
+        }}
+      >
+        <Button size="small" variant="outlined" onClick={handleRestore}>
+          Restore to 100%
+        </Button>
+      </Popover>
+    </>
+  );
+}
 
 /**
  * AppHeader Component
  *
- * Application header bar with logo and title.
- * Displayed at the top of the application with fixed positioning.
+ * Application header bar with logo, title, theme picker, and zoom indicator.
  */
 export default function AppHeader() {
   const { themeColors } = useThemeContext();
+  const { zoomLevel, resetZoom } = useZoom();
   const Qingyi02 = "/Qingyi02.ico";
+  const zoomPercent = Math.round(zoomLevel * 100);
 
   return (
     <AppBar position="fixed" sx={{ zIndex: zIndex.drawer + 1 }}>
@@ -55,6 +115,22 @@ export default function AppHeader() {
         >
           ZZZ Bot
         </Typography>
+
+        {/* Right Controls */}
+        <Box
+          sx={{
+            position: "absolute",
+            right: 16,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          {zoomPercent !== 100 && (
+            <ZoomChip zoomPercent={zoomPercent} onRestore={resetZoom} />
+          )}
+          <ThemePicker />
+        </Box>
       </Toolbar>
     </AppBar>
   );

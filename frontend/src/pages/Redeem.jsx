@@ -6,6 +6,7 @@ import { DataGrid } from "@mui/x-data-grid";
 import { Button } from "@mui/material";
 import { useEffect, useState } from "react";
 import { SaveButton } from "../components";
+import { logInfo, logWarn } from "../services/sentryLogger.js";
 
 export default function Redeem() {
   const location = useLocation();
@@ -35,7 +36,26 @@ export default function Redeem() {
     });
   }, [redeemList]);
 
+  useEffect(() => {
+    logInfo("Redeem page data ready", {
+      itemCount: redeemList.length,
+    });
+  }, [redeemList]);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+
+    logWarn("Redeem page data load failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }, [error]);
+
   const handleSwitchState = (id) => {
+    logInfo("Redeem item marked done", {
+      itemId: id,
+    });
     setRows((prevRows) =>
       prevRows.map((row) =>
         row.id === id ? { ...row, state: !row.state } : row
@@ -46,13 +66,21 @@ export default function Redeem() {
   const handleSave = () => {
     saveData(rows, {
       onSuccess: () => {
+        logInfo("Redeem save succeeded", {
+          itemCount: rows.length,
+        });
         setAlert({
           open: true,
           type: "success",
           message: "Redeem data updated successfully",
         });
       },
-      onError: () => {
+      onError: (saveError) => {
+        logWarn("Redeem save failed in page handler", {
+          error:
+            saveError instanceof Error ? saveError.message : String(saveError),
+          itemCount: rows.length,
+        });
         setAlert({
           open: true,
           type: "error",

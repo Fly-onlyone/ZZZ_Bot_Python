@@ -56,9 +56,14 @@ export function ThemeContextProvider({ children }) {
     setThemeColors(getThemeColors(newTheme));
   }, [settingsData]);
 
+  const changeTheme = (name) => {
+    setThemeName(name);
+    setThemeColors(getThemeColors(name));
+  };
+
   return (
     <ThemeContext.Provider
-      value={{ themeName, themeColors, prefersReducedMotion }}
+      value={{ themeName, themeColors, prefersReducedMotion, changeTheme }}
     >
       {children}
     </ThemeContext.Provider>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   BrowserRouter,
   Navigate,
@@ -30,7 +30,9 @@ import { BACKEND_URL } from "../config";
 import { Logs, ManualLogin, Overview, Redeem, Shopping } from "../pages";
 import { DataLoader } from "../services";
 import { useThemeContext } from "../theme/ThemeContext";
+import { ZoomProvider, useZoom } from "../hooks/useZoom.jsx";
 import * as Sentry from "@sentry/react";
+import { logInfo, logWarn } from "../services/sentryLogger.js";
 
 const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes);
 
@@ -157,6 +159,9 @@ function AutostartToggle() {
 }
 
 const settingsTypeConfig = {
+  open_web_ui: {
+    label: "Open browser on startup",
+  },
   theme: {
     type: "select",
     options: [
@@ -167,15 +172,6 @@ const settingsTypeConfig = {
     ],
   },
   sentry_traces_sample_rate: {
-    type: "select",
-    options: [
-      { value: 1.0, label: "1.0 (Always)" },
-      { value: 0.5, label: "0.5" },
-      { value: 0.25, label: "0.25" },
-      { value: 0.1, label: "0.1" },
-    ],
-  },
-  sentry_profiles_sample_rate: {
     type: "select",
     options: [
       { value: 1.0, label: "1.0 (Always)" },
@@ -259,7 +255,7 @@ function SettingsPanel() {
         customSections={{
           General: {
             icon: <TaskIcon />,
-            fields: ["schedule_times", "run_task", "hide_browser", "theme"],
+            fields: ["schedule_times", "run_task", "hide_browser"],
           },
           Tasks: {
             icon: <ShoppingCartIcon />,
@@ -317,9 +313,10 @@ function AdvancedSettingsPanel() {
           Monitoring: {
             icon: <IconCards />,
             fields: [
+              "sentry_dsn",
+              "sentry_frontend_dsn",
               "sentry_send_test_event",
               "sentry_traces_sample_rate",
-              "sentry_profiles_sample_rate",
             ],
           },
         }}
@@ -334,6 +331,12 @@ function AdvancedSettingsPanel() {
  */
 function AnimatedRoutes() {
   const location = useLocation();
+
+  useEffect(() => {
+    logInfo("Frontend route viewed", {
+      route: location.pathname,
+    });
+  }, [location.pathname]);
 
   return (
     <AnimatePresence mode="wait">
@@ -480,9 +483,10 @@ function AnimatedRoutes() {
 // Main application layout with persistent navigation drawer and header.
 // Manages routing and data prefetching.
 //
-export default function PermanentDrawer() {
+function PermanentDrawerContent() {
   const { prefetchAllRoutes, useBackendHealth } = DataLoader();
-  const { themeColors } = useThemeContext(); // Get theme colors
+  const { themeColors } = useThemeContext();
+  const { zoomLevel } = useZoom();
   const {
     data: healthData,
     error: backendHealthError,
@@ -496,35 +500,82 @@ export default function PermanentDrawer() {
       return;
     }
 
+    logInfo("Frontend backend connected", {
+      status: healthData?.status || "unknown",
+    });
+  }, [healthData?.status, isBackendReady]);
+
+  useEffect(() => {
+    if (
+      !backendHealthError ||
+      isBackendHealthLoading ||
+      isBackendHealthFetching
+    ) {
+      return;
+    }
+
+    logWarn("Frontend backend health check failed", {
+      error:
+        backendHealthError instanceof Error
+          ? backendHealthError.message
+          : String(backendHealthError),
+    });
+  }, [backendHealthError, isBackendHealthFetching, isBackendHealthLoading]);
+
+  useEffect(() => {
+    if (!isBackendReady) {
+      return;
+    }
+
     void prefetchAllRoutes();
   }, [isBackendReady, prefetchAllRoutes]);
 
   return (
-    <BrowserRouter>
+    <Box
+      className="flex"
+      sx={{
+        minHeight: "100vh",
+        background: themeColors.gradients.background,
+        backgroundAttachment: "fixed",
+        backgroundSize: "cover",
+        zoom: zoomLevel,
+      }}
+    >
+      <CssBaseline />
+      <AppHeader />
+      <NavigationDrawer />
       <Box
-        className="flex"
+        component="main"
         sx={{
-          minHeight: "100vh",
-          background: themeColors.gradients.background,
-          backgroundAttachment: "fixed",
-          backgroundSize: "cover",
+          flexGrow: 1,
+          p: { xs: 2, sm: 3, md: 4, lg: 6 },
+          overflow: "auto",
         }}
       >
-        <CssBaseline />
-        <AppHeader />
-        <NavigationDrawer />
-        <Box component="main" className="flex-grow p-6">
-          <Toolbar />
-          {isBackendReady ? (
-            <AnimatedRoutes />
-          ) : (
-            <StartupStatus
-              isLoading={isBackendHealthLoading || isBackendHealthFetching}
-              error={backendHealthError}
-            />
-          )}
-        </Box>
+        <Toolbar />
+        {isBackendReady ? (
+          <AnimatedRoutes />
+        ) : (
+          <StartupStatus
+            isLoading={isBackendHealthLoading || isBackendHealthFetching}
+            error={backendHealthError}
+          />
+        )}
       </Box>
+    </Box>
+  );
+}
+
+export default function PermanentDrawer() {
+  const containerRef = useRef(null);
+
+  return (
+    <BrowserRouter>
+      <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
+        <ZoomProvider containerRef={containerRef}>
+          <PermanentDrawerContent />
+        </ZoomProvider>
+      </div>
     </BrowserRouter>
   );
 }

@@ -26,6 +26,7 @@ export { default as TextField } from "./fields/TextField.jsx";
 // Layout Components
 export { default as AppHeader } from "./layout/AppHeader.jsx";
 export { default as NavigationDrawer } from "./layout/NavigationDrawer.jsx";
+export { default as ThemePicker } from "./layout/ThemePicker.jsx";
 
 // Form Components
 export { default as ValueAdapter } from "./forms/ValueAdapter.jsx";
