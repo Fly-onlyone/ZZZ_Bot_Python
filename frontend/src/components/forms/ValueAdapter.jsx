@@ -66,7 +66,7 @@ export default function ValueAdapter({
               {customIcons[fieldKey]}
             </div>
           )}
-          {fieldKey.replace(/_/g, " ")}:
+          {typeConfig[fieldKey]?.label || fieldKey.replace(/_/g, " ")}:
         </label>
         <div
           className={

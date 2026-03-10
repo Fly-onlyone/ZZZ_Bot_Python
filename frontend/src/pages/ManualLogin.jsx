@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   FormControl,
   IconButton,
@@ -8,7 +8,9 @@ import {
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
+import * as Sentry from "@sentry/react";
 import { BACKEND_URL } from "../config";
+import { logError, logInfo, logWarn } from "../services/sentryLogger.js";
 
 export default function ManualLogin() {
   const MINO_URL =
@@ -19,10 +21,15 @@ export default function ManualLogin() {
 
   const [url, setUrl] = useState(MINO_URL); // Default to MINO_URL
   const [playState, setPlayState] = useState(false);
+  const spanFinishRef = useRef(null);
 
   const handleIconClick = (e) => {
     e.preventDefault();
     const newPlayState = !playState; // Compute the new state
+    logInfo("Manual login toggle requested", {
+      nextPlayState: newPlayState,
+      url,
+    });
     setPlayState(newPlayState); // Update the state
     void handleSubmit(newPlayState); // Pass the new state directly
   };
@@ -37,32 +44,59 @@ export default function ManualLogin() {
       });
 
       if (response.ok) {
-        console.log("Success:", response.statusText);
+        logInfo("Manual login request accepted", {
+          playState: updatedPlayState,
+          status: response.status,
+          statusText: response.statusText,
+          url,
+        });
 
         // Periodically check the backend playState
         if (updatedPlayState) {
-          const intervalId = setInterval(async () => {
-            try {
-              const stateResponse = await fetch(`${BACKEND_URL}/playstate`);
-              const { playState: backendPlayState } =
-                await stateResponse.json();
-              if (!backendPlayState) {
-                setPlayState(false); // Update the frontend playState
-                clearInterval(intervalId); // Stop checking
-                console.log("Browser session ended");
-              }
-            } catch (error) {
-              console.error("Error checking playState:", error);
-              setPlayState(false);
-              clearInterval(intervalId);
+          Sentry.startSpan(
+            { op: "ui.manual_login", name: "manual-login-polling" },
+            (span) => {
+              spanFinishRef.current = () => span.end();
+              const intervalId = setInterval(async () => {
+                try {
+                  const stateResponse = await fetch(`${BACKEND_URL}/playstate`);
+                  const { playState: backendPlayState } =
+                    await stateResponse.json();
+                  if (!backendPlayState) {
+                    setPlayState(false);
+                    clearInterval(intervalId);
+                    spanFinishRef.current?.();
+                    spanFinishRef.current = null;
+                    logInfo("Manual browser session ended", {
+                      url,
+                    });
+                  }
+                } catch (error) {
+                  logError("Manual login polling failed", error, {
+                    url,
+                  });
+                  setPlayState(false);
+                  clearInterval(intervalId);
+                  spanFinishRef.current?.();
+                  spanFinishRef.current = null;
+                }
+              }, 500);
             }
-          }, 500); // Check every 500ms for faster response
+          );
         }
       } else {
-        console.error("Failed to fetch data:", response.statusText);
+        logWarn("Manual login request rejected", {
+          playState: updatedPlayState,
+          status: response.status,
+          statusText: response.statusText,
+          url,
+        });
       }
     } catch (error) {
-      console.error("Error occurred:", error);
+      logError("Manual login request failed", error, {
+        playState: updatedPlayState,
+        url,
+      });
       setPlayState(false); // Reset playState on frontend in case of fetch error
     }
   };

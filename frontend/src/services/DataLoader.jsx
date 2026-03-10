@@ -6,6 +6,7 @@ import {
   DEFAULT_STALE_TIME,
   STALE_TIMES,
 } from "../config";
+import { logError, logInfo, logWarn } from "./sentryLogger.js";
 
 const STARTUP_RETRY_COUNT = 12;
 const STARTUP_RETRY_DELAY_MS = 500;
@@ -30,17 +31,32 @@ export const DataLoader = () => {
     try {
       response = await fetch(url);
     } catch (error) {
+      logError("Frontend API request failed", error, {
+        context,
+        url,
+        phase: "request",
+      });
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`${context}: ${message}`);
     }
 
     if (!response.ok) {
+      logWarn("Frontend API request returned non-OK status", {
+        context,
+        url,
+        status: response.status,
+      });
       throw new Error(`${context}: HTTP ${response.status}`);
     }
 
     try {
       return await response.json();
     } catch (error) {
+      logError("Frontend API response parsing failed", error, {
+        context,
+        url,
+        phase: "parse",
+      });
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`${context}: ${message}`);
     }
@@ -51,15 +67,23 @@ export const DataLoader = () => {
       `${BACKEND_URL}/routes`,
       "Failed to fetch routes"
     );
-    return Array.isArray(data?.routes) ? data.routes : [];
+    const routes = Array.isArray(data?.routes) ? data.routes : [];
+    logInfo("Frontend route list loaded", {
+      routeCount: routes.length,
+    });
+    return routes;
   }, [fetchJson]);
 
   const fetchRouteData = useCallback(
     async (route) => {
-      return fetchJson(
+      const data = await fetchJson(
         `${BACKEND_URL}/${route}`,
         `Failed to fetch data for ${route}`
       );
+      logInfo("Frontend route data loaded", {
+        route,
+      });
+      return data;
     },
     [fetchJson]
   );
@@ -70,7 +94,9 @@ export const DataLoader = () => {
     try {
       routes = await fetchAllRoutes();
     } catch (error) {
-      console.warn("Route prefetch skipped:", error);
+      logWarn("Frontend route prefetch skipped", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return;
     }
 
@@ -84,10 +110,17 @@ export const DataLoader = () => {
             retry: API_RETRY_COUNT,
           })
           .catch((error) => {
-            console.warn(`Prefetch failed for ${route}:`, error);
+            logWarn("Frontend route prefetch failed", {
+              route,
+              error: error instanceof Error ? error.message : String(error),
+            });
           })
       )
     );
+
+    logInfo("Frontend route prefetch completed", {
+      routeCount: routes.length,
+    });
   }, [fetchAllRoutes, fetchRouteData, queryClient]);
 
   const useRouteData = (route, queryOptions = {}) => {
@@ -116,6 +149,10 @@ export const DataLoader = () => {
 
   const useSaveData = (route) => {
     const saveData = async (newValue) => {
+      logInfo("Frontend save requested", {
+        route,
+      });
+
       const response = await fetch(`${BACKEND_URL}/${route}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -123,13 +160,25 @@ export const DataLoader = () => {
       });
 
       if (!response.ok) {
+        logWarn("Frontend save returned non-OK status", {
+          route,
+          status: response.status,
+        });
         throw new Error("Failed to save data");
       }
     };
 
     return useMutation({
       mutationFn: saveData,
+      onError: (error) => {
+        logError("Frontend save failed", error, {
+          route,
+        });
+      },
       onSuccess: async () => {
+        logInfo("Frontend save completed", {
+          route,
+        });
         const relatedQueryKeys = RELATED_QUERY_KEYS_BY_ROUTE[route] || [
           [route],
         ];
@@ -144,6 +193,10 @@ export const DataLoader = () => {
 
   const useActionData = (route) => {
     const runAction = async (payload = {}) => {
+      logInfo("Frontend action requested", {
+        route,
+      });
+
       const response = await fetch(`${BACKEND_URL}/${route}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -160,13 +213,30 @@ export const DataLoader = () => {
           responseData?.error ||
           responseData?.message ||
           `Failed to run action for ${route}`;
+        logWarn("Frontend action returned non-OK status", {
+          route,
+          status: response.status,
+          errorMessage,
+        });
         throw new Error(errorMessage);
       }
 
       return responseData;
     };
 
-    return useMutation({ mutationFn: runAction });
+    return useMutation({
+      mutationFn: runAction,
+      onSuccess: () => {
+        logInfo("Frontend action completed", {
+          route,
+        });
+      },
+      onError: (error) => {
+        logError("Frontend action failed", error, {
+          route,
+        });
+      },
+    });
   };
 
   return {

@@ -1,4 +1,5 @@
 import { DEFAULT_PRIORITY_OFFSET } from "../config";
+import { logInfo, logWarn } from "../services/sentryLogger.js";
 
 /**
  * usePriorityManagement Hook
@@ -23,8 +24,10 @@ export function usePriorityManagement(selectedRows, setSelectedRows) {
   const processRowUpdate = (newRow, oldRow) => {
     const newPriority = Number(newRow.Priority);
 
-    console.log("Editing row:", oldRow.Name);
-    console.log("New priority:", newPriority);
+    logInfo("Shopping priority edit requested", {
+      itemName: oldRow.Name,
+      newPriority,
+    });
 
     // Validate priority value
     if (!isNaN(newPriority) && newPriority > 0) {
@@ -36,15 +39,15 @@ export function usePriorityManagement(selectedRows, setSelectedRows) {
         (row) => row.Priority === newPriority && row.Name !== oldRow.Name
       );
 
-      console.log("Duplicate row index:", duplicateRowIndex);
-
       const updatedRows = [...selectedRows];
 
       // If priority already exists, swap with that row
       if (duplicateRowIndex !== -1) {
-        console.log(
-          `Swapping ${updatedRows[editingRowIndex].Name} with ${updatedRows[duplicateRowIndex].Name}`
-        );
+        logInfo("Shopping priority swap applied", {
+          itemName: updatedRows[editingRowIndex].Name,
+          swappedWith: updatedRows[duplicateRowIndex].Name,
+          requestedPriority: newPriority,
+        });
         updatedRows[duplicateRowIndex].Priority =
           updatedRows[editingRowIndex].Priority;
       }
@@ -59,8 +62,9 @@ export function usePriorityManagement(selectedRows, setSelectedRows) {
           ...row,
           Priority: index + DEFAULT_PRIORITY_OFFSET,
         }));
-
-      console.log("Reordered rows:", reorderedRows);
+      logInfo("Shopping priorities reordered", {
+        selectedCount: reorderedRows.length,
+      });
 
       // Save reordered rows to state
       setSelectedRows(reorderedRows);
@@ -69,6 +73,10 @@ export function usePriorityManagement(selectedRows, setSelectedRows) {
       return reorderedRows.find((row) => row.Name === newRow.Name);
     }
 
+    logWarn("Shopping priority edit ignored", {
+      itemName: oldRow.Name,
+      newPriority: String(newRow.Priority),
+    });
     return oldRow; // Fallback for invalid priority
   };
 

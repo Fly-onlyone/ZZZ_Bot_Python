@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { DataLoader } from "../services";
+import { logInfo, logWarn } from "../services/sentryLogger.js";
 
 /**
  * useFormState Hook
@@ -43,13 +44,21 @@ export function useFormState() {
     e.preventDefault();
     mutation.mutate(value, {
       onSuccess: () => {
+        logInfo("Form save succeeded", {
+          route,
+        });
         setAlert({
           open: true,
           type: "success",
           message: "Data saved successfully!",
         });
       },
-      onError: () => {
+      onError: (saveError) => {
+        logWarn("Form save failed in hook handler", {
+          route,
+          error:
+            saveError instanceof Error ? saveError.message : String(saveError),
+        });
         setAlert({
           open: true,
           type: "error",
