@@ -152,10 +152,10 @@ class AppSettings(Serializable):
     hunt_poll_backoff_enabled: bool = True
     hunt_early_exit_on_unavailable: bool = False
     theme: str = "purple"  # purple, green, blue
-    sentry_dsn: str = ""  # Override SENTRY_DSN env var if set
+    sentry_dsn: str = ""  # Backend DSN (overrides SENTRY_DSN env var)
+    sentry_frontend_dsn: str = ""  # Frontend DSN fallback when Vite env is unset
     sentry_send_test_event: bool = False
     sentry_traces_sample_rate: float = 1.0
-    sentry_profiles_sample_rate: float = 1.0
     mongodb_uri: str = ""  # Override MONGODB_URI env var if set
 
 
@@ -270,6 +270,7 @@ def resolve_sentry_sample_rate(
 
     return fallback_value, "fallback"
 
+
 def _env_flag_enabled(env_name: str, default_value: bool = True) -> bool:
     raw_value = os.getenv(env_name)
     if raw_value is None:
@@ -296,6 +297,7 @@ def _init_startup_sentry_if_configured() -> None:
         import sentry_sdk
         from sentry_sdk.integrations.fastapi import FastApiIntegration
         from sentry_sdk.integrations.logging import LoggingIntegration
+        from sentry_sdk.integrations.pymongo import PyMongoIntegration
     except ImportError:
         return
 
@@ -311,10 +313,6 @@ def _init_startup_sentry_if_configured() -> None:
         "SENTRY_TRACES_SAMPLE_RATE",
         default_sample_rate,
     )
-    profiles_sample_rate = parse_sample_rate(
-        "SENTRY_PROFILES_SAMPLE_RATE",
-        default_sample_rate,
-    )
     enable_logs = sentry_logs_enabled_from_env()
 
     try:
@@ -324,9 +322,9 @@ def _init_startup_sentry_if_configured() -> None:
             integrations=[
                 FastApiIntegration(),
                 LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
+                PyMongoIntegration(),
             ],
             traces_sample_rate=traces_sample_rate,
-            profiles_sample_rate=profiles_sample_rate,
             enable_logs=enable_logs,
             send_default_pii=False,
         )
@@ -468,6 +466,7 @@ def _load_accounts() -> "Account":
 load_runtime_env()
 _init_startup_sentry_if_configured()
 import sentry_sdk
+
 with sentry_sdk.start_transaction(op="startup", name="mongo-bootstrap", sampled=True):
     _bootstrap_mongo()
     settings = _load_settings()

@@ -136,17 +136,8 @@ def _perform_desktop_shutdown(
                     shutdown_context["tracked_pid"],
                 )
 
-            with transaction.start_child(
-                op="shutdown.response.delay",
-                description="allow shutdown response to flush",
-            ):
-                sleep_func(SHUTDOWN_RESPONSE_DELAY_SECONDS)
-
-            with transaction.start_child(
-                op="shutdown.process.exit",
-                description="terminate sidecar process",
-            ):
-                transaction.set_status("ok")
+            sleep_func(SHUTDOWN_RESPONSE_DELAY_SECONDS)
+            transaction.set_status("ok")
         else:
             logger.info(
                 "Graceful shutdown accepted by backend "
@@ -530,19 +521,25 @@ def run_local_cleanup():
     from utils.local_artifact_maintenance import cleanup_local_artifacts_once
     from utils.migrate_json_to_mongo import migrate_if_needed
 
-    migration_report = migrate_if_needed(
-        CONFIG["OUTPUT_FOLDER"],
-        CONFIG["STORAGE_PATH"],
-        CONFIG["SCREENSHOT_FOLDER"],
-    )
-    cleanup_report = cleanup_local_artifacts_once(
-        db=get_db(),
-        config=CONFIG,
-        is_exe_mode=is_exe,
-        runtime_mode=get_runtime_mode(),
-        migration_report=migration_report,
-        exe_base_dir=os.path.dirname(sys.executable) if is_exe else None,
-    )
+    import sentry_sdk
+
+    with sentry_sdk.start_span(op="maintenance.migrate", name="local-cleanup-migrate"):
+        migration_report = migrate_if_needed(
+            CONFIG["OUTPUT_FOLDER"],
+            CONFIG["STORAGE_PATH"],
+            CONFIG["SCREENSHOT_FOLDER"],
+        )
+    with sentry_sdk.start_span(
+        op="maintenance.cleanup", name="local-cleanup-artifacts"
+    ):
+        cleanup_report = cleanup_local_artifacts_once(
+            db=get_db(),
+            config=CONFIG,
+            is_exe_mode=is_exe,
+            runtime_mode=get_runtime_mode(),
+            migration_report=migration_report,
+            exe_base_dir=os.path.dirname(sys.executable) if is_exe else None,
+        )
     return JSONResponse(cleanup_report)
 
 
@@ -560,6 +557,8 @@ def get_advanced_settings():
 
 async def _update_settings_payload(request: Request) -> JSONResponse:
     """Persist settings updates to the shared settings document."""
+    import sentry_sdk
+
     from Bot import calculate_next_run, configure_sentry_runtime, schedule_tasks
     from repositories.connection import get_db, set_runtime_uri
 
@@ -580,35 +579,44 @@ async def _update_settings_payload(request: Request) -> JSONResponse:
     for key, value in updated_settings.items():
         setattr(settings, key, value)
 
-    try:
-        if "mongodb_uri" in applied_updates:
-            set_runtime_uri(settings.mongodb_uri)
-            get_db()
+    with sentry_sdk.start_span(op="settings.update", name="update-settings-payload"):
+        try:
+            if "mongodb_uri" in applied_updates:
+                with sentry_sdk.start_span(
+                    op="settings.mongo_uri_switch", name="mongo-uri-switch"
+                ):
+                    set_runtime_uri(settings.mongodb_uri)
+                    get_db()
 
-        MongoRepository.save_settings(asdict(settings))
-    except Exception as exc:
-        for key, value in current_settings.items():
-            setattr(settings, key, value)
+            MongoRepository.save_settings(asdict(settings))
+        except Exception as exc:
+            with sentry_sdk.start_span(
+                op="settings.rollback", name="settings-rollback"
+            ):
+                for key, value in current_settings.items():
+                    setattr(settings, key, value)
 
-        if "mongodb_uri" in applied_updates:
-            previous_uri = current_settings["mongodb_uri"]
-            try:
-                set_runtime_uri(previous_uri if isinstance(previous_uri, str) else "")
-                get_db()
-            except Exception as restore_exc:
-                logger.error(
-                    "Failed to restore previous MongoDB URI after update failure: %s",
-                    restore_exc,
-                )
+                if "mongodb_uri" in applied_updates:
+                    previous_uri = current_settings["mongodb_uri"]
+                    try:
+                        set_runtime_uri(
+                            previous_uri if isinstance(previous_uri, str) else ""
+                        )
+                        get_db()
+                    except Exception as restore_exc:
+                        logger.error(
+                            "Failed to restore previous MongoDB URI after update failure: %s",
+                            restore_exc,
+                        )
 
-        logger.error("Failed to update settings: %s", exc)
-        return JSONResponse(
-            {
-                "message": "Settings update failed",
-                "error": str(exc),
-            },
-            status_code=400,
-        )
+            logger.error("Failed to update settings: %s", exc)
+            return JSONResponse(
+                {
+                    "message": "Settings update failed",
+                    "error": str(exc),
+                },
+                status_code=400,
+            )
 
     schedule_tasks()
 
@@ -616,7 +624,6 @@ async def _update_settings_payload(request: Request) -> JSONResponse:
         "sentry_dsn",
         "sentry_send_test_event",
         "sentry_traces_sample_rate",
-        "sentry_profiles_sample_rate",
     }
     if any(key in applied_updates for key in sentry_setting_keys):
         sentry_status = configure_sentry_runtime(
@@ -624,11 +631,10 @@ async def _update_settings_payload(request: Request) -> JSONResponse:
             force_reinit=True,
         )
         logger.info(
-            "Applied Sentry runtime settings from UI: active=%s, dsn_source=%s, traces_sample_rate=%.3f, profiles_sample_rate=%.3f, reconfigured=%s, error=%s",
+            "Applied Sentry runtime settings from UI: active=%s, dsn_source=%s, traces_sample_rate=%.3f, reconfigured=%s, error=%s",
             sentry_status["active"],
             sentry_status["dsn_source"],
             sentry_status["traces_sample_rate"],
-            sentry_status["profiles_sample_rate"],
             sentry_status["reconfigured"],
             sentry_status["error"],
         )

@@ -27,6 +27,7 @@ from utils.DataHandler import (
 )
 from core.GlobalVar import app, CONFIG, settings, is_exe
 from core import GlobalVar
+from core.frontend_env import resolve_frontend_sentry_dsn
 from utils.Logger import StreamToLogger, NoImportFilter
 from utils.NotificationHelper import NotificationModule
 from utils.screenshot_store import save_page_screenshot
@@ -192,11 +193,11 @@ def _close_shopping_screen_helper(page):
                 logger.warning(f"Shopping screen still visible after attempt {attempt}")
                 # Take screenshot for debugging
                 if attempt == max_close_attempts:
-                    screenshot_name = (
-                        f"shopping_wont_close_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                    )
+                    screenshot_name = f"shopping_wont_close_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
                     asset_id = save_page_screenshot(page, screenshot_name)
-                    logger.error("Final screenshot saved to MongoDB asset: %s", asset_id)
+                    logger.error(
+                        "Final screenshot saved to MongoDB asset: %s", asset_id
+                    )
 
         except Exception as e:
             logger.warning(f"Error during close attempt {attempt}: {e}")
@@ -213,7 +214,6 @@ def _send_mission_email(payload: dict) -> None:
     with sentry_sdk.start_span(
         op="notification.email", name="send_mission_email"
     ) as span:
-        span.set_data("workflow.phase", "notify")
         try:
             Notification.send_mission_data_via_email_html(payload)
         except Exception as exc:
@@ -228,8 +228,7 @@ def playwright_task():
     previous_data, todays_data = prepare_mission_data(
         CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
     )
-    with sentry_sdk.start_transaction(op="automation.run", name="playwright-task") as tx:
-        tx.set_data("workflow.phase", "automation_run")
+    with sentry_sdk.start_transaction(op="automation.run", name="playwright-task"):
         with sync_playwright() as p:
             with sentry_sdk.start_span(op="browser.launch", name="Launch browser"):
                 try:
@@ -241,7 +240,9 @@ def playwright_task():
                     if "Executable doesn't exist" not in firefox_message:
                         raise
 
-                    logger.warning("Firefox browser binary is missing. Trying Chromium fallback.")
+                    logger.warning(
+                        "Firefox browser binary is missing. Trying Chromium fallback."
+                    )
                     try:
                         browser = p.chromium.launch(headless=settings.hide_browser)
                         logger.info("Launched Chromium as fallback browser.")
@@ -267,10 +268,9 @@ def playwright_task():
                 )
 
                 # Handle manual login only when neither MongoDB nor file has auth state.
-                has_auth_state = (
-                    load_storage_state(CONFIG["STORAGE_PATH"]) is not None
-                    or os.path.exists(CONFIG["STORAGE_PATH"])
-                )
+                has_auth_state = load_storage_state(
+                    CONFIG["STORAGE_PATH"]
+                ) is not None or os.path.exists(CONFIG["STORAGE_PATH"])
                 if not has_auth_state:
                     NotificationModule.notify(
                         title="ZZZ Bot",
@@ -280,11 +280,10 @@ def playwright_task():
                     return
 
             if settings.run_task:
-                with sentry_sdk.start_span(
-                    op="automation.phase", name="mission_phase"
-                ) as mission_phase_span:
-                    mission_phase_span.set_data("workflow.phase", "mission")
-                    Mission.run(CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data)
+                with sentry_sdk.start_span(op="automation.phase", name="mission_phase"):
+                    Mission.run(
+                        CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data
+                    )
                     close_button = mino_page.locator(".panelBack--wW5qj")
                     close_button.click()
 
@@ -301,8 +300,7 @@ def playwright_task():
                 logger.info("=== PHASE 1: Shopping Execution (Before Draw) ===")
                 with sentry_sdk.start_span(
                     op="automation.phase", name="shopping_execute_phase"
-                ) as shopping_execute_span:
-                    shopping_execute_span.set_data("workflow.phase", "shopping_execute")
+                ):
                     shopping_execution_success = (
                         ShoppingHandler.execute_shopping_with_existing_data(mino_page)
                     )
@@ -312,17 +310,22 @@ def playwright_task():
                     _close_shopping_screen_helper(mino_page)
 
                     if not shopping_execution_success:
-                        logger.warning("Shopping execution phase failed, continuing anyway")
+                        logger.warning(
+                            "Shopping execution phase failed, continuing anyway"
+                        )
 
             if settings.draw_item:
-                with sentry_sdk.start_span(op="automation.phase", name="draw_phase") as draw_phase_span:
-                    draw_phase_span.set_data("workflow.phase", "draw")
+                with sentry_sdk.start_span(op="automation.phase", name="draw_phase"):
                     draw_result = DrawHandler.run(mino_page)
                     if not draw_result.get("cleanup_ok", True):
-                        logger.warning("Draw phase left residual UI state before returning")
+                        logger.warning(
+                            "Draw phase left residual UI state before returning"
+                        )
 
                     if not DrawHandler.ensure_draw_ui_cleared(mino_page):
-                        logger.warning("Could not fully clear draw dialog before leaving draw screen")
+                        logger.warning(
+                            "Could not fully clear draw dialog before leaving draw screen"
+                        )
 
                     mino_page.wait_for_timeout(500)
                     close_button = mino_page.locator(".panelBack--wW5qj")
@@ -342,10 +345,11 @@ def playwright_task():
                 logger.info("=== PHASE 2: Shopping Data Gathering (After Draw) ===")
                 with sentry_sdk.start_span(
                     op="automation.phase", name="shopping_gather_phase"
-                ) as shopping_gather_span:
-                    shopping_gather_span.set_data("workflow.phase", "shopping_gather")
+                ):
                     DrawHandler.ensure_draw_ui_cleared(mino_page)
-                    gathering_success = ShoppingHandler.gather_shopping_data_only(mino_page)
+                    gathering_success = ShoppingHandler.gather_shopping_data_only(
+                        mino_page
+                    )
 
                     # Always close shopping screen whether gathering succeeded or failed
                     # to ensure browser state is clean for future operations
@@ -360,15 +364,15 @@ def playwright_task():
                 logger.info("Gather data cancelled due to setting.")
 
             save_last_run()
-            with sentry_sdk.start_span(
-                op="notification.local", name="notify_task_finished"
-            ) as notify_span:
-                notify_span.set_data("workflow.phase", "notify")
-                NotificationModule.notify(
-                    title="ZZZ Bot", message="Task finished", app_icon=CONFIG["ICON_PATH"]
-                )
+            NotificationModule.notify(
+                title="ZZZ Bot",
+                message="Task finished",
+                app_icon=CONFIG["ICON_PATH"],
+            )
 
-            with sentry_sdk.start_span(op="auth.storage_state", name="save_storage_state"):
+            with sentry_sdk.start_span(
+                op="auth.storage_state", name="save_storage_state"
+            ):
                 save_context_storage_state(context, CONFIG["STORAGE_PATH"])
             if not is_exe:
                 input("Press ENTER to exit...")
@@ -423,22 +427,25 @@ def save_last_run():
 
 def check_missed_runs():
     """Check if any scheduled runs were missed."""
+    import sentry_sdk
+
     import repositories.MongoRepository as mongo
 
-    last_run = datetime.min
-    data = mongo.get_last_run()
-    if data and data.get("last_run"):
-        last_run = datetime.strptime(data["last_run"], "%H:%M %d/%m/%y")
+    with sentry_sdk.start_span(op="scheduler.check_missed", name="check-missed-runs"):
+        last_run = datetime.min
+        data = mongo.get_last_run()
+        if data and data.get("last_run"):
+            last_run = datetime.strptime(data["last_run"], "%H:%M %d/%m/%y")
 
-    now = datetime.now()
-    for scheduled_time in settings.schedule_times:
-        today_scheduled = datetime.combine(
-            now.date(), datetime.strptime(scheduled_time, "%H:%M").time()
-        )
-        if now > today_scheduled > last_run:
-            playwright_task()
-            save_last_run()
-            break
+        now = datetime.now()
+        for scheduled_time in settings.schedule_times:
+            today_scheduled = datetime.combine(
+                now.date(), datetime.strptime(scheduled_time, "%H:%M").time()
+            )
+            if now > today_scheduled > last_run:
+                playwright_task()
+                save_last_run()
+                break
 
 
 def schedule_hunt_tasks():
@@ -539,7 +546,9 @@ def resolve_playwright_browsers_path() -> str | None:
             GlobalVar.resource_path("./playwright-browsers"),
             GlobalVar.resource_path("./backend/playwright-browsers"),
             os.path.join(os.path.dirname(sys.executable), "playwright-browsers"),
-            os.path.join(os.path.dirname(sys.executable), "backend", "playwright-browsers"),
+            os.path.join(
+                os.path.dirname(sys.executable), "backend", "playwright-browsers"
+            ),
         ]
     )
 
@@ -565,6 +574,7 @@ def configure_sentry_runtime(
         import sentry_sdk
         from sentry_sdk.integrations.fastapi import FastApiIntegration
         from sentry_sdk.integrations.logging import LoggingIntegration
+        from sentry_sdk.integrations.pymongo import PyMongoIntegration
     except ImportError:
         return {
             "active": False,
@@ -576,8 +586,6 @@ def configure_sentry_runtime(
             "send_test_event_source": "none",
             "traces_sample_rate": 0.0,
             "traces_sample_rate_source": "fallback",
-            "profiles_sample_rate": 0.0,
-            "profiles_sample_rate_source": "fallback",
             "trigger_source": trigger_source,
             "reconfigured": False,
             "error": "sentry_sdk unavailable",
@@ -613,25 +621,19 @@ def configure_sentry_runtime(
         send_sentry_test_event = False
         sentry_test_event_source = f"{sentry_test_event_source}:ignored_in_production"
 
-    traces_sample_rate, traces_sample_rate_source = GlobalVar.resolve_sentry_sample_rate(
-        env_name="SENTRY_TRACES_SAMPLE_RATE",
-        settings_name="settings.sentry_traces_sample_rate",
-        settings_value=getattr(settings, "sentry_traces_sample_rate", 1.0),
-        fallback_value=1.0,
-    )
-    profiles_sample_rate, profiles_sample_rate_source = GlobalVar.resolve_sentry_sample_rate(
-        env_name="SENTRY_PROFILES_SAMPLE_RATE",
-        settings_name="settings.sentry_profiles_sample_rate",
-        settings_value=getattr(settings, "sentry_profiles_sample_rate", 1.0),
-        fallback_value=1.0,
+    traces_sample_rate, traces_sample_rate_source = (
+        GlobalVar.resolve_sentry_sample_rate(
+            env_name="SENTRY_TRACES_SAMPLE_RATE",
+            settings_name="settings.sentry_traces_sample_rate",
+            settings_value=getattr(settings, "sentry_traces_sample_rate", 1.0),
+            fallback_value=1.0,
+        )
     )
 
     if send_sentry_test_event:
         # Force deterministic visibility during verification runs.
         traces_sample_rate = 1.0
-        profiles_sample_rate = 1.0
         traces_sample_rate_source = "forced:test_event"
-        profiles_sample_rate_source = "forced:test_event"
 
     enable_sentry_logs = GlobalVar.sentry_logs_enabled_from_env()
 
@@ -646,10 +648,12 @@ def configure_sentry_runtime(
                     environment="production" if is_exe else "development",
                     integrations=[
                         FastApiIntegration(),
-                        LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
+                        LoggingIntegration(
+                            level=logging.INFO, event_level=logging.ERROR
+                        ),
+                        PyMongoIntegration(),
                     ],
                     traces_sample_rate=traces_sample_rate,
-                    profiles_sample_rate=profiles_sample_rate,
                     enable_logs=enable_sentry_logs,
                     send_default_pii=False,
                 )
@@ -678,7 +682,9 @@ def configure_sentry_runtime(
 
                 sentry_test_logger = logging.getLogger("zzz_bot.sentry_test")
                 sentry_test_logger.info("ZZZ Bot startup info log integration test")
-                sentry_test_logger.warning("ZZZ Bot startup warning log integration test")
+                sentry_test_logger.warning(
+                    "ZZZ Bot startup warning log integration test"
+                )
                 sentry_test_logger.error("ZZZ Bot startup error log integration test")
 
                 sentry_sdk.flush(timeout=5.0)
@@ -697,8 +703,6 @@ def configure_sentry_runtime(
             "send_test_event_source": sentry_test_event_source,
             "traces_sample_rate": traces_sample_rate,
             "traces_sample_rate_source": traces_sample_rate_source,
-            "profiles_sample_rate": profiles_sample_rate,
-            "profiles_sample_rate_source": profiles_sample_rate_source,
             "trigger_source": trigger_source,
             "reconfigured": reconfigured,
             "error": str(sentry_error),
@@ -714,8 +718,6 @@ def configure_sentry_runtime(
         "send_test_event_source": sentry_test_event_source,
         "traces_sample_rate": traces_sample_rate,
         "traces_sample_rate_source": traces_sample_rate_source,
-        "profiles_sample_rate": profiles_sample_rate,
-        "profiles_sample_rate_source": profiles_sample_rate_source,
         "trigger_source": trigger_source,
         "reconfigured": reconfigured,
         "error": None,
@@ -772,7 +774,7 @@ if __name__ == "__main__":
     logging.captureWarnings(True)
 
     logger.info(
-        "Sentry startup status: active=%s, dsn_source=%s, dsn_present=%s, environment=%s, logs_enabled=%s, send_test_event=%s, send_test_event_source=%s, traces_sample_rate=%.3f, traces_sample_rate_source=%s, profiles_sample_rate=%.3f, profiles_sample_rate_source=%s, trigger_source=%s, reconfigured=%s, error=%s",
+        "Sentry startup status: active=%s, dsn_source=%s, dsn_present=%s, environment=%s, logs_enabled=%s, send_test_event=%s, send_test_event_source=%s, traces_sample_rate=%.3f, traces_sample_rate_source=%s, trigger_source=%s, reconfigured=%s, error=%s",
         _sentry_status["active"],
         _sentry_status["dsn_source"],
         _sentry_status["dsn_present"],
@@ -782,8 +784,6 @@ if __name__ == "__main__":
         _sentry_status["send_test_event_source"],
         _sentry_status["traces_sample_rate"],
         _sentry_status["traces_sample_rate_source"],
-        _sentry_status["profiles_sample_rate"],
-        _sentry_status["profiles_sample_rate_source"],
         _sentry_status["trigger_source"],
         _sentry_status["reconfigured"],
         _sentry_status["error"],
@@ -804,10 +804,19 @@ if __name__ == "__main__":
             dev_backend_url = f"http://127.0.0.1:{args.port}"
             frontend_env = os.environ.copy()
             frontend_env["VITE_BACKEND_URL"] = dev_backend_url
+            frontend_sentry_dsn, frontend_sentry_dsn_source = (
+                resolve_frontend_sentry_dsn(
+                    frontend_env,
+                    settings.sentry_frontend_dsn,
+                )
+            )
+            if frontend_sentry_dsn:
+                frontend_env["VITE_SENTRY_DSN"] = frontend_sentry_dsn
 
             logger.info(
-                "Starting React dev server with VITE_BACKEND_URL=%s",
+                "Starting React dev server with VITE_BACKEND_URL=%s, frontend_sentry_dsn_source=%s",
                 dev_backend_url,
+                frontend_sentry_dsn_source,
             )
             react_server = subprocess.Popen(
                 ["bun", "run", "dev"],
@@ -823,7 +832,9 @@ if __name__ == "__main__":
     # === 3. Mount Frontend (exe mode) ===
     elif is_exe:
         if args.no_frontend or hosted_by_tauri:
-            logger.info("Skipping frontend mount for Tauri sidecar or --no-frontend mode")
+            logger.info(
+                "Skipping frontend mount for Tauri sidecar or --no-frontend mode"
+            )
         else:
             try:
                 logger.info("Mounting frontend build...")

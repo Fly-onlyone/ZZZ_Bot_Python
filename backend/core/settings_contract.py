@@ -7,9 +7,10 @@ ADVANCED_SETTINGS_KEYS = (
     "hunt_poll_interval_seconds",
     "hunt_poll_backoff_enabled",
     "hunt_early_exit_on_unavailable",
+    "sentry_dsn",
+    "sentry_frontend_dsn",
     "sentry_send_test_event",
     "sentry_traces_sample_rate",
-    "sentry_profiles_sample_rate",
 )
 
 

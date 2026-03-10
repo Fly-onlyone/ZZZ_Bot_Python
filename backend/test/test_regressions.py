@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 image_processor_module = import_module("automation.ImageProcessor")
 routes_module = import_module("api.routes")
 from handlers import MissionHandler, ShoppingHandler
+from core.frontend_env import resolve_frontend_sentry_dsn
 from core.mission_email import schedule_mission_email_delivery
 from core.settings_compat import (
     HUNT_EARLY_EXIT_RESET_MARKER,
@@ -423,9 +424,10 @@ def test_extract_advanced_settings_returns_only_advanced_fields():
         "hunt_poll_interval_seconds": 1,
         "hunt_poll_backoff_enabled": True,
         "hunt_early_exit_on_unavailable": False,
+        "sentry_dsn": "",
+        "sentry_frontend_dsn": "",
         "sentry_send_test_event": False,
         "sentry_traces_sample_rate": 1.0,
-        "sentry_profiles_sample_rate": 1.0,
         "theme": "venom",
     }
 
@@ -435,6 +437,26 @@ def test_extract_advanced_settings_returns_only_advanced_fields():
     assert "schedule_times" not in advanced_settings
     assert "theme" not in advanced_settings
     assert "autostart_on_login" not in advanced_settings
+
+
+def test_resolve_frontend_sentry_dsn_prefers_runtime_env():
+    dsn, source = resolve_frontend_sentry_dsn(
+        {
+            "VITE_SENTRY_DSN": "https://vite.example/123",
+            "SENTRY_FRONTEND_DSN": "https://root.example/456",
+        },
+        "https://settings.example/789",
+    )
+
+    assert dsn == "https://vite.example/123"
+    assert source == "env:VITE_SENTRY_DSN"
+
+
+def test_resolve_frontend_sentry_dsn_falls_back_to_settings():
+    dsn, source = resolve_frontend_sentry_dsn({}, "https://settings.example/789")
+
+    assert dsn == "https://settings.example/789"
+    assert source == "settings.sentry_frontend_dsn"
 
 
 def test_settings_repository_uses_safe_hunt_early_exit_default(tmp_path: Path):
