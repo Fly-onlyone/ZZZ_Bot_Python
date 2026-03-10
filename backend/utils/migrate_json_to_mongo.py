@@ -7,11 +7,12 @@ Preserves all existing data from output/ JSON files.
 import json
 import logging
 import os
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
 from mimetypes import guess_type
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from bson.binary import Binary
 
@@ -35,11 +36,16 @@ _DEFAULT_SETTINGS_PAYLOAD = {
     "hunt_early_exit_on_unavailable": False,
     "theme": "purple",
     "sentry_dsn": "",
+    "sentry_frontend_dsn": "",
     "sentry_send_test_event": False,
     "sentry_traces_sample_rate": 1.0,
-    "sentry_profiles_sample_rate": 1.0,
     "mongodb_uri": "",
 }
+
+
+# ============================================================
+# Path Resolution
+# ============================================================
 
 
 def _dedupe_paths(paths: list[Path]) -> list[Path]:
@@ -97,11 +103,18 @@ def _resolve_artifact_path(filename: str, output_dirs: list[Path]) -> str:
     return str(output_dirs[0] / filename)
 
 
+# ============================================================
+# Payload Validation
+# ============================================================
+
+
 def _is_default_settings_payload(data: Any) -> bool:
     """Return True when settings payload matches app defaults."""
     if not isinstance(data, dict):
         return False
-    return all(data.get(key) == value for key, value in _DEFAULT_SETTINGS_PAYLOAD.items())
+    return all(
+        data.get(key) == value for key, value in _DEFAULT_SETTINGS_PAYLOAD.items()
+    )
 
 
 def _is_blank_account_payload(data: Any) -> bool:
@@ -110,6 +123,11 @@ def _is_blank_account_payload(data: Any) -> bool:
         return True
     fields = ("username", "app_password", "hoyo_username", "hoyo_password")
     return not any(str(data.get(field, "")).strip() for field in fields)
+
+
+# ============================================================
+# JSON Reading
+# ============================================================
 
 
 def _read_json_with_error(path: str) -> tuple[Any, str | None]:
@@ -138,31 +156,197 @@ def _build_artifact_status(path: str, before_count: int) -> dict[str, Any]:
     }
 
 
-def _read_artifact_payload(path: str, expected_type: type) -> tuple[Any, bool, str | None]:
-    """Load one JSON artifact and validate its type."""
+def _read_artifact_payload(path: str, expected_type: type) -> tuple[Any, str | None]:
+    """Load one JSON artifact and validate its type.
+
+    Returns:
+        (data, error) — data is None when file is missing or invalid.
+    """
     data, read_error = _read_json_with_error(path)
     if read_error:
-        return None, False, read_error
+        return None, read_error
     if data is None:
-        return None, False, None
+        return None, None
     if not isinstance(data, expected_type):
         return (
             None,
-            False,
             f"Invalid type: expected {expected_type.__name__}, got {type(data).__name__}",
         )
-    return data, True, None
+    return data, None
 
 
-def _collection_counts(mongo_repository_module, db) -> dict[str, int]:
-    """Return lightweight per-collection document counts."""
+# ============================================================
+# Artifact Specs
+# ============================================================
+
+
+@dataclass(frozen=True, slots=True)
+class _ArtifactSpec:
+    """Descriptor for one JSON artifact to migrate."""
+
+    filename: str
+    expected_type: type
+    count_key: str
+    save_method: str
+    label: str
+    multi_record: bool = False
+    replace_getter: str | None = None
+    replace_checker: Callable[[Any], bool] | None = None
+    replace_label: str | None = None
+    replace_action: str | None = None
+
+
+_ARTIFACT_SPECS: list[_ArtifactSpec] = [
+    _ArtifactSpec(
+        filename="settings.json",
+        expected_type=dict,
+        count_key="settings",
+        save_method="save_settings",
+        label="settings",
+        replace_getter="get_settings",
+        replace_checker=_is_default_settings_payload,
+        replace_label="settings (replaced_default)",
+        replace_action="migrated_replaced_default",
+    ),
+    _ArtifactSpec(
+        filename="account.json",
+        expected_type=dict,
+        count_key="accounts",
+        save_method="save_account",
+        label="account",
+        replace_getter="get_account",
+        replace_checker=_is_blank_account_payload,
+        replace_label="account (replaced_blank)",
+        replace_action="migrated_replaced_blank",
+    ),
+    _ArtifactSpec(
+        filename="shopping.json",
+        expected_type=dict,
+        count_key="shopping",
+        save_method="save_shopping",
+        label="shopping",
+    ),
+    _ArtifactSpec(
+        filename="missions.json",
+        expected_type=list,
+        count_key="missions",
+        save_method="save_mission_day",
+        label="missions",
+        multi_record=True,
+    ),
+    _ArtifactSpec(
+        filename="redeem.json",
+        expected_type=list,
+        count_key="redemptions",
+        save_method="save_redemption",
+        label="redemptions",
+        multi_record=True,
+    ),
+    _ArtifactSpec(
+        filename="last_run.json",
+        expected_type=dict,
+        count_key="last_run",
+        save_method="save_last_run",
+        label="last_run",
+    ),
+]
+
+
+# ============================================================
+# Artifact Migration
+# ============================================================
+
+
+def _migrate_artifact(
+    spec: _ArtifactSpec,
+    repo: Any,
+    path: str,
+    before_count: int,
+    migrated: list[str],
+) -> dict[str, Any]:
+    """Migrate one JSON artifact into MongoDB."""
+    status = _build_artifact_status(path, before_count)
+    data, error = _read_artifact_payload(path, spec.expected_type)
+
+    if error:
+        status["parse_error"] = error
+        status["action"] = "skipped_invalid"
+        return status
+
+    if data is None:
+        return status
+
+    status["read_ok"] = True
+
+    if before_count == 0:
+        _save_artifact_data(spec, repo, data, migrated, status)
+    elif spec.replace_checker is not None:
+        existing = getattr(repo, spec.replace_getter)()
+        if spec.replace_checker(existing):
+            getattr(repo, spec.save_method)(data)
+            migrated.append(spec.replace_label)
+            status["action"] = spec.replace_action
+        else:
+            status["action"] = "skipped_existing_data"
+    else:
+        status["action"] = "skipped_existing_data"
+
+    status["safe_to_delete"] = True
+    return status
+
+
+def _save_artifact_data(
+    spec: _ArtifactSpec,
+    repo: Any,
+    data: Any,
+    migrated: list[str],
+    status: dict[str, Any],
+) -> None:
+    """Persist artifact data into MongoDB, handling multi-record collections."""
+    save_fn = getattr(repo, spec.save_method)
+
+    if not spec.multi_record:
+        save_fn(data)
+        migrated.append(spec.label)
+        status["action"] = "migrated"
+        return
+
+    saved, total = 0, len(data)
+    for record in data:
+        try:
+            save_fn(record)
+            saved += 1
+        except Exception as exc:
+            logger.warning("Failed to save %s record: %s", spec.label, exc)
+
+    if saved == total:
+        status["action"] = "migrated"
+        migrated.append(f"{spec.label} ({total} records)")
+    else:
+        status["action"] = "migrated_partial"
+        status["records_failed"] = total - saved
+        migrated.append(f"{spec.label} ({saved}/{total} records)")
+
+
+# ============================================================
+# Collection Counts
+# ============================================================
+
+
+def _collection_counts(repo: Any, db: Any) -> dict[str, int]:
+    """Return lightweight per-collection document counts.
+
+    Args:
+        repo: MongoRepository module (used for document-level queries).
+        db: Raw pymongo database (used for binary_assets counts).
+    """
     return {
-        "settings": 1 if mongo_repository_module.get_settings() is not None else 0,
-        "accounts": 1 if mongo_repository_module.get_account() is not None else 0,
-        "shopping": 1 if mongo_repository_module.get_shopping() is not None else 0,
-        "missions": len(mongo_repository_module.get_missions()),
-        "redemptions": len(mongo_repository_module.get_redemptions()),
-        "last_run": 1 if mongo_repository_module.get_last_run() is not None else 0,
+        "settings": 1 if repo.get_settings() is not None else 0,
+        "accounts": 1 if repo.get_account() is not None else 0,
+        "shopping": 1 if repo.get_shopping() is not None else 0,
+        "missions": len(repo.get_missions()),
+        "redemptions": len(repo.get_redemptions()),
+        "last_run": 1 if repo.get_last_run() is not None else 0,
         "storage_state_assets": db.binary_assets.count_documents(
             {"category": "storage_state"}
         ),
@@ -170,6 +354,11 @@ def _collection_counts(mongo_repository_module, db) -> dict[str, int]:
             {"category": "screenshot"}
         ),
     }
+
+
+# ============================================================
+# Binary Assets
+# ============================================================
 
 
 def _upsert_binary_asset(
@@ -209,7 +398,9 @@ def _upsert_binary_asset(
     return True
 
 
-def _migrate_storage_state(db, storage_state_path: str, migrated: list[str]) -> dict[str, Any]:
+def _migrate_storage_state(
+    db, storage_state_path: str, migrated: list[str]
+) -> dict[str, Any]:
     """Migrate storage-state JSON file into binary_assets collection."""
     path = Path(storage_state_path)
     if not path.is_file():
@@ -233,7 +424,9 @@ def _migrate_storage_state(db, storage_state_path: str, migrated: list[str]) -> 
     }
 
 
-def _migrate_screenshots(db, screenshot_dir: str, migrated: list[str]) -> dict[str, Any]:
+def _migrate_screenshots(
+    db, screenshot_dir: str, migrated: list[str]
+) -> dict[str, Any]:
     """Migrate screenshot files into binary_assets collection."""
     folder = Path(screenshot_dir)
     if not folder.is_dir():
@@ -267,6 +460,37 @@ def _migrate_screenshots(db, screenshot_dir: str, migrated: list[str]) -> dict[s
         "scanned": scanned,
         "upserted": upserted,
     }
+
+
+# ============================================================
+# Settings Backfill
+# ============================================================
+
+
+def _backfill_settings(db: Any) -> None:
+    """Remove deprecated fields and populate missing Sentry DSNs."""
+    db.settings.update_many({}, {"$unset": {"sentry_profiles_sample_rate": ""}})
+
+    for env_var, field in [
+        ("SENTRY_DSN", "sentry_dsn"),
+        ("SENTRY_FRONTEND_DSN", "sentry_frontend_dsn"),
+    ]:
+        dsn = os.getenv(env_var, "").strip()
+        if dsn:
+            db.settings.update_many(
+                {
+                    "$or": [
+                        {field: {"$in": [None, ""]}},
+                        {field: {"$exists": False}},
+                    ]
+                },
+                {"$set": {field: dsn}},
+            )
+
+
+# ============================================================
+# Main Entry
+# ============================================================
 
 
 def migrate_if_needed(
@@ -303,165 +527,14 @@ def migrate_if_needed(
     ) as span:
         counts_before = _collection_counts(MongoRepository, db)
 
-        # Settings
-        settings_path = _path("settings.json")
-        settings_status = _build_artifact_status(settings_path, counts_before["settings"])
-        settings_data, settings_valid, settings_error = _read_artifact_payload(
-            settings_path, dict
-        )
-        if settings_error:
-            settings_status["parse_error"] = settings_error
-            settings_status["action"] = "skipped_invalid"
-        elif settings_data is None:
-            settings_status["action"] = "skipped_missing"
-        elif not settings_valid:
-            settings_status["parse_error"] = "Invalid JSON payload"
-            settings_status["action"] = "skipped_invalid"
-        else:
-            settings_status["read_ok"] = True
-            if counts_before["settings"] == 0:
-                MongoRepository.save_settings(settings_data)
-                migrated.append("settings")
-                settings_status["action"] = "migrated"
-            elif _is_default_settings_payload(MongoRepository.get_settings()):
-                MongoRepository.save_settings(settings_data)
-                migrated.append("settings (replaced_default)")
-                settings_status["action"] = "migrated_replaced_default"
-            else:
-                settings_status["action"] = "skipped_existing_data"
-            settings_status["safe_to_delete"] = True
-        artifact_status["settings.json"] = settings_status
+        for spec in _ARTIFACT_SPECS:
+            path = _path(spec.filename)
+            status = _migrate_artifact(
+                spec, MongoRepository, path, counts_before[spec.count_key], migrated
+            )
+            artifact_status[spec.filename] = status
 
-        # Account
-        account_path = _path("account.json")
-        account_status = _build_artifact_status(account_path, counts_before["accounts"])
-        account_data, account_valid, account_error = _read_artifact_payload(
-            account_path, dict
-        )
-        if account_error:
-            account_status["parse_error"] = account_error
-            account_status["action"] = "skipped_invalid"
-        elif account_data is None:
-            account_status["action"] = "skipped_missing"
-        elif not account_valid:
-            account_status["parse_error"] = "Invalid JSON payload"
-            account_status["action"] = "skipped_invalid"
-        else:
-            account_status["read_ok"] = True
-            if counts_before["accounts"] == 0:
-                MongoRepository.save_account(account_data)
-                migrated.append("account")
-                account_status["action"] = "migrated"
-            elif _is_blank_account_payload(MongoRepository.get_account()):
-                MongoRepository.save_account(account_data)
-                migrated.append("account (replaced_blank)")
-                account_status["action"] = "migrated_replaced_blank"
-            else:
-                account_status["action"] = "skipped_existing_data"
-            account_status["safe_to_delete"] = True
-        artifact_status["account.json"] = account_status
-
-        # Shopping
-        shopping_path = _path("shopping.json")
-        shopping_status = _build_artifact_status(shopping_path, counts_before["shopping"])
-        shopping_data, shopping_valid, shopping_error = _read_artifact_payload(
-            shopping_path, dict
-        )
-        if shopping_error:
-            shopping_status["parse_error"] = shopping_error
-            shopping_status["action"] = "skipped_invalid"
-        elif shopping_data is None:
-            shopping_status["action"] = "skipped_missing"
-        elif not shopping_valid:
-            shopping_status["parse_error"] = "Invalid JSON payload"
-            shopping_status["action"] = "skipped_invalid"
-        else:
-            shopping_status["read_ok"] = True
-            if counts_before["shopping"] == 0:
-                MongoRepository.save_shopping(shopping_data)
-                migrated.append("shopping")
-                shopping_status["action"] = "migrated"
-            else:
-                shopping_status["action"] = "skipped_existing_data"
-            shopping_status["safe_to_delete"] = True
-        artifact_status["shopping.json"] = shopping_status
-
-        # Missions (list -> one doc per day)
-        missions_path = _path("missions.json")
-        missions_status = _build_artifact_status(missions_path, counts_before["missions"])
-        missions_data, missions_valid, missions_error = _read_artifact_payload(
-            missions_path, list
-        )
-        if missions_error:
-            missions_status["parse_error"] = missions_error
-            missions_status["action"] = "skipped_invalid"
-        elif missions_data is None:
-            missions_status["action"] = "skipped_missing"
-        elif not missions_valid:
-            missions_status["parse_error"] = "Invalid JSON payload"
-            missions_status["action"] = "skipped_invalid"
-        else:
-            missions_status["read_ok"] = True
-            if counts_before["missions"] == 0:
-                for day_record in missions_data:
-                    MongoRepository.save_mission_day(day_record)
-                migrated.append(f"missions ({len(missions_data)} records)")
-                missions_status["action"] = "migrated"
-            else:
-                missions_status["action"] = "skipped_existing_data"
-            missions_status["safe_to_delete"] = True
-        artifact_status["missions.json"] = missions_status
-
-        # Redemptions (list -> one doc per entry)
-        redeem_path = _path("redeem.json")
-        redeem_status = _build_artifact_status(redeem_path, counts_before["redemptions"])
-        redeem_data, redeem_valid, redeem_error = _read_artifact_payload(
-            redeem_path, list
-        )
-        if redeem_error:
-            redeem_status["parse_error"] = redeem_error
-            redeem_status["action"] = "skipped_invalid"
-        elif redeem_data is None:
-            redeem_status["action"] = "skipped_missing"
-        elif not redeem_valid:
-            redeem_status["parse_error"] = "Invalid JSON payload"
-            redeem_status["action"] = "skipped_invalid"
-        else:
-            redeem_status["read_ok"] = True
-            if counts_before["redemptions"] == 0:
-                for entry in redeem_data:
-                    MongoRepository.save_redemption(entry)
-                migrated.append(f"redemptions ({len(redeem_data)} records)")
-                redeem_status["action"] = "migrated"
-            else:
-                redeem_status["action"] = "skipped_existing_data"
-            redeem_status["safe_to_delete"] = True
-        artifact_status["redeem.json"] = redeem_status
-
-        # Last run
-        last_run_path = _path("last_run.json")
-        last_run_status = _build_artifact_status(last_run_path, counts_before["last_run"])
-        last_run_data, last_run_valid, last_run_error = _read_artifact_payload(
-            last_run_path, dict
-        )
-        if last_run_error:
-            last_run_status["parse_error"] = last_run_error
-            last_run_status["action"] = "skipped_invalid"
-        elif last_run_data is None:
-            last_run_status["action"] = "skipped_missing"
-        elif not last_run_valid:
-            last_run_status["parse_error"] = "Invalid JSON payload"
-            last_run_status["action"] = "skipped_invalid"
-        else:
-            last_run_status["read_ok"] = True
-            if counts_before["last_run"] == 0:
-                MongoRepository.save_last_run(last_run_data)
-                migrated.append("last_run")
-                last_run_status["action"] = "migrated"
-            else:
-                last_run_status["action"] = "skipped_existing_data"
-            last_run_status["safe_to_delete"] = True
-        artifact_status["last_run.json"] = last_run_status
+        _backfill_settings(db)
 
         storage_report = {"status": "skipped"}
         if storage_state_path:
@@ -472,14 +545,11 @@ def migrate_if_needed(
             screenshot_report = _migrate_screenshots(db, screenshot_dir, migrated)
 
         counts_after = _collection_counts(MongoRepository, db)
-        artifact_status["settings.json"]["collection_after_count"] = counts_after["settings"]
-        artifact_status["account.json"]["collection_after_count"] = counts_after["accounts"]
-        artifact_status["shopping.json"]["collection_after_count"] = counts_after["shopping"]
-        artifact_status["missions.json"]["collection_after_count"] = counts_after["missions"]
-        artifact_status["redeem.json"]["collection_after_count"] = counts_after[
-            "redemptions"
-        ]
-        artifact_status["last_run.json"]["collection_after_count"] = counts_after["last_run"]
+        for spec in _ARTIFACT_SPECS:
+            artifact_status[spec.filename]["collection_after_count"] = counts_after[
+                spec.count_key
+            ]
+
         report = {
             "migrated": migrated,
             "counts_before": counts_before,

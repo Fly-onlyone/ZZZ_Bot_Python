@@ -169,6 +169,15 @@ class ManualLoginManager:
         Args:
             url: URL to navigate to
         """
+        import sentry_sdk
+
+        with sentry_sdk.start_transaction(
+            op="manual.login", name="manual-login-session"
+        ):
+            self._run_session(url)
+
+    def _run_session(self, url: str):
+        """Internal session runner wrapped by run() with Sentry transaction."""
         try:
             self.state = SessionState.RUNNING
             logger.info(f"Launching browser for URL: {url}")
