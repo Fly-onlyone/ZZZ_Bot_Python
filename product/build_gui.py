@@ -55,7 +55,7 @@ class BuildConfig:
             "frontend": True,
             "sidecar": True,
             "bundle": True,
-        }
+        },
     }
 
     def __init__(self):
@@ -131,7 +131,9 @@ class BuildConfig:
 def _collect_bundle_artifacts(root_dir: Path) -> list[Path]:
     """Return installer artifacts sorted by newest first."""
     bundle_dir = root_dir / "src-tauri" / "target" / "release" / "bundle"
-    artifacts = sorted(bundle_dir.glob("nsis/*.exe")) + sorted(bundle_dir.glob("msi/*.msi"))
+    artifacts = sorted(bundle_dir.glob("nsis/*.exe")) + sorted(
+        bundle_dir.glob("msi/*.msi")
+    )
     return sorted(artifacts, key=lambda path: path.stat().st_mtime, reverse=True)
 
 
@@ -182,7 +184,12 @@ def _parallel_step_worker(
         proc.wait()
         if proc.returncode != 0:
             output_queue.put(
-                ("done", step_key, False, f"{step_key} exited with code {proc.returncode}")
+                (
+                    "done",
+                    step_key,
+                    False,
+                    f"{step_key} exited with code {proc.returncode}",
+                )
             )
             return
 
@@ -191,13 +198,17 @@ def _parallel_step_worker(
             if dist_dir.exists():
                 output_queue.put(("success", step_key, f"Build output: {dist_dir}"))
             else:
-                output_queue.put(("info", step_key, "Frontend completed but dist folder missing"))
+                output_queue.put(
+                    ("info", step_key, "Frontend completed but dist folder missing")
+                )
         else:
             artifacts = sorted(binaries_dir.glob("zzz-backend-*.exe"))
             if artifacts:
                 newest = artifacts[-1]
                 size_mb = newest.stat().st_size / (1024 * 1024)
-                output_queue.put(("success", step_key, f"Sidecar: {newest.name} ({size_mb:.1f} MB)"))
+                output_queue.put(
+                    ("success", step_key, f"Sidecar: {newest.name} ({size_mb:.1f} MB)")
+                )
             else:
                 output_queue.put(("done", step_key, False, "No sidecar binary found"))
                 return
@@ -210,6 +221,7 @@ def _parallel_step_worker(
 # ============================================================
 # Step factory functions
 # ============================================================
+
 
 def _make_frontend_step(q: queue.Queue, cancel: threading.Event) -> Callable[[], bool]:
     """Returns a callable that streams the React/Vite frontend build."""
@@ -296,7 +308,9 @@ def _make_sidecar_step(q: queue.Queue, cancel: threading.Event) -> Callable[[], 
     return run
 
 
-def _make_parallel_prep_step(q: queue.Queue, cancel: threading.Event) -> Callable[[], bool]:
+def _make_parallel_prep_step(
+    q: queue.Queue, cancel: threading.Event
+) -> Callable[[], bool]:
     """Run frontend and sidecar steps concurrently using multiprocessing."""
 
     def run() -> bool:
@@ -390,13 +404,25 @@ def _make_bundle_step(q: queue.Queue, cancel: threading.Event) -> Callable[[], b
         try:
             stopped = stop_conflicting_processes_for_bundle()
             if stopped > 0:
-                q.put(("info", f"Stopped {stopped} conflicting process(es) before bundling"))
+                q.put(
+                    (
+                        "info",
+                        f"Stopped {stopped} conflicting process(es) before bundling",
+                    )
+                )
 
             if not _run_tauri_build(root_dir):
-                q.put(("info", "Retrying tauri build once after another process cleanup"))
+                q.put(
+                    ("info", "Retrying tauri build once after another process cleanup")
+                )
                 stopped_retry = stop_conflicting_processes_for_bundle()
                 if stopped_retry > 0:
-                    q.put(("info", f"Stopped {stopped_retry} additional conflicting process(es)"))
+                    q.put(
+                        (
+                            "info",
+                            f"Stopped {stopped_retry} additional conflicting process(es)",
+                        )
+                    )
                 if not _run_tauri_build(root_dir):
                     return False
 
@@ -406,7 +432,12 @@ def _make_bundle_step(q: queue.Queue, cancel: threading.Event) -> Callable[[], b
                 size_mb = newest.stat().st_size / (1024 * 1024)
                 q.put(("success", f"Bundle: {newest.name} ({size_mb:.1f} MB)"))
             else:
-                q.put(("info", "No NSIS/MSI artifacts were found under src-tauri/target/release/bundle"))
+                q.put(
+                    (
+                        "info",
+                        "No NSIS/MSI artifacts were found under src-tauri/target/release/bundle",
+                    )
+                )
             return True
         except Exception as e:
             q.put(("error", f"Bundle error: {e}"))
@@ -492,7 +523,9 @@ class BuildApp(tk.Tk):
         self.geometry("820x640")
         self.minsize(640, 480)
         try:
-            self.iconbitmap(str(Path(__file__).parent.parent / "images" / "Qingyi02.ico"))
+            self.iconbitmap(
+                str(Path(__file__).parent.parent / "images" / "Zhu Yuan02.ico")
+            )
         except (tk.TclError, OSError):
             pass
 
@@ -507,7 +540,9 @@ class BuildApp(tk.Tk):
         self._var_increment = tk.BooleanVar(value=self._config.increment_version_flag)
         self._var_custom_ver = tk.StringVar(value=self._config.custom_version)
         self._var_parallel_prep = tk.BooleanVar(value=self._config.parallel_prep)
-        self._var_auto_run_installer = tk.BooleanVar(value=self._config.auto_run_installer)
+        self._var_auto_run_installer = tk.BooleanVar(
+            value=self._config.auto_run_installer
+        )
         self._step_vars = {
             key: tk.BooleanVar(value=self._config.step_enabled(key))
             for key, _, _ in self.STEP_DEFS
@@ -533,14 +568,20 @@ class BuildApp(tk.Tk):
         ver_frame.columnconfigure(2, weight=1)
 
         self._lbl_current_ver = ttk.Label(ver_frame, text="Current version: …")
-        self._lbl_current_ver.grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 6))
+        self._lbl_current_ver.grid(
+            row=0, column=0, columnspan=4, sticky="w", pady=(0, 6)
+        )
 
         ttk.Checkbutton(
             ver_frame, text="Increment version", variable=self._var_increment
         ).grid(row=1, column=0, sticky="w", padx=(0, 16))
 
-        ttk.Label(ver_frame, text="New version:").grid(row=1, column=1, sticky="e", padx=(0, 6))
-        self._entry_ver = ttk.Entry(ver_frame, textvariable=self._var_custom_ver, width=12)
+        ttk.Label(ver_frame, text="New version:").grid(
+            row=1, column=1, sticky="e", padx=(0, 6)
+        )
+        self._entry_ver = ttk.Entry(
+            ver_frame, textvariable=self._var_custom_ver, width=12
+        )
         self._entry_ver.grid(row=1, column=2, sticky="w")
 
         # -- Steps section --
@@ -582,7 +623,11 @@ class BuildApp(tk.Tk):
         self._btn_build.pack(side="left", padx=(0, 8))
 
         self._btn_cancel = ttk.Button(
-            btn_frame, text="Cancel", command=self._on_cancel, width=16, state="disabled"
+            btn_frame,
+            text="Cancel",
+            command=self._on_cancel,
+            width=16,
+            state="disabled",
         )
         self._btn_cancel.pack(side="left")
 
@@ -603,20 +648,24 @@ class BuildApp(tk.Tk):
         )
         self._txt_output.grid(row=0, column=0, sticky="nsew")
 
-        sb_y = ttk.Scrollbar(out_frame, orient="vertical", command=self._txt_output.yview)
+        sb_y = ttk.Scrollbar(
+            out_frame, orient="vertical", command=self._txt_output.yview
+        )
         sb_y.grid(row=0, column=1, sticky="ns")
         self._txt_output["yscrollcommand"] = sb_y.set
 
-        sb_x = ttk.Scrollbar(out_frame, orient="horizontal", command=self._txt_output.xview)
+        sb_x = ttk.Scrollbar(
+            out_frame, orient="horizontal", command=self._txt_output.xview
+        )
         sb_x.grid(row=1, column=0, sticky="ew")
         self._txt_output["xscrollcommand"] = sb_x.set
 
         # Color tags for output text
         self._txt_output.tag_config("success", foreground="#4ec9b0")
-        self._txt_output.tag_config("error",   foreground="#f44747")
-        self._txt_output.tag_config("info",    foreground="#569cd6")
-        self._txt_output.tag_config("stdout",  foreground="#d4d4d4")
-        self._txt_output.tag_config("header",  foreground="#dcdcaa")
+        self._txt_output.tag_config("error", foreground="#f44747")
+        self._txt_output.tag_config("info", foreground="#569cd6")
+        self._txt_output.tag_config("stdout", foreground="#d4d4d4")
+        self._txt_output.tag_config("header", foreground="#dcdcaa")
 
         # -- Status bar --
         status_bar = ttk.Frame(self, relief="sunken")
@@ -684,7 +733,9 @@ class BuildApp(tk.Tk):
             return
         try:
             _launch_installer(self._latest_installer)
-            self._append_output(f"Launched installer: {self._latest_installer}", "success")
+            self._append_output(
+                f"Launched installer: {self._latest_installer}", "success"
+            )
         except Exception as exc:
             self._append_output(f"Failed to launch installer: {exc}", "error")
 
@@ -736,12 +787,18 @@ class BuildApp(tk.Tk):
             )
         else:
             if run_frontend:
-                steps.append(("Frontend", _make_frontend_step(self._queue, self._cancel_event)))
+                steps.append(
+                    ("Frontend", _make_frontend_step(self._queue, self._cancel_event))
+                )
             if run_sidecar:
-                steps.append(("Sidecar", _make_sidecar_step(self._queue, self._cancel_event)))
+                steps.append(
+                    ("Sidecar", _make_sidecar_step(self._queue, self._cancel_event))
+                )
 
         if run_bundle:
-            steps.append(("Desktop Bundle", _make_bundle_step(self._queue, self._cancel_event)))
+            steps.append(
+                ("Desktop Bundle", _make_bundle_step(self._queue, self._cancel_event))
+            )
 
         if not steps:
             self._append_output("No steps selected!", "error")
@@ -840,7 +897,9 @@ class BuildApp(tk.Tk):
                 return
             key = self._label_to_key(name)
             if key:
-                self._step_status_labels[key].config(text="[ running ]", foreground="#569cd6")
+                self._step_status_labels[key].config(
+                    text="[ running ]", foreground="#569cd6"
+                )
 
         elif msg_type == "step_done":
             if text == "Frontend + Sidecar":
@@ -855,7 +914,9 @@ class BuildApp(tk.Tk):
                 return
             key = self._label_to_key(text)
             if key:
-                self._step_status_labels[key].config(text="[ done ]", foreground="#4ec9b0")
+                self._step_status_labels[key].config(
+                    text="[ done ]", foreground="#4ec9b0"
+                )
 
         elif msg_type == "step_fail":
             if text == "Frontend + Sidecar":
@@ -870,7 +931,9 @@ class BuildApp(tk.Tk):
                 return
             key = self._label_to_key(text)
             if key:
-                self._step_status_labels[key].config(text="[ FAILED ]", foreground="#f44747")
+                self._step_status_labels[key].config(
+                    text="[ FAILED ]", foreground="#f44747"
+                )
 
         elif msg_type == "build_done":
             self._on_build_complete(text)

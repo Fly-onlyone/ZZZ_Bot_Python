@@ -152,8 +152,12 @@ def update_version_files(new_version: str) -> None:
     version_tuple = f"({major}, {minor}, {patch}, 0)"
 
     version_content = VERSION_FILE_PATH.read_text(encoding="utf-8")
-    version_content = re.sub(r"filevers=\([^)]+\)", f"filevers={version_tuple}", version_content)
-    version_content = re.sub(r"prodvers=\([^)]+\)", f"prodvers={version_tuple}", version_content)
+    version_content = re.sub(
+        r"filevers=\([^)]+\)", f"filevers={version_tuple}", version_content
+    )
+    version_content = re.sub(
+        r"prodvers=\([^)]+\)", f"prodvers={version_tuple}", version_content
+    )
     version_content = re.sub(
         r"StringStruct\('ProductVersion',\s*'[^']+'\)",
         f"StringStruct('ProductVersion', '{new_version}')",
@@ -190,7 +194,9 @@ def update_version_files(new_version: str) -> None:
 def build_frontend() -> bool:
     """Build frontend assets for Tauri embedding."""
     print_header("STEP 1: FRONTEND BUILD")
-    return run_command("bun run build", cwd=FRONTEND_DIR, step_name="frontend", shell=True)
+    return run_command(
+        "bun run build", cwd=FRONTEND_DIR, step_name="frontend", shell=True
+    )
 
 
 def build_sidecar() -> bool:
@@ -313,7 +319,9 @@ def main() -> int:
     current_version = get_current_version()
     print_info(f"Current version: {current_version}")
 
-    increment = input(f"\n{Colors.BOLD}Increment version? (y/N): {Colors.ENDC}").strip().lower()
+    increment = (
+        input(f"\n{Colors.BOLD}Increment version? (y/N): {Colors.ENDC}").strip().lower()
+    )
     if increment in {"y", "yes"}:
         suggested = increment_version(current_version)
         user_version = input(
@@ -328,31 +336,28 @@ def main() -> int:
     print("  3. Desktop Bundle (cargo tauri build)")
     print()
 
-    mode = input(
-        f"{Colors.BOLD}Run all steps or choose specific ones? (All/choose): {Colors.ENDC}"
-    ).strip().lower()
+    mode = (
+        input(
+            f"{Colors.BOLD}Run all steps or choose specific ones? (All/choose): {Colors.ENDC}"
+        )
+        .strip()
+        .lower()
+    )
 
     run_frontend = True
     run_sidecar = True
     run_bundle = True
 
     if mode in {"choose", "c", "select", "s"}:
-        run_frontend = (
-            input(f"{Colors.BOLD}  Build frontend? (Y/n): {Colors.ENDC}").strip().lower()
-            not in {"n", "no"}
-        )
-        run_sidecar = (
-            input(f"{Colors.BOLD}  Build sidecar? (Y/n): {Colors.ENDC}").strip().lower()
-            not in {"n", "no"}
-        )
-        run_bundle = (
-            input(
-                f"{Colors.BOLD}  Build Tauri desktop bundle? (Y/n): {Colors.ENDC}"
-            )
-            .strip()
-            .lower()
-            not in {"n", "no"}
-        )
+        run_frontend = input(
+            f"{Colors.BOLD}  Build frontend? (Y/n): {Colors.ENDC}"
+        ).strip().lower() not in {"n", "no"}
+        run_sidecar = input(
+            f"{Colors.BOLD}  Build sidecar? (Y/n): {Colors.ENDC}"
+        ).strip().lower() not in {"n", "no"}
+        run_bundle = input(
+            f"{Colors.BOLD}  Build Tauri desktop bundle? (Y/n): {Colors.ENDC}"
+        ).strip().lower() not in {"n", "no"}
 
     steps = []
     if run_frontend:
@@ -366,9 +371,11 @@ def main() -> int:
         print_error("No steps selected")
         return 1
 
-    proceed = input(
-        f"\n{Colors.BOLD}Start build process? (Y/n): {Colors.ENDC}"
-    ).strip().lower()
+    proceed = (
+        input(f"\n{Colors.BOLD}Start build process? (Y/n): {Colors.ENDC}")
+        .strip()
+        .lower()
+    )
     if proceed in {"n", "no"}:
         print_info("Build cancelled")
         return 0
@@ -377,9 +384,11 @@ def main() -> int:
     for step_name, step_func in steps:
         if not step_func():
             failed.append(step_name)
-            cont = input(
-                f"\n{Colors.WARNING}Continue to next step? (y/N): {Colors.ENDC}"
-            ).strip().lower()
+            cont = (
+                input(f"\n{Colors.WARNING}Continue to next step? (y/N): {Colors.ENDC}")
+                .strip()
+                .lower()
+            )
             if cont not in {"y", "yes"}:
                 break
 
