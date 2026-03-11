@@ -4,6 +4,7 @@ Handles daily check-ins, mission completion, and reward collection.
 """
 
 import logging
+import re
 import time
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -12,6 +13,7 @@ from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeout
 
 from automation import RetryHelper
 from automation.ImageProcessor import ImageProcessor, find_correct_avatar
+from core.constants import PANEL_BACK_SELECTOR
 from utils.DataHandler import maintain_mission_data
 from utils.NotificationHelper import NotificationModule
 from utils.screenshot_store import save_locator_screenshot, save_page_screenshot
@@ -31,6 +33,10 @@ DIALOG_CLOSE_SELECTOR = ".components-pc-assets-__dialog_---dialog-close---3G9gO2
 DIALOG_BODY_SELECTOR = "div.components-pc-assets-__dialog_---dialog-body---1SieDs"
 MISSION_WRAPPER_SELECTOR = ".wrapper-O3T67n"
 MISSION_BUTTON_TEXT = "Carry out missions to earn"
+MISSION_BUTTON_PATTERN = re.compile(
+    r"Carry out missions to earn(?: points)?",
+    re.IGNORECASE,
+)
 AVATAR_SELECTOR = "div.avatarsItemImg-AiUG1h"
 TASK_ITEM_SELECTOR = ".taskItemPcLeft-Aetp6m"
 CLAIMED_POPUP_TEXT = "Claimed!"
@@ -528,14 +534,17 @@ def open_mission_screen(page: Page) -> bool:
         True if mission screen opened successfully, False otherwise
     """
     logger.info("Opening mission screen...")
-    target_screen = page.locator(MISSION_WRAPPER_SELECTOR)
-    mission_button = page.locator(f"text={MISSION_BUTTON_TEXT}")
+    target_screen = page.locator(PANEL_BACK_SELECTOR).first
+    mission_button = page.get_by_text(MISSION_BUTTON_PATTERN).first
 
     success = RetryHelper.retry_until_screen_appears(target_screen, mission_button)
     if success:
         logger.info("Mission screen opened successfully")
     else:
-        logger.error("Failed to open mission screen")
+        logger.warning(
+            "Mission screen did not open after clicking launcher text '%s'",
+            MISSION_BUTTON_TEXT,
+        )
     return success
 
 
@@ -695,7 +704,7 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
 
 def run(
     output_file: str, page: Page, previous_data: List[Dict], todays_data: Dict
-) -> None:
+) -> bool:
     """Main entry point for mission automation.
 
     Args:
@@ -703,6 +712,9 @@ def run(
         page: Playwright Page instance
         previous_data: Historical mission data records
         todays_data: Today's mission data to populate
+
+    Returns:
+        True when mission flow opened and completed, otherwise False.
     """
     import sentry_sdk
 
@@ -717,7 +729,7 @@ def run(
             ):
                 if not open_mission_screen(page):
                     logger.error("Failed to open mission screen, aborting")
-                    return
+                    return False
 
             # Count and execute missions
             with sentry_sdk.start_span(
@@ -731,6 +743,7 @@ def run(
                 maintain_mission_data(previous_data, output_file, todays_data)
 
             logger.info("Mission automation completed successfully")
+            return True
 
         except Exception as e:
             span.set_status("internal_error")

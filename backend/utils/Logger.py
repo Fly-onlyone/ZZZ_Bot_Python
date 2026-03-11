@@ -2,20 +2,35 @@ import logging
 
 
 class StreamToLogger(object):
-    """
-    Fake file-like stream object that redirects writes to a logger instance.
-    """
+    """Redirect writes to a logger without splitting partial lines."""
 
     def __init__(self, logger, level):
         self.logger = logger
         self.level = level
+        self._buffer = ""
 
     def write(self, buf):
-        for line in buf.rstrip().splitlines():
-            self.logger.log(self.level, line.rstrip())
+        text = str(buf)
+        if not text:
+            return 0
+
+        self._buffer += text
+        while "\n" in self._buffer:
+            line, self._buffer = self._buffer.split("\n", 1)
+            line = line.rstrip("\r")
+            if line:
+                self.logger.log(self.level, line)
+
+        return len(text)
 
     def flush(self):
-        pass
+        if not self._buffer:
+            return
+
+        line = self._buffer.rstrip("\r")
+        self._buffer = ""
+        if line:
+            self.logger.log(self.level, line)
 
 
 class NoImportFilter(logging.Filter):

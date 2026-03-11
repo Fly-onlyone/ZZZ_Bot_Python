@@ -11,7 +11,7 @@ from typing import Dict, Optional
 
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
 
-from automation import RedeemAutofill, RetryHelper
+from automation import EventNavigator, RedeemAutofill, RetryHelper
 from automation.ImageProcessor import find_correct_avatar
 from automation.Selectors import (
     AVATAR_SELECTOR,
@@ -85,51 +85,38 @@ def _shopping_ready(page: Page) -> bool:
 
 def _close_blocking_reward_dialog(page: Page) -> bool:
     """Close a lingering draw/shopping reward dialog if present."""
-    close_button = page.locator(SHOPPING_CLOSE_BUTTON).first
-    try:
-        if close_button.count() > 0 and close_button.is_visible(timeout=1000):
-            logger.info("Closing lingering reward dialog before opening shopping")
-            close_button.click(force=True, timeout=SHOPPING_MODAL_CLOSE_TIMEOUT)
-            page.wait_for_timeout(500)
-            return True
-    except Exception as close_error:
-        logger.debug("No blocking reward dialog to close: %s", close_error)
-    return False
+    return EventNavigator.close_reward_dialog(
+        page,
+        context="preparing shopping screen",
+        timeout=SHOPPING_MODAL_CLOSE_TIMEOUT,
+    )
 
 
 def _close_open_panel(page: Page) -> bool:
     """Close a visible panel so the shopping launcher is reachable again."""
-    panel_back = page.locator(PANEL_BACK_SELECTOR).first
-    try:
-        if panel_back.count() == 0 or not panel_back.is_visible(timeout=1000):
-            return False
-    except Exception:
-        return False
-
-    logger.info("Closing open panel before reopening shopping")
-    try:
-        panel_back.click(timeout=SHOPPING_PANEL_CLOSE_TIMEOUT)
-    except Exception as exc:
-        logger.warning("Panel close click failed (%s), retrying with force", exc)
-        panel_back.click(force=True, timeout=SHOPPING_PANEL_CLOSE_TIMEOUT)
-
-    page.wait_for_timeout(500)
-    try:
-        page.wait_for_load_state("domcontentloaded", timeout=2000)
-    except Exception:
-        pass
-    return True
+    return EventNavigator.close_panel_back(
+        page,
+        context="preparing shopping screen",
+        timeout=SHOPPING_PANEL_CLOSE_TIMEOUT,
+    )
 
 
 def _reset_to_event_home(page: Page, *, allow_ready_exit: bool = True) -> None:
     """Clear blocking overlays so the event home buttons are clickable again."""
-    for _ in range(2):
-        changed = _close_blocking_reward_dialog(page)
-        if allow_ready_exit and _shopping_ready(page):
-            return
-        changed = _close_open_panel(page) or changed
-        if not changed:
-            return
+    if allow_ready_exit and _shopping_ready(page):
+        return
+    EventNavigator.ensure_event_home(page, context="preparing shopping screen")
+
+
+def _shopping_launcher_candidates(page: Page):
+    """Build launcher locators in priority order for the shopping panel."""
+    return (
+        (
+            "role-img-index",
+            lambda: page.get_by_role("img").nth(SHOPPING_BUTTON_SELECTOR),
+        ),
+        ("img-index", lambda: page.locator("img").nth(SHOPPING_BUTTON_SELECTOR)),
+    )
 
 
 def _shopping_diagnostics(page: Page) -> Dict[str, int]:
@@ -148,9 +135,7 @@ def _shopping_diagnostics(page: Page) -> Dict[str, int]:
 def _record_shopping_open_failure(page: Page, last_error: Exception | None) -> None:
     """Emit one high-signal shopping-open failure instead of several shallow errors."""
     diagnostics = _shopping_diagnostics(page)
-    screenshot_name = (
-        f"{SHOPPING_OPEN_SCREENSHOT_PREFIX}{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-    )
+    screenshot_name = f"{SHOPPING_OPEN_SCREENSHOT_PREFIX}{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
     screenshot_asset_id = None
 
     try:
@@ -177,57 +162,29 @@ def open_shopping_screen(page: Page, *, force_reopen: bool = False) -> bool:
     if force_reopen:
         logger.info("Refreshing shopping screen before continuing")
 
-    last_error = None
-
-    for attempt in range(1, SHOPPING_OPEN_MAX_RETRIES + 1):
-        _reset_to_event_home(page, allow_ready_exit=not force_reopen)
-
-        button_candidates = (
-            ("role-img", page.get_by_role("img").nth(SHOPPING_BUTTON_SELECTOR)),
-            ("img", page.locator("img").nth(SHOPPING_BUTTON_SELECTOR)),
+    open_result = EventNavigator.open_panel(
+        page,
+        panel_name="shopping screen",
+        ready_predicate=lambda: _shopping_ready(page),
+        candidates=_shopping_launcher_candidates(page),
+        max_attempts=SHOPPING_OPEN_MAX_RETRIES,
+        retry_wait_ms=SHOPPING_OPEN_RETRY_WAIT,
+    )
+    if open_result.opened:
+        logger.info(
+            "Shopping screen opened via %s candidate",
+            open_result.candidate_name or "unknown",
         )
+        return True
 
-        for candidate_name, shopping_button in button_candidates:
-            try:
-                if shopping_button.count() == 0:
-                    continue
-
-                shopping_button.click(force=True, timeout=5000)
-                page.wait_for_timeout(SHOPPING_OPEN_RETRY_WAIT)
-            except Exception as exc:
-                last_error = exc
-                logger.warning(
-                    "Shopping button click failed on attempt %s/%s via %s: %s",
-                    attempt,
-                    SHOPPING_OPEN_MAX_RETRIES,
-                    candidate_name,
-                    exc,
-                )
-                continue
-
-            if _shopping_ready(page):
-                logger.info("Shopping screen opened via %s candidate", candidate_name)
-                return True
-
-            try:
-                page.wait_for_load_state("domcontentloaded", timeout=3000)
-            except Exception:
-                pass
-
-            if _shopping_ready(page):
-                logger.info("Shopping screen opened via %s candidate", candidate_name)
-                return True
-
-    _record_shopping_open_failure(page, last_error)
+    _record_shopping_open_failure(page, open_result.last_error)
     return False
 
 
 def _record_avatar_selection_failure(page: Page, last_error: Exception | None) -> None:
     """Capture one high-signal avatar selection failure with page diagnostics."""
     diagnostics = _shopping_diagnostics(page)
-    screenshot_name = (
-        f"{SHOPPING_AVATAR_SCREENSHOT_PREFIX}{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-    )
+    screenshot_name = f"{SHOPPING_AVATAR_SCREENSHOT_PREFIX}{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
     screenshot_asset_id = None
 
     try:
@@ -268,7 +225,9 @@ def select_zzz_avatar(page: Page) -> bool:
             last_error = ValueError("ZZZ avatar not found")
         else:
             try:
-                zzz_avatar.wait_for(state="visible", timeout=SHOPPING_AVATAR_CLICK_TIMEOUT)
+                zzz_avatar.wait_for(
+                    state="visible", timeout=SHOPPING_AVATAR_CLICK_TIMEOUT
+                )
                 zzz_avatar.click(timeout=SHOPPING_AVATAR_CLICK_TIMEOUT)
                 logger.info("Selected ZZZ avatar")
                 # Wait for DOM to be loaded instead of networkidle for more reliability
@@ -296,7 +255,9 @@ def select_zzz_avatar(page: Page) -> bool:
 
         if attempt < SHOPPING_AVATAR_SELECTION_RETRIES:
             if not _refresh_shopping_avatar_selection(page):
-                last_error = RuntimeError("Could not refresh shopping screen for avatar retry")
+                last_error = RuntimeError(
+                    "Could not refresh shopping screen for avatar retry"
+                )
                 break
 
     _record_avatar_selection_failure(page, last_error)
@@ -627,11 +588,15 @@ def run(page: Page) -> None:
 
     logger.info("Starting shopping automation...")
 
-    with sentry_sdk.start_span(op="automation.shopping", name="shopping-handler") as span:
+    with sentry_sdk.start_span(
+        op="automation.shopping", name="shopping-handler"
+    ) as span:
         span.set_data("workflow.phase", "shopping")
         try:
             # Open shopping screen
-            with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
+            with sentry_sdk.start_span(
+                op="browser.navigate", name="Open shopping screen"
+            ):
                 if not open_shopping_screen(page):
                     return
 
@@ -641,7 +606,9 @@ def run(page: Page) -> None:
                     return
 
             # Extract current points after selecting the game
-            with sentry_sdk.start_span(op="browser.interact", name="Gather shopping data"):
+            with sentry_sdk.start_span(
+                op="browser.interact", name="Gather shopping data"
+            ):
                 current_points = _extract_current_points(page)
                 shopping_data = load_or_gather_shopping_data(page, current_points)
 
@@ -653,7 +620,9 @@ def run(page: Page) -> None:
 
             # Execute shopping if enabled
             if settings.exchange_good:
-                with sentry_sdk.start_span(op="browser.interact", name="Run shopping exchanges"):
+                with sentry_sdk.start_span(
+                    op="browser.interact", name="Run shopping exchanges"
+                ):
                     run_shopping(page, shopping_data)
             else:
                 logger.info("Shopping disabled in settings, skipping redemption")
@@ -828,11 +797,15 @@ def execute_shopping_with_existing_data(page: Page) -> bool:
 
     logger.info("Starting shopping execution phase (before draw)...")
 
-    with sentry_sdk.start_span(op="automation.shopping", name="shopping-execute") as span:
+    with sentry_sdk.start_span(
+        op="automation.shopping", name="shopping-execute"
+    ) as span:
         span.set_data("workflow.phase", "shopping_execute")
         try:
             # Open shopping screen
-            with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
+            with sentry_sdk.start_span(
+                op="browser.navigate", name="Open shopping screen"
+            ):
                 if not open_shopping_screen(page, force_reopen=True):
                     return False
 
@@ -851,7 +824,9 @@ def execute_shopping_with_existing_data(page: Page) -> bool:
 
             # Execute shopping if enabled
             if settings.exchange_good:
-                with sentry_sdk.start_span(op="browser.interact", name="Execute shopping exchanges"):
+                with sentry_sdk.start_span(
+                    op="browser.interact", name="Execute shopping exchanges"
+                ):
                     run_shopping(page, shopping_data)
             else:
                 logger.info("Shopping execution disabled in settings")
@@ -880,11 +855,15 @@ def gather_shopping_data_only(page: Page) -> bool:
 
     logger.info("Starting shopping data gathering phase (after draw)...")
 
-    with sentry_sdk.start_span(op="automation.shopping", name="shopping-gather") as span:
+    with sentry_sdk.start_span(
+        op="automation.shopping", name="shopping-gather"
+    ) as span:
         span.set_data("workflow.phase", "shopping_gather")
         try:
             # Open shopping screen
-            with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
+            with sentry_sdk.start_span(
+                op="browser.navigate", name="Open shopping screen"
+            ):
                 if not open_shopping_screen(page):
                     return False
 
@@ -894,7 +873,9 @@ def gather_shopping_data_only(page: Page) -> bool:
                     return False
 
             # Extract current points and gather data
-            with sentry_sdk.start_span(op="browser.interact", name="Gather shopping data"):
+            with sentry_sdk.start_span(
+                op="browser.interact", name="Gather shopping data"
+            ):
                 current_points = _extract_current_points(page)
                 shopping_data = load_or_gather_shopping_data(page, current_points)
 

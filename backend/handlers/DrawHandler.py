@@ -5,12 +5,13 @@ Handles automated prize draws, reward detection, and redemption code processing.
 
 import logging
 import os
+import time
 from datetime import datetime
 from typing import Optional
 
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, Locator
 
-from automation import RedeemAutofill, RetryHelper
+from automation import EventNavigator, RedeemAutofill
 from automation.ImageProcessor import find_correct_lottery_logo, detect_reward
 from core.GlobalVar import CONFIG, resource_path, is_exe
 from utils import NotificationHelper
@@ -33,6 +34,7 @@ REWARD_IMAGE_SELECTOR_ALT = (
     ".gainPrizeImage-FqEqMM img"  # Alternative: img inside container
 )
 SUCCESS_DIALOG_SELECTOR = ".customModal-JTvCMP"  # Container for success dialog
+DRAW_MASK_SELECTOR = ".custom-mihoyo-common-mask"
 REDEEM_CODE_SELECTOR = "div.gainCodeCopyInput-QcgdvD"  # More specific with tag
 REDEEM_CODE_SELECTOR_ALT = ".gainCodeCopyInput-QcgdvD"  # Fallback selector
 CLOSE_DIALOG_SELECTOR = ".gainClose-7Q0hz8"
@@ -48,29 +50,104 @@ DRAW_DIALOG_SETTLE_WAIT = 500
 UNKNOWN_REWARD = "Unknown reward"
 
 
-def _wait_for_success_dialog(page: Page, draw_number: int) -> Optional[Locator]:
-    """Wait for the draw success dialog container to become visible."""
-    success_dialog = page.locator(SUCCESS_DIALOG_SELECTOR).filter(
-        has_text=SUCCESS_DIALOG_TEXT
-    ).first
+def _is_locator_visible(locator: Locator, timeout: int = 500) -> bool:
+    """Return whether the first matching locator is visible without raising."""
+    return EventNavigator.is_locator_visible(locator, timeout=timeout)
 
-    try:
-        success_dialog.wait_for(state="visible", timeout=SUCCESS_DIALOG_TIMEOUT)
-        logger.debug("Draw %s: Success dialog is visible", draw_number)
-        return success_dialog
-    except PlaywrightTimeoutError:
-        logger.warning(
-            "Draw %s: Success dialog did not become visible after clicking draw",
-            draw_number,
-        )
-        return None
+
+def _draw_screen_ready(page: Page) -> bool:
+    """Return whether the draw screen is visibly open and interactive."""
+    prize_screen = page.locator(SCREEN_SELECTOR).filter(has_text=SCREEN_TEXT)
+    draw_button = page.locator(DRAW_BUTTON_SELECTOR)
+    return EventNavigator.is_locator_visible(
+        prize_screen
+    ) and EventNavigator.is_locator_visible(draw_button)
+
+
+def _draw_launcher_candidates(page: Page):
+    """Build launcher locators in priority order for the draw panel."""
+    return (
+        ("draw-text", lambda: page.get_by_text(SCREEN_TEXT, exact=False).first),
+        ("role-img-index", lambda: page.get_by_role("img").nth(DRAW_BUTTON_INDEX)),
+        ("img-index", lambda: page.locator("img").nth(DRAW_BUTTON_INDEX)),
+    )
+
+
+def _wait_for_success_dialog(page: Page, draw_number: int) -> Optional[Locator]:
+    """Wait for the draw result dialog using multiple signals.
+
+    The dialog text has drifted in production before, so treat the modal
+    container, close button, reward image, and code input as valid signals
+    that a draw result is present.
+    """
+    success_dialog = page.locator(SUCCESS_DIALOG_SELECTOR).first
+    text_matched_dialog = (
+        page.locator(SUCCESS_DIALOG_SELECTOR).filter(has_text=SUCCESS_DIALOG_TEXT).first
+    )
+    reward_image = page.locator(REWARD_IMAGE_SELECTOR).first
+    reward_image_alt = page.locator(REWARD_IMAGE_SELECTOR_ALT).first
+    redeem_code = page.locator(REDEEM_CODE_SELECTOR_ALT).first
+    close_button = page.locator(CLOSE_DIALOG_SELECTOR).first
+    page_root = page.locator("body").first
+
+    deadline = time.monotonic() + (SUCCESS_DIALOG_TIMEOUT / 1000)
+    while time.monotonic() < deadline:
+        if _is_locator_visible(text_matched_dialog):
+            logger.debug(
+                "Draw %s: Success dialog is visible and matched expected text",
+                draw_number,
+            )
+            return success_dialog
+
+        if _is_locator_visible(success_dialog):
+            logger.debug(
+                "Draw %s: Success dialog is visible but text no longer matches expected copy",
+                draw_number,
+            )
+            return success_dialog
+
+        if any(
+            _is_locator_visible(locator)
+            for locator in (reward_image, reward_image_alt, redeem_code, close_button)
+        ):
+            if _is_locator_visible(success_dialog):
+                logger.debug(
+                    "Draw %s: Detected draw result via fallback dialog signal",
+                    draw_number,
+                )
+                return success_dialog
+
+            logger.debug(
+                "Draw %s: Detected draw result via fallback signal, but modal container selector no longer matches; using page root",
+                draw_number,
+            )
+            return page_root
+
+        page.wait_for_timeout(250)
+
+    logger.warning(
+        "Draw %s: Success dialog did not become visible after clicking draw",
+        draw_number,
+    )
+    return None
+
+
+def _draw_result_ui_present(page: Page) -> bool:
+    """Return whether any draw-result UI is still visible on the page."""
+    signals = (
+        page.locator(SUCCESS_DIALOG_SELECTOR).first,
+        page.locator(CLOSE_DIALOG_SELECTOR).first,
+        page.locator(REWARD_IMAGE_SELECTOR).first,
+        page.locator(REWARD_IMAGE_SELECTOR_ALT).first,
+        page.locator(REDEEM_CODE_SELECTOR_ALT).first,
+    )
+    return any(_is_locator_visible(locator) for locator in signals)
 
 
 def _find_reward_image(success_dialog: Locator, draw_number: int) -> Optional[Locator]:
     """Find the reward image element using multiple selectors with escalating timeouts.
 
     Args:
-        page: Playwright Page instance
         draw_number: Current draw number for logging
 
     Returns:
@@ -85,30 +162,23 @@ def _find_reward_image(success_dialog: Locator, draw_number: int) -> Optional[Lo
     for selector_idx, selector in enumerate(selectors_to_try):
         timeout = timeouts[min(selector_idx, len(timeouts) - 1)]
         try:
-            reward_image = success_dialog.locator(selector)
-
-            # Wait for element with escalating timeout
-            if reward_image.count() > 0:
-                # Element exists, wait for it to be visible
-                try:
-                    reward_image.first.wait_for(state="visible", timeout=timeout)
-                    logger.debug(
-                        f"Draw {draw_number}: Found reward image with selector '{selector}' (timeout={timeout}ms)"
-                    )
-                    return reward_image.first
-                except PlaywrightTimeoutError:
-                    logger.debug(
-                        f"Draw {draw_number}: Reward image exists but not visible with selector '{selector}' after {timeout}ms"
-                    )
-                    # Continue to next selector
-                    continue
-            else:
-                logger.debug(
-                    f"Draw {draw_number}: No reward image found with selector '{selector}'"
-                )
-                # Try next selector
-                continue
-
+            reward_image = success_dialog.locator(selector).first
+            reward_image.wait_for(state="visible", timeout=timeout)
+            logger.debug(
+                "Draw %s: Found reward image with selector '%s' (timeout=%sms)",
+                draw_number,
+                selector,
+                timeout,
+            )
+            return reward_image
+        except PlaywrightTimeoutError:
+            logger.debug(
+                "Draw %s: Reward image did not become visible with selector '%s' after %sms",
+                draw_number,
+                selector,
+                timeout,
+            )
+            continue
         except Exception as e:
             logger.debug(f"Draw {draw_number}: Error with selector '{selector}': {e}")
             continue
@@ -119,8 +189,10 @@ def _find_reward_image(success_dialog: Locator, draw_number: int) -> Optional[Lo
     return None
 
 
-def _save_debug_artifacts(page: Page, draw_number: int) -> None:
-    """Save screenshot and DOM snapshot for debugging reward detection failures."""
+def _save_debug_artifacts(
+    page: Page, draw_number: int
+) -> tuple[Optional[str], Optional[str]]:
+    """Save screenshot and DOM snapshot for debugging draw failures."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if is_exe:
         error_dir = resource_path("logs/errors", outside_path=True)
@@ -128,15 +200,15 @@ def _save_debug_artifacts(page: Page, draw_number: int) -> None:
         error_dir = "backend/logs/errors"
     os.makedirs(error_dir, exist_ok=True)
 
-    # Screenshot
+    screenshot_asset_id: Optional[str] = None
+
     screenshot_name = f"draw_{draw_number}_{timestamp}.png"
     try:
-        asset_id = save_page_screenshot(page, screenshot_name)
-        logger.info("Debug screenshot saved to MongoDB asset: %s", asset_id)
+        screenshot_asset_id = save_page_screenshot(page, screenshot_name)
+        logger.info("Debug screenshot saved to MongoDB asset: %s", screenshot_asset_id)
     except Exception as e:
         logger.error(f"Failed to save debug screenshot: {e}")
 
-    # DOM snapshot
     dom_path = os.path.join(error_dir, f"draw_{draw_number}_{timestamp}_dom.html")
     try:
         with open(dom_path, "w", encoding="utf-8") as f:
@@ -144,13 +216,61 @@ def _save_debug_artifacts(page: Page, draw_number: int) -> None:
         logger.info(f"Debug DOM snapshot saved: {dom_path}")
     except Exception as e:
         logger.error(f"Failed to save DOM snapshot: {e}")
+        dom_path = None
+
+    return screenshot_asset_id, dom_path
 
 
-def _extract_redemption_code(success_dialog: Locator, draw_number: int) -> Optional[str]:
+def _capture_missing_draw_result_event(
+    page: Page,
+    draw_number: int,
+    total_draws: int,
+) -> None:
+    """Send one structured Sentry issue when a draw click yields no visible result."""
+    import sentry_sdk
+
+    screenshot_asset_id, dom_path = _save_debug_artifacts(page, draw_number)
+
+    point_text = None
+    draw_limit_text = None
+
+    try:
+        point_text = page.locator(POINT_VALUE_SELECTOR).inner_text()
+    except Exception:
+        pass
+
+    try:
+        draw_limit_text = page.locator(DRAW_LIMIT_SELECTOR).inner_text()
+    except Exception:
+        pass
+
+    with sentry_sdk.isolation_scope():
+        sentry_sdk.set_tag("draw.issue", "missing_result_dialog")
+        sentry_sdk.set_tag("draw.number", str(draw_number))
+        sentry_sdk.set_context(
+            "draw",
+            {
+                "draw_number": draw_number,
+                "total_draws": total_draws,
+                "page_url": page.url,
+                "point_text": point_text,
+                "draw_limit_text": draw_limit_text,
+                "screenshot_asset_id": screenshot_asset_id,
+                "dom_snapshot_path": dom_path,
+            },
+        )
+        sentry_sdk.capture_message(
+            "Draw button clicked but no result dialog appeared",
+            level="warning",
+        )
+
+
+def _extract_redemption_code(
+    success_dialog: Locator, draw_number: int
+) -> Optional[str]:
     """Extract redemption code from the reward dialog.
 
     Args:
-        page: Playwright Page instance
         draw_number: Current draw number for logging
 
     Returns:
@@ -234,22 +354,14 @@ def _extract_redemption_code(success_dialog: Locator, draw_number: int) -> Optio
 
 def ensure_draw_ui_cleared(page: Page) -> bool:
     """Close any lingering draw result dialog before the next automation phase."""
-    success_dialog = page.locator(SUCCESS_DIALOG_SELECTOR).first
     close_button = page.locator(CLOSE_DIALOG_SELECTOR).first
 
     for attempt in range(1, 4):
-        try:
-            dialog_visible = success_dialog.count() > 0 and success_dialog.is_visible(
-                timeout=500
-            )
-        except Exception:
-            dialog_visible = False
-
-        if not dialog_visible:
+        if not _draw_result_ui_present(page):
             return True
 
         try:
-            if close_button.count() > 0 and close_button.is_visible(timeout=1000):
+            if _is_locator_visible(close_button, timeout=1000):
                 close_button.click(force=True, timeout=CLOSE_DIALOG_TIMEOUT)
             else:
                 page.keyboard.press("Escape")
@@ -261,12 +373,19 @@ def ensure_draw_ui_cleared(page: Page) -> bool:
                 exc,
             )
 
-    try:
-        return not (
-            success_dialog.count() > 0 and success_dialog.is_visible(timeout=500)
-        )
-    except Exception:
+    return not _draw_result_ui_present(page)
+
+
+def close_draw_screen(page: Page) -> bool:
+    """Leave the draw screen cleanly so the next phase starts from event home."""
+    if not ensure_draw_ui_cleared(page):
+        return False
+
+    if not _draw_screen_ready(page):
         return True
+
+    closed = EventNavigator.close_panel_back(page, context="leaving draw screen")
+    return closed and not _draw_screen_ready(page)
 
 
 def _calculate_available_draws(page: Page) -> Optional[int]:
@@ -339,6 +458,13 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
     logger.info(f"Performing draw {draw_number}/{total_draws}")
 
     try:
+        if not ensure_draw_ui_cleared(page):
+            logger.error(
+                "Draw %s: Previous draw dialog could not be cleared before clicking again",
+                draw_number,
+            )
+            return False
+
         # Get draw button
         draw_button = page.locator(DRAW_BUTTON_SELECTOR)
 
@@ -359,8 +485,8 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
 
         success_dialog = _wait_for_success_dialog(page, draw_number)
         if success_dialog is None:
+            _capture_missing_draw_result_event(page, draw_number, total_draws)
 
-            # This usually means no draws are actually available (page data was stale)
             if draw_number == 1:
                 logger.warning(
                     "First draw failed - likely no draws actually available despite what page shows"
@@ -450,6 +576,8 @@ def run(page: Page) -> dict[str, int | bool]:
     with sentry_sdk.start_span(op="automation.draw", name="draw-handler") as span:
         span.set_data("workflow.phase", "draw")
         try:
+            EventNavigator.ensure_event_home(page, context="opening draw screen")
+
             # Log diagnostic information before attempting to open screen
             logger.info(f"Looking for draw button at image index {DRAW_BUTTON_INDEX}")
             logger.info(
@@ -461,18 +589,20 @@ def run(page: Page) -> dict[str, int | bool]:
             total_images = all_images.count()
             logger.info(f"Total image elements found on page: {total_images}")
 
-            # Navigate to prize draw screen
-            draw_button = page.get_by_role("img").nth(DRAW_BUTTON_INDEX)
-            prize_screen = page.locator(SCREEN_SELECTOR).filter(has_text=SCREEN_TEXT)
+            open_result = EventNavigator.open_panel(
+                page,
+                panel_name="draw screen",
+                ready_predicate=lambda: _draw_screen_ready(page),
+                candidates=_draw_launcher_candidates(page),
+                max_attempts=10,
+            )
 
-            if not RetryHelper.retry_until_screen_appears(prize_screen, draw_button):
+            if not open_result.opened:
                 logger.error("Failed to open prize draw screen")
                 logger.error(
                     f"Expected button at index {DRAW_BUTTON_INDEX}, but page has {total_images} images"
                 )
-                logger.error(
-                    "Check MongoDB screenshot assets for more details"
-                )
+                logger.error("Check MongoDB screenshot assets for more details")
                 result["cleanup_ok"] = ensure_draw_ui_cleared(page)
                 return result
 
