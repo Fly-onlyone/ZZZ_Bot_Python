@@ -56,7 +56,7 @@ def retry_until_screen_appears(
                 f"Attempt {attempt}/{max_retries}: Timeout waiting for button or screen"
             )
         except Exception as e:
-            logger.error(f"Attempt {attempt}/{max_retries}: Unexpected error: {e}")
+            logger.warning(f"Attempt {attempt}/{max_retries}: Unexpected error: {e}")
 
         # Wait before next retry (skip on last attempt)
         if attempt < max_retries:
@@ -76,27 +76,27 @@ def retry_until_screen_appears(
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"retry_failed_{timestamp}.png"
         asset_id = save_page_screenshot(page, filename)
-        logger.error("Screenshot saved to MongoDB asset: %s", asset_id)
+        logger.warning("Screenshot saved to MongoDB asset: %s", asset_id)
 
         # Log available image buttons
         all_images = page.get_by_role("img")
         image_count = all_images.count()
-        logger.error(f"Found {image_count} image elements on page:")
+        logger.warning(f"Found {image_count} image elements on page:")
         for i in range(min(image_count, 10)):  # Log first 10 images
             try:
                 img = all_images.nth(i)
                 alt_text = img.get_attribute("alt") or "N/A"
                 src = img.get_attribute("src") or "N/A"
-                logger.error(f"  Image {i}: alt='{alt_text}', src='{src[:50]}...'")
+                logger.warning(f"  Image {i}: alt='{alt_text}', src='{src[:50]}...'")
             except Exception as e:
-                logger.error(f"  Image {i}: Error getting attributes - {e}")
+                logger.warning(f"  Image {i}: Error getting attributes - {e}")
 
         # Log target screen selector info
         screen_count = screen.count()
-        logger.error(f"Target screen selector matched {screen_count} elements")
+        logger.warning(f"Target screen selector matched {screen_count} elements")
 
     except Exception as e:
-        logger.error(f"Error during diagnostic logging: {e}")
+        logger.warning(f"Error during diagnostic logging: {e}")
 
     return False
 

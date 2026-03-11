@@ -38,6 +38,13 @@ WAIT_BUFFER_SECONDS = 120  # Open shopping screen 2 minutes early
 POLL_INTERVAL_SECONDS = 1  # Check button text every 1 second
 EXCHANGE_BUTTON_TEXT = "Exchange"
 UNAVAILABLE_BUTTON_TOKENS = ("limit reached", "sold out", "unavailable")
+_hunt_target_date: Optional[datetime] = None
+
+
+def set_hunt_target_date(target_date: Optional[datetime]) -> None:
+    """Store the scheduled hunt target date inside the handler module."""
+    global _hunt_target_date
+    _hunt_target_date = target_date
 
 
 def get_hunt_items() -> List[str]:
@@ -196,7 +203,9 @@ def wait_for_exchange_button(
                         button_text = button.inner_text().strip()
 
                         if button_text != last_status:
-                            logger.info("Item '%s' button status: %s", item_name, button_text)
+                            logger.info(
+                                "Item '%s' button status: %s", item_name, button_text
+                            )
                             last_status = button_text
 
                         if button_text == EXCHANGE_BUTTON_TEXT:
@@ -222,20 +231,24 @@ def wait_for_exchange_button(
                     if remaining <= 0:
                         break
 
-                    sleep_for = min(current_interval, remaining)
+                    sleep_for = min(float(current_interval), remaining)
                     time.sleep(sleep_for)
 
                     if backoff_enabled:
-                        current_interval = min(max_interval, current_interval + base_interval)
+                        current_interval = min(
+                            max_interval, current_interval + base_interval
+                        )
 
                 except Exception as e:
                     logger.error("Error while monitoring '%s': %s", item_name, e)
                     remaining = max_wait - (time.time() - start_time)
                     if remaining <= 0:
                         break
-                    time.sleep(min(current_interval, remaining))
+                    time.sleep(min(float(current_interval), remaining))
                     if backoff_enabled:
-                        current_interval = min(max_interval, current_interval + base_interval)
+                        current_interval = min(
+                            max_interval, current_interval + base_interval
+                        )
         finally:
             elapsed = time.time() - start_time
             span.set_data("hunt.poll_attempts", attempts)
@@ -245,7 +258,9 @@ def wait_for_exchange_button(
 
         if not available:
             if exit_reason == "timeout":
-                logger.warning("Timeout waiting for '%s' to become available", item_name)
+                logger.warning(
+                    "Timeout waiting for '%s' to become available", item_name
+                )
             else:
                 logger.warning(
                     "Stopped waiting for '%s' with reason: %s", item_name, exit_reason
@@ -369,9 +384,6 @@ def remove_items_from_hunt_list(item_names: List[str]):
 
 def run_hunt():
     """Execute hunt mode by waiting at shopping screen and purchasing items when available."""
-    # Import here to avoid circular import
-    from backend.Bot import _hunt_target_date
-
     # Validate we're running on the correct date
     # (schedule library fires daily, but we only want to run on the target date)
     if _hunt_target_date:
@@ -423,10 +435,9 @@ def run_hunt():
                     )
 
                     # Handle manual login only when neither MongoDB nor file has auth state.
-                    has_auth_state = (
-                        load_storage_state(CONFIG["STORAGE_PATH"]) is not None
-                        or os.path.exists(CONFIG["STORAGE_PATH"])
-                    )
+                    has_auth_state = load_storage_state(
+                        CONFIG["STORAGE_PATH"]
+                    ) is not None or os.path.exists(CONFIG["STORAGE_PATH"])
                     if not has_auth_state:
                         NotificationHelper.notify(
                             title="ZZZ Bot - Hunt Mode",
@@ -484,7 +495,9 @@ def run_hunt():
                                     backoff_enabled=settings.hunt_poll_backoff_enabled,
                                     early_exit_on_unavailable=settings.hunt_early_exit_on_unavailable,
                                 )
-                                item_span.set_data("hunt.exchange_available", is_available)
+                                item_span.set_data(
+                                    "hunt.exchange_available", is_available
+                                )
 
                                 if is_available:
                                     redeem_code = exchange_item_only(page, item_name)
@@ -492,16 +505,28 @@ def run_hunt():
                                     if redeem_code:
                                         codes_to_redeem.append((item_name, redeem_code))
                                         successful_exchanges.append(item_name)
-                                        item_span.set_data("hunt.exchange_result", "success")
-                                        logger.info("✓ Successfully exchanged '%s'", item_name)
+                                        item_span.set_data(
+                                            "hunt.exchange_result", "success"
+                                        )
+                                        logger.info(
+                                            "✓ Successfully exchanged '%s'", item_name
+                                        )
                                     else:
                                         failed_items.append(item_name)
-                                        item_span.set_data("hunt.exchange_result", "exchange_failed")
-                                        logger.warning("✗ Failed to exchange '%s'", item_name)
+                                        item_span.set_data(
+                                            "hunt.exchange_result", "exchange_failed"
+                                        )
+                                        logger.warning(
+                                            "✗ Failed to exchange '%s'", item_name
+                                        )
                                 else:
                                     failed_items.append(item_name)
-                                    item_span.set_data("hunt.exchange_result", "not_available")
-                                    logger.warning("✗ Hunt did not complete for '%s'", item_name)
+                                    item_span.set_data(
+                                        "hunt.exchange_result", "not_available"
+                                    )
+                                    logger.warning(
+                                        "✗ Hunt did not complete for '%s'", item_name
+                                    )
 
                                 time.sleep(1)
 
@@ -518,7 +543,9 @@ def run_hunt():
                         op="browser.navigate", name="Redeem all codes"
                     ) as redeem_span:
                         redeem_span.set_data("workflow.phase", "hunt_redeem")
-                        redeem_span.set_data("hunt.codes_to_redeem", len(codes_to_redeem))
+                        redeem_span.set_data(
+                            "hunt.codes_to_redeem", len(codes_to_redeem)
+                        )
                         if codes_to_redeem:
                             redeem_all_codes(context, codes_to_redeem)
                         else:

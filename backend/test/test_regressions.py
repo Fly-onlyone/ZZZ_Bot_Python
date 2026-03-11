@@ -1,6 +1,8 @@
+import asyncio
+import logging
 import sys
 import threading
-import asyncio
+from datetime import datetime, timedelta
 from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
@@ -9,7 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 image_processor_module = import_module("automation.ImageProcessor")
 routes_module = import_module("api.routes")
-from handlers import MissionHandler, ShoppingHandler
+from automation import EventNavigator
+from handlers import DrawHandler, HuntModeHandler, MissionHandler, ShoppingHandler
 from core.frontend_env import resolve_frontend_sentry_dsn
 from core.mission_email import schedule_mission_email_delivery
 from core.settings_compat import (
@@ -18,6 +21,7 @@ from core.settings_compat import (
 )
 from core.settings_contract import ADVANCED_SETTINGS_KEYS, extract_advanced_settings
 from repositories.DataRepository import SettingsRepository
+from utils.Logger import StreamToLogger
 
 
 class _FakeContext:
@@ -49,6 +53,9 @@ class _FakeLocator:
         return self
 
     def nth(self, _index):
+        return self
+
+    def filter(self, **_kwargs):
         return self
 
     def count(self):
@@ -193,6 +200,7 @@ def test_open_shopping_screen_resets_dialogs_before_clicking(monkeypatch):
         def get_by_role(self, role):
             assert role == "img"
             return _FakeShoppingButton(
+                visible=True,
                 click_action=lambda: state.update(
                     ready=not state["reward_open"] and not state["panel_open"],
                     button_clicks=state["button_clicks"] + 1,
@@ -210,6 +218,67 @@ def test_open_shopping_screen_resets_dialogs_before_clicking(monkeypatch):
     assert state["reward_closes"] == 1
     assert state["panel_closes"] == 1
     assert state["button_clicks"] == 1
+
+
+def test_close_open_panel_returns_false_when_back_button_click_races():
+    class FakePage:
+        def locator(self, selector):
+            if selector == ShoppingHandler.PANEL_BACK_SELECTOR:
+                return _FakeLocator(
+                    count=1,
+                    visible=True,
+                    click_action=lambda: (_ for _ in ()).throw(
+                        RuntimeError("detached")
+                    ),
+                    page=self,
+                )
+            return _FakeLocator(count=0, visible=False, page=self)
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+        def wait_for_load_state(self, *_args, **_kwargs):
+            return None
+
+    assert ShoppingHandler._close_open_panel(cast(Any, FakePage())) is False
+
+
+def test_event_navigator_open_panel_uses_fresh_candidates_until_ready():
+    state = {"launcher_clicks": 0, "panel_open": False}
+
+    class FakePage:
+        def locator(self, selector):
+            if selector == "launcher":
+                return _FakeLocator(
+                    count=1,
+                    visible=True,
+                    click_action=lambda: state.update(
+                        launcher_clicks=state["launcher_clicks"] + 1,
+                        panel_open=True,
+                    ),
+                    page=self,
+                )
+            return _FakeLocator(count=0, visible=False, page=self)
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+        def wait_for_load_state(self, *_args, **_kwargs):
+            return None
+
+    page = FakePage()
+
+    result = EventNavigator.open_panel(
+        cast(Any, page),
+        panel_name="test panel",
+        ready_predicate=lambda: state["panel_open"],
+        candidates=(("launcher", lambda: page.locator("launcher")),),
+        max_attempts=2,
+    )
+
+    assert result.opened is True
+    assert result.candidate_name == "launcher"
+    assert state["launcher_clicks"] == 1
 
 
 def test_execute_shopping_with_existing_data_forces_reopen(monkeypatch):
@@ -342,6 +411,367 @@ def test_find_correct_avatar_retries_transient_fetch_failures(monkeypatch):
 
     assert result is avatar_locator
     assert calls["count"] == 2
+
+
+def test_run_hunt_skips_mismatched_target_date_without_backend_import(caplog):
+    caplog.set_level(logging.INFO)
+    HuntModeHandler.set_hunt_target_date(datetime.now() + timedelta(days=1))
+
+    try:
+        HuntModeHandler.run_hunt()
+    finally:
+        HuntModeHandler.set_hunt_target_date(None)
+
+    assert "Skipping until correct date." in caplog.text
+
+
+def test_stream_to_logger_buffers_partial_lines(caplog):
+    stream_logger = logging.getLogger("test.stream_to_logger")
+    caplog.set_level(logging.ERROR, logger=stream_logger.name)
+
+    stream = StreamToLogger(stream_logger, logging.ERROR)
+    stream.write("Exception in thread ")
+    stream.write("Thread-2\nTraceback")
+    stream.write(" (most recent call last):")
+    stream.flush()
+
+    messages = [
+        record.message for record in caplog.records if record.name == stream_logger.name
+    ]
+    assert messages == [
+        "Exception in thread Thread-2",
+        "Traceback (most recent call last):",
+    ]
+
+
+def test_retry_until_screen_appears_keeps_diagnostics_below_error(monkeypatch, caplog):
+    class FakeImages:
+        def count(self):
+            return 1
+
+        def nth(self, _index):
+            return _FakeLocator()
+
+    class FakePage:
+        def get_by_role(self, role):
+            assert role == "img"
+            return FakeImages()
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+    monkeypatch.setattr(
+        "utils.screenshot_store.save_page_screenshot",
+        lambda page, filename: f"screenshot:{filename}",
+    )
+
+    button = _FakeLocator(page=FakePage())
+    screen = _FakeLocator(count=0, visible=False)
+
+    caplog.set_level(logging.WARNING, logger="automation.RetryHelper")
+    result = MissionHandler.RetryHelper.retry_until_screen_appears(
+        cast(Any, screen),
+        cast(Any, button),
+        max_retries=1,
+    )
+
+    error_messages = [
+        record.message
+        for record in caplog.records
+        if record.name == "automation.RetryHelper" and record.levelno >= logging.ERROR
+    ]
+    warning_messages = [
+        record.message
+        for record in caplog.records
+        if record.name == "automation.RetryHelper" and record.levelno == logging.WARNING
+    ]
+
+    assert result is False
+    assert error_messages == ["Max retries (1) reached. Target screen did not appear."]
+    assert any(
+        message.startswith("Screenshot saved to MongoDB asset:")
+        for message in warning_messages
+    )
+
+
+def test_mission_run_returns_false_when_screen_does_not_open(monkeypatch):
+    monkeypatch.setattr(MissionHandler, "open_mission_screen", lambda page: False)
+
+    result = MissionHandler.run(
+        "output.json",
+        cast(Any, object()),
+        [],
+        {},
+    )
+
+    assert result is False
+
+
+def test_single_draw_reports_missing_result_dialog(monkeypatch):
+    reported: list[tuple[int, int]] = []
+    notifications: list[dict[str, str]] = []
+
+    class FakePage:
+        url = "https://example.com/draw"
+
+        def locator(self, selector):
+            if selector == DrawHandler.DRAW_BUTTON_SELECTOR:
+                return _FakeLocator(visible=True, page=self)
+            return _FakeLocator(page=self)
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+    monkeypatch.setattr(
+        DrawHandler, "_wait_for_success_dialog", lambda page, draw_number: None
+    )
+    monkeypatch.setattr(
+        DrawHandler,
+        "_capture_missing_draw_result_event",
+        lambda page, draw_number, total_draws: reported.append(
+            (draw_number, total_draws)
+        ),
+    )
+    monkeypatch.setattr(DrawHandler, "ensure_draw_ui_cleared", lambda page: True)
+    monkeypatch.setattr(
+        DrawHandler.NotificationHelper,
+        "notify",
+        lambda **kwargs: notifications.append(kwargs),
+    )
+
+    result = DrawHandler._perform_single_draw(cast(Any, FakePage()), 1, 4)
+
+    assert result is False
+    assert reported == [(1, 4)]
+    assert (
+        notifications[0]["message"]
+        == "Draw button clicked but no result - draws may be exhausted"
+    )
+
+
+def test_wait_for_success_dialog_accepts_visible_modal_without_old_text():
+    class FakeDialogLocator:
+        def __init__(self, *, visible: bool, filtered=None):
+            self._visible = visible
+            self._filtered = filtered or self
+
+        @property
+        def first(self):
+            return self
+
+        def filter(self, **_kwargs):
+            return self._filtered
+
+        def count(self):
+            return 1 if self._visible else 0
+
+        def is_visible(self, timeout=None):
+            return self._visible
+
+    class FakePage:
+        def __init__(self):
+            self.text_dialog = FakeDialogLocator(visible=False)
+            self.generic_dialog = FakeDialogLocator(
+                visible=True,
+                filtered=self.text_dialog,
+            )
+            self.fallback = FakeDialogLocator(visible=False)
+            self.page_root = FakeDialogLocator(visible=True)
+
+        def locator(self, selector):
+            if selector == "body":
+                return self.page_root
+            if selector == DrawHandler.SUCCESS_DIALOG_SELECTOR:
+                return self.generic_dialog
+            if selector in {
+                DrawHandler.REWARD_IMAGE_SELECTOR,
+                DrawHandler.REWARD_IMAGE_SELECTOR_ALT,
+                DrawHandler.REDEEM_CODE_SELECTOR_ALT,
+                DrawHandler.CLOSE_DIALOG_SELECTOR,
+            }:
+                return self.fallback
+            raise AssertionError(f"Unexpected selector: {selector}")
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+    page = FakePage()
+
+    result = DrawHandler._wait_for_success_dialog(cast(Any, page), 1)
+
+    assert result is page.generic_dialog
+
+
+def test_wait_for_success_dialog_uses_page_root_when_modal_selector_missing():
+    class FakeLocator:
+        def __init__(self, *, visible=False):
+            self._visible = visible
+
+        @property
+        def first(self):
+            return self
+
+        def filter(self, **_kwargs):
+            return self
+
+        def count(self):
+            return 1 if self._visible else 0
+
+        def is_visible(self, timeout=None):
+            return self._visible
+
+    class FakePage:
+        def __init__(self):
+            self.page_root = FakeLocator(visible=True)
+            self.empty_dialog = FakeLocator(visible=False)
+            self.fallback = FakeLocator(visible=True)
+
+        def locator(self, selector):
+            if selector == "body":
+                return self.page_root
+            if selector == DrawHandler.SUCCESS_DIALOG_SELECTOR:
+                return self.empty_dialog
+            if selector in {
+                DrawHandler.REWARD_IMAGE_SELECTOR,
+                DrawHandler.REWARD_IMAGE_SELECTOR_ALT,
+                DrawHandler.REDEEM_CODE_SELECTOR_ALT,
+                DrawHandler.CLOSE_DIALOG_SELECTOR,
+            }:
+                return self.fallback
+            raise AssertionError(f"Unexpected selector: {selector}")
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+    page = FakePage()
+
+    result = DrawHandler._wait_for_success_dialog(cast(Any, page), 1)
+
+    assert result is page.page_root
+
+
+def test_find_reward_image_waits_for_delayed_selector_visibility():
+    class FakeRewardLocator:
+        def __init__(self, *, succeeds: bool):
+            self.succeeds = succeeds
+
+        @property
+        def first(self):
+            return self
+
+        def wait_for(self, *args, **kwargs):
+            if not self.succeeds:
+                raise DrawHandler.PlaywrightTimeoutError("not visible yet")
+
+    class FakeSuccessDialog:
+        def locator(self, selector):
+            return FakeRewardLocator(succeeds=selector == "img")
+
+    result = DrawHandler._find_reward_image(cast(Any, FakeSuccessDialog()), 1)
+
+    assert result is not None
+
+
+def test_close_draw_screen_clears_reward_dialog_then_panel_back(monkeypatch):
+    state = {"dialog_open": True, "draw_screen_open": True}
+
+    class FakePage:
+        def locator(self, selector):
+            if selector == DrawHandler.CLOSE_DIALOG_SELECTOR:
+                return _FakeLocator(
+                    count=lambda: 1 if state["dialog_open"] else 0,
+                    visible=lambda: state["dialog_open"],
+                    click_action=lambda: state.update(dialog_open=False),
+                    page=self,
+                )
+            if selector == DrawHandler.SCREEN_SELECTOR:
+                return _FakeLocator(
+                    count=lambda: 1 if state["draw_screen_open"] else 0,
+                    visible=lambda: state["draw_screen_open"],
+                    page=self,
+                )
+            if selector == DrawHandler.DRAW_BUTTON_SELECTOR:
+                return _FakeLocator(
+                    count=lambda: 1 if state["draw_screen_open"] else 0,
+                    visible=lambda: state["draw_screen_open"],
+                    page=self,
+                )
+            if selector == ShoppingHandler.PANEL_BACK_SELECTOR:
+                return _FakeLocator(
+                    count=lambda: 1 if state["draw_screen_open"] else 0,
+                    visible=lambda: state["draw_screen_open"],
+                    click_action=lambda: state.update(draw_screen_open=False),
+                    page=self,
+                )
+            return _FakeLocator(count=0, visible=False, page=self)
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+        def wait_for_load_state(self, *_args, **_kwargs):
+            return None
+
+    assert DrawHandler.close_draw_screen(cast(Any, FakePage())) is True
+    assert state["dialog_open"] is False
+    assert state["draw_screen_open"] is False
+
+
+def test_ensure_draw_ui_cleared_closes_visible_mask_via_close_button():
+    state = {"overlay_open": True, "close_clicks": 0}
+
+    class FakePage:
+        class _Keyboard:
+            @staticmethod
+            def press(_key):
+                return None
+
+        keyboard = _Keyboard()
+
+        def locator(self, selector):
+            if selector == DrawHandler.CLOSE_DIALOG_SELECTOR:
+                return _FakeLocator(
+                    count=lambda: 1 if state["overlay_open"] else 0,
+                    visible=lambda: state["overlay_open"],
+                    click_action=lambda: state.update(
+                        overlay_open=False,
+                        close_clicks=state["close_clicks"] + 1,
+                    ),
+                    page=self,
+                )
+            if selector == DrawHandler.DRAW_MASK_SELECTOR:
+                return _FakeLocator(
+                    count=lambda: 1 if state["overlay_open"] else 0,
+                    visible=lambda: state["overlay_open"],
+                    page=self,
+                )
+            return _FakeLocator(count=0, visible=False, page=self)
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+    assert DrawHandler.ensure_draw_ui_cleared(cast(Any, FakePage())) is True
+    assert state["close_clicks"] == 1
+    assert state["overlay_open"] is False
+
+
+def test_ensure_draw_ui_cleared_ignores_mask_without_result_controls():
+    class FakePage:
+        class _Keyboard:
+            @staticmethod
+            def press(_key):
+                return None
+
+        keyboard = _Keyboard()
+
+        def locator(self, selector):
+            if selector == DrawHandler.DRAW_MASK_SELECTOR:
+                return _FakeLocator(count=1, visible=True, page=self)
+            return _FakeLocator(count=0, visible=False, page=self)
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+    assert DrawHandler.ensure_draw_ui_cleared(cast(Any, FakePage())) is True
 
 
 def test_normalize_hunt_early_exit_default_resets_true_once():

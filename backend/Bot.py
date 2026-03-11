@@ -19,6 +19,7 @@ import uvicorn
 from playwright.sync_api import Error as PlaywrightError, sync_playwright
 from starlette.staticfiles import StaticFiles
 
+from automation import EventNavigator
 from handlers import DrawHandler, ShoppingHandler
 from handlers import MissionHandler as Mission
 from handlers import HuntModeHandler as HuntMode
@@ -44,6 +45,8 @@ from api.routes import router
 logger = logging.getLogger(__name__)
 
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+STDOUT_LOGGER_NAME = "zzz_bot.stdout"
+STDERR_LOGGER_NAME = "zzz_bot.stderr"
 
 
 def _create_file_handler(log_path: str) -> TimedRotatingFileHandler:
@@ -81,6 +84,17 @@ def _attach_sentry_warning_handler() -> None:
     warnings_logger = logging.getLogger("py.warnings")
     if not any(isinstance(h, _SentryWarningHandler) for h in warnings_logger.handlers):
         warnings_logger.addHandler(_SentryWarningHandler())
+
+
+def _configure_sentry_ignored_loggers() -> None:
+    """Keep redirected stdout/stderr in app.log without turning them into Sentry issues."""
+    try:
+        from sentry_sdk.integrations.logging import ignore_logger
+    except ImportError:
+        return
+
+    ignore_logger(STDOUT_LOGGER_NAME)
+    ignore_logger(STDERR_LOGGER_NAME)
 
 
 def _resolve_log_dir() -> str:
@@ -126,7 +140,6 @@ def _close_shopping_screen_helper(page):
         page: Playwright Page instance
     """
     shopping_screen = page.locator(".wrapper-O3T67n")
-    close_button = page.locator(".panelBack--wW5qj")
 
     max_close_attempts = 3
 
@@ -136,50 +149,13 @@ def _close_shopping_screen_helper(page):
                 f"Attempting to close shopping screen (attempt {attempt}/{max_close_attempts})"
             )
 
-            # First, try to dismiss any lingering modals/dialogs that might block clicks
-            try:
-                draw_dialog_close = page.locator(".gainClose-7Q0hz8")
-                if draw_dialog_close.count() > 0 and draw_dialog_close.is_visible(
-                    timeout=1000
-                ):
-                    logger.info("Found open draw dialog, closing it first")
-                    draw_dialog_close.click(force=True, timeout=2000)
-                    page.wait_for_timeout(500)
-            except Exception as modal_error:
-                logger.debug(f"No draw dialog to dismiss: {modal_error}")
-
-            # Check close button status
-            close_button_count = close_button.count()
-            logger.info(f"Close button count: {close_button_count}")
-
-            if close_button_count > 0:
-                is_visible = close_button.is_visible(timeout=2000)
-                logger.info(f"Close button visible: {is_visible}")
-
-                if is_visible:
-                    # Try normal click first
-                    try:
-                        close_button.click(timeout=5000)
-                        logger.info("Clicked shopping close button")
-                    except Exception as click_error:
-                        # If normal click fails (e.g., element intercepted), use force
-                        logger.warning(
-                            f"Normal click failed ({click_error}), trying force click"
-                        )
-                        close_button.click(force=True, timeout=2000)
-                        logger.info("Force-clicked shopping close button")
-                    # Wait longer for page transition/animation to complete
-                    page.wait_for_timeout(1500)
-                    # Wait for any network activity to settle
-                    try:
-                        page.wait_for_load_state("domcontentloaded", timeout=3000)
-                    except Exception:
-                        # Ignore timeout, continue anyway
-                        pass
-                else:
-                    logger.warning("Close button exists but not visible")
-            else:
-                logger.warning("Close button not found on page")
+            EventNavigator.close_reward_dialog(page, context="closing shopping screen")
+            closed_panel = EventNavigator.close_panel_back(
+                page,
+                context="closing shopping screen",
+                timeout=5000,
+            )
+            logger.info(f"Shopping panel close attempted: {closed_panel}")
 
             # Try Escape key as well
             page.keyboard.press("Escape")
@@ -219,6 +195,16 @@ def _send_mission_email(payload: dict) -> None:
         except Exception as exc:
             span.set_status("internal_error")
             logger.error("Mission email send failed: %s", exc, exc_info=True)
+
+
+def _close_mission_panel_if_open(page) -> bool:
+    """Close the mission panel only when its back button is actually visible."""
+    closed = EventNavigator.close_panel_back(
+        page, context="closing mission panel", timeout=5000
+    )
+    if not closed:
+        logger.info("Mission panel is not open; skipping close button click")
+    return closed
 
 
 def playwright_task():
@@ -281,11 +267,11 @@ def playwright_task():
 
             if settings.run_task:
                 with sentry_sdk.start_span(op="automation.phase", name="mission_phase"):
-                    Mission.run(
+                    mission_completed = Mission.run(
                         CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data
                     )
-                    close_button = mino_page.locator(".panelBack--wW5qj")
-                    close_button.click()
+                    if mission_completed:
+                        _close_mission_panel_if_open(mino_page)
 
                 schedule_mission_email_delivery(
                     todays_data,
@@ -322,21 +308,10 @@ def playwright_task():
                             "Draw phase left residual UI state before returning"
                         )
 
-                    if not DrawHandler.ensure_draw_ui_cleared(mino_page):
+                    if not DrawHandler.close_draw_screen(mino_page):
                         logger.warning(
-                            "Could not fully clear draw dialog before leaving draw screen"
+                            "Could not fully leave draw screen after draw phase"
                         )
-
-                    mino_page.wait_for_timeout(500)
-                    close_button = mino_page.locator(".panelBack--wW5qj")
-                    try:
-                        close_button.click(
-                            force=True
-                        )  # Use force to bypass intercepting elements
-                    except Exception as e:
-                        logger.warning(f"Could not click back button: {e}")
-                        # Try alternative method - press Escape key
-                        mino_page.keyboard.press("Escape")
             else:
                 logger.info("Draw data cancelled due to setting.")
 
@@ -346,7 +321,6 @@ def playwright_task():
                 with sentry_sdk.start_span(
                     op="automation.phase", name="shopping_gather_phase"
                 ):
-                    DrawHandler.ensure_draw_ui_cleared(mino_page)
                     gathering_success = ShoppingHandler.gather_shopping_data_only(
                         mino_page
                     )
@@ -461,12 +435,14 @@ def schedule_hunt_tasks():
 
     if not settings.enable_hunt_mode:
         _hunt_target_date = None
+        HuntMode.set_hunt_target_date(None)
         logger.info("Hunt mode is disabled, skipping hunt scheduling")
         return
 
     next_hunt_time = HuntMode.get_next_hunt_time()
     if not next_hunt_time:
         _hunt_target_date = None
+        HuntMode.set_hunt_target_date(None)
         logger.info("No hunt items with return times, skipping hunt scheduling")
         return
 
@@ -485,6 +461,7 @@ def schedule_hunt_tasks():
         if schedule_datetime > now:
             # Store target date for validation in run_hunt
             _hunt_target_date = hunt_datetime
+            HuntMode.set_hunt_target_date(hunt_datetime)
             # Schedule at specific date and time (with buffer)
             schedule_time = schedule_datetime.strftime("%H:%M")
             schedule.every().day.at(schedule_time).do(HuntMode.run_hunt).tag("hunt")
@@ -494,12 +471,14 @@ def schedule_hunt_tasks():
             )
         else:
             _hunt_target_date = None
+            HuntMode.set_hunt_target_date(None)
             logger.info(
                 f"Hunt schedule time {schedule_datetime.strftime('%H:%M %d/%m/%y')} is in the past, skipping"
             )
 
     except ValueError as e:
         _hunt_target_date = None
+        HuntMode.set_hunt_target_date(None)
         logger.error(f"Failed to parse hunt time '{next_hunt_time}': {e}")
 
 
@@ -515,11 +494,18 @@ def schedule_tasks():
 
 def run_scheduled_tasks():
     """Run scheduled tasks in a loop."""
-    schedule_tasks()
-    schedule_hunt_tasks()  # Restore hunt schedule on startup
-    check_missed_runs()
+    try:
+        schedule_tasks()
+        schedule_hunt_tasks()  # Restore hunt schedule on startup
+        check_missed_runs()
+    except Exception:
+        logger.exception("Scheduler bootstrap failed")
+
     while True:
-        schedule.run_pending()
+        try:
+            schedule.run_pending()
+        except Exception:
+            logger.exception("Scheduled task execution failed")
         time.sleep(60)
 
 
@@ -660,8 +646,10 @@ def configure_sentry_runtime(
                 sentry_is_active = sentry_sdk.get_client().is_active()
                 reconfigured = True
                 if sentry_is_active:
+                    _configure_sentry_ignored_loggers()
                     _attach_sentry_warning_handler()
             else:
+                _configure_sentry_ignored_loggers()
                 logger.info("Sentry already initialized during startup bootstrap")
 
             if send_sentry_test_event and sentry_is_active:
@@ -753,9 +741,12 @@ if __name__ == "__main__":
         root = logging.getLogger()
         root.setLevel(logging.DEBUG)
         root.addHandler(_create_file_handler(os.path.join(log_dir, "app.log")))
-        app_log = logging.getLogger(__name__)
-        sys.stdout = StreamToLogger(app_log, logging.INFO)
-        sys.stderr = StreamToLogger(app_log, logging.ERROR)
+        stdout_log = logging.getLogger(STDOUT_LOGGER_NAME)
+        stderr_log = logging.getLogger(STDERR_LOGGER_NAME)
+        stdout_log.setLevel(logging.INFO)
+        stderr_log.setLevel(logging.ERROR)
+        sys.stdout = StreamToLogger(stdout_log, logging.INFO)
+        sys.stderr = StreamToLogger(stderr_log, logging.ERROR)
     else:
         # Development mode - log to both console and file
         file_handler = _create_file_handler(os.path.join(log_dir, "app.log"))
