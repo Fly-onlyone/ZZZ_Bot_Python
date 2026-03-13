@@ -17,7 +17,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import RedeemIcon from "@mui/icons-material/Redeem";
 import TuneIcon from "@mui/icons-material/Tune";
-import { IconLogin2 } from "@tabler/icons-react";
+import { IconDatabaseExport, IconLogin2 } from "@tabler/icons-react";
 import { COMMON_COLORS } from "../../theme/colors";
 import { TRANSITIONS } from "../../theme/styles";
 import { useThemeContext } from "../../theme/ThemeContext";
@@ -33,6 +33,7 @@ const tabs = [
   { label: "Account", icon: <AccountCircleIcon />, path: "/account" },
   { label: "Manual Login", icon: <IconLogin2 />, path: "/manual" },
   { label: "Logs", icon: <ArticleIcon />, path: "/logs" },
+  { label: "Backup", icon: <IconDatabaseExport />, path: "/backup" },
   { label: "Settings", icon: <SettingsIcon />, path: "/settings" },
   { label: "Advanced", icon: <TuneIcon />, path: "/settings/advanced" },
 ];

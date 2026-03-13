@@ -2,8 +2,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import utils.migrate_json_to_mongo as migrate_json_to_mongo
@@ -133,6 +131,13 @@ def test_is_default_settings_payload_detects_modified_values():
     modified = dict(defaults)
     modified["hide_browser"] = True
     assert not is_default_settings_payload(modified)
+
+
+def test_is_default_settings_payload_accepts_legacy_browser_key():
+    legacy_defaults = dict(getattr(migrate_json_to_mongo, "_DEFAULT_SETTINGS_PAYLOAD"))
+    legacy_defaults["open_web_ui"] = legacy_defaults.pop("show_window_on_startup")
+
+    assert is_default_settings_payload(legacy_defaults)
 
 
 def test_is_blank_account_payload_requires_credentials():
@@ -349,8 +354,6 @@ def test_save_artifact_data_multi_all_succeed():
 
 
 def test_save_artifact_data_multi_all_fail():
-    repo = _FakeRepo(fail_on_call=1)
-
     class AlwaysFailRepo:
         def save(self, data):
             raise RuntimeError("fail")

@@ -1,4 +1,6 @@
 use std::process::Command as ProcessCommand;
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -7,7 +9,8 @@ use serde_json::{json, Value};
 use tauri::{
     menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, RunEvent, WindowEvent,
+    AppHandle, Manager, PhysicalPosition, PhysicalSize, Position, RunEvent, Size,
+    WindowEvent,
 };
 use tauri_plugin_shell::{process::CommandChild, process::CommandEvent, ShellExt};
 use tauri_plugin_autostart::ManagerExt as _;
@@ -19,6 +22,9 @@ const APP_NAME_DEV: &str = "ZZZ Bot Dev";
 const BACKEND_SHUTDOWN_GRACEFUL_WAIT_MS: u64 = 2000;
 const BACKEND_SHUTDOWN_POST_KILL_WAIT_MS: u64 = 500;
 const BACKEND_SHUTDOWN_POLL_INTERVAL_MS: u64 = 100;
+const STARTUP_WINDOW_RECONCILE_ATTEMPTS: u32 = 20;
+const STARTUP_WINDOW_RECONCILE_DELAY_MS: u64 = 250;
+const WINDOW_STATE_FILE_NAME: &str = "window-state.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AutostartSyncAction {
@@ -46,14 +52,14 @@ enum ShutdownEscalation {
 
 #[derive(Debug, Clone, Copy)]
 struct TraySettings {
-    open_web_ui: bool,
+    show_window_on_startup: bool,
     exit_after_run: bool,
 }
 
 impl Default for TraySettings {
     fn default() -> Self {
         Self {
-            open_web_ui: true,
+            show_window_on_startup: true,
             exit_after_run: false,
         }
     }
@@ -129,8 +135,8 @@ fn update_setting_value(runtime: &AppRuntime, key: &str, value: Value) -> Result
 
 fn get_tray_settings(runtime: &AppRuntime) -> TraySettings {
     if let Ok(settings) = read_settings(runtime) {
-        let open_web_ui = settings
-            .get("open_web_ui")
+        let show_window_on_startup = settings
+            .get("show_window_on_startup")
             .and_then(Value::as_bool)
             .unwrap_or(true);
         let exit_after_run = settings
@@ -139,7 +145,7 @@ fn get_tray_settings(runtime: &AppRuntime) -> TraySettings {
             .unwrap_or(false);
 
         return TraySettings {
-            open_web_ui,
+            show_window_on_startup,
             exit_after_run,
         };
     }
@@ -227,6 +233,321 @@ fn reconcile_autostart_preference(app: AppHandle) {
                     }
                     std::thread::sleep(Duration::from_millis(
                         AUTOSTART_RECONCILE_DELAY_MS,
+                    ));
+                }
+            }
+        }
+    });
+}
+
+fn determine_startup_window_visibility(
+    show_window_on_startup: bool,
+    started_minimized: bool,
+) -> bool {
+    show_window_on_startup && !started_minimized
+}
+
+fn window_state_file_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let mut dir = app.path().app_config_dir().map_err(|error| error.to_string())?;
+    fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    dir.push(WINDOW_STATE_FILE_NAME);
+    Ok(dir)
+}
+
+fn read_local_window_state(app: &AppHandle) -> Result<Value, String> {
+    let path = window_state_file_path(app)?;
+    match fs::read_to_string(&path) {
+        Ok(contents) => serde_json::from_str::<Value>(&contents).map_err(|error| error.to_string()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(json!({})),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+fn write_local_window_state(app: &AppHandle, payload: &Value) -> Result<(), String> {
+    let path = window_state_file_path(app)?;
+    let serialized = serde_json::to_string_pretty(payload).map_err(|error| error.to_string())?;
+    fs::write(path, serialized).map_err(|error| error.to_string())
+}
+
+fn merge_local_window_state(app: &AppHandle, mut settings: Value) -> Value {
+    let Ok(local_state) = read_local_window_state(app) else {
+        return settings;
+    };
+
+    let Some(settings_object) = settings.as_object_mut() else {
+        return settings;
+    };
+    let Some(local_object) = local_state.as_object() else {
+        return settings;
+    };
+
+    for key in ["window_x", "window_y", "window_width", "window_height"] {
+        if let Some(value) = local_object.get(key) {
+            settings_object.insert(key.to_string(), value.clone());
+        }
+    }
+
+    settings
+}
+
+fn update_window_size_payload(settings: &mut Value, width: u32, height: u32) -> Result<bool, String> {
+    let current_width = settings
+        .get("window_width")
+        .and_then(Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok());
+    let current_height = settings
+        .get("window_height")
+        .and_then(Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok());
+
+    if current_width == Some(width) && current_height == Some(height) {
+        return Ok(false);
+    }
+
+    let Some(object) = settings.as_object_mut() else {
+        return Err("Settings payload is not an object while saving window size".to_string());
+    };
+
+    object.insert("window_width".to_string(), Value::from(width));
+    object.insert("window_height".to_string(), Value::from(height));
+    Ok(true)
+}
+
+fn update_window_position_payload(settings: &mut Value, x: i32, y: i32) -> Result<bool, String> {
+    let current_x = settings
+        .get("window_x")
+        .and_then(Value::as_i64)
+        .and_then(|value| i32::try_from(value).ok());
+    let current_y = settings
+        .get("window_y")
+        .and_then(Value::as_i64)
+        .and_then(|value| i32::try_from(value).ok());
+
+    if current_x == Some(x) && current_y == Some(y) {
+        return Ok(false);
+    }
+
+    let Some(object) = settings.as_object_mut() else {
+        return Err("Settings payload is not an object while saving window position".to_string());
+    };
+
+    object.insert("window_x".to_string(), Value::from(x));
+    object.insert("window_y".to_string(), Value::from(y));
+    Ok(true)
+}
+
+fn saved_window_size(settings: &Value) -> Option<(u32, u32)> {
+    let width = settings
+        .get("window_width")
+        .and_then(Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok())
+        .filter(|value| *value > 0);
+    let height = settings
+        .get("window_height")
+        .and_then(Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok())
+        .filter(|value| *value > 0);
+
+    width.zip(height)
+}
+
+fn saved_window_position(settings: &Value) -> Option<(i32, i32)> {
+    let x = settings
+        .get("window_x")
+        .and_then(Value::as_i64)
+        .and_then(|value| i32::try_from(value).ok());
+    let y = settings
+        .get("window_y")
+        .and_then(Value::as_i64)
+        .and_then(|value| i32::try_from(value).ok());
+
+    x.zip(y)
+}
+
+fn restore_main_window_size(app: &AppHandle, settings: &Value) {
+    let Some((width, height)) = saved_window_size(settings) else {
+        return;
+    };
+
+    if let Some(window) = app.get_webview_window("main") {
+        if let Err(error) = window.set_size(Size::Physical(PhysicalSize::new(width, height)))
+        {
+            log::warn!("Failed to restore saved window size {width}x{height}: {error}");
+        }
+    }
+}
+
+fn restore_main_window_position(app: &AppHandle, settings: &Value) {
+    let Some((x, y)) = saved_window_position(settings) else {
+        return;
+    };
+
+    if let Some(window) = app.get_webview_window("main") {
+        if let Err(error) =
+            window.set_position(Position::Physical(PhysicalPosition::new(x, y)))
+        {
+            log::warn!("Failed to restore saved window position {x},{y}: {error}");
+        }
+    }
+}
+
+fn persist_window_size(app: &AppHandle, width: u32, height: u32) {
+    let runtime = app.state::<AppRuntime>();
+    match read_settings(&runtime) {
+        Ok(mut settings) => match update_window_size_payload(&mut settings, width, height) {
+            Ok(true) => {
+                if let Err(error) = write_settings(&runtime, &settings) {
+                    log::warn!("Failed to persist saved window size to backend: {error}");
+                }
+            }
+            Ok(false) => {}
+            Err(error) => {
+                log::warn!("{error}");
+            }
+        },
+        Err(error) => {
+            log::info!("Skipping backend window size persistence: {error}");
+        }
+    }
+
+    let mut local_settings = match read_local_window_state(app) {
+        Ok(settings) => settings,
+        Err(error) => {
+            log::warn!("Failed to read local window state before saving size: {error}");
+            json!({})
+        }
+    };
+
+    match update_window_size_payload(&mut local_settings, width, height) {
+        Ok(true) => {
+            if let Err(error) = write_local_window_state(app, &local_settings) {
+                log::warn!("Failed to persist saved window size locally: {error}");
+            }
+        }
+        Ok(false) => {}
+        Err(error) => {
+            log::warn!("{error}");
+        }
+    }
+}
+
+fn persist_window_position(app: &AppHandle, x: i32, y: i32) {
+    let runtime = app.state::<AppRuntime>();
+    match read_settings(&runtime) {
+        Ok(mut settings) => match update_window_position_payload(&mut settings, x, y) {
+            Ok(true) => {
+                if let Err(error) = write_settings(&runtime, &settings) {
+                    log::warn!("Failed to persist saved window position to backend: {error}");
+                }
+            }
+            Ok(false) => {}
+            Err(error) => {
+                log::warn!("{error}");
+            }
+        },
+        Err(error) => {
+            log::info!("Skipping backend window position persistence: {error}");
+        }
+    }
+
+    let mut local_settings = match read_local_window_state(app) {
+        Ok(settings) => settings,
+        Err(error) => {
+            log::warn!("Failed to read local window state before saving position: {error}");
+            json!({})
+        }
+    };
+
+    match update_window_position_payload(&mut local_settings, x, y) {
+        Ok(true) => {
+            if let Err(error) = write_local_window_state(app, &local_settings) {
+                log::warn!("Failed to persist saved window position locally: {error}");
+            }
+        }
+        Ok(false) => {}
+        Err(error) => {
+            log::warn!("{error}");
+        }
+    }
+}
+
+fn persist_main_window_size(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    if window.is_maximized().unwrap_or(false) {
+        return;
+    }
+
+    let Ok(size) = window.inner_size() else {
+        return;
+    };
+
+    persist_window_size(app, size.width, size.height);
+}
+
+fn persist_main_window_position(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    if window.is_maximized().unwrap_or(false) {
+        return;
+    }
+
+    let Ok(position) = window.outer_position() else {
+        return;
+    };
+
+    persist_window_position(app, position.x, position.y);
+}
+
+fn started_minimized() -> bool {
+    std::env::args().any(|arg| arg == "--minimized")
+}
+
+fn reconcile_startup_window_visibility(app: AppHandle) {
+    if started_minimized() {
+        log::info!("Autostart launch detected; keeping main window hidden");
+        return;
+    }
+
+    std::thread::spawn(move || {
+        for attempt in 1..=STARTUP_WINDOW_RECONCILE_ATTEMPTS {
+            let runtime = app.state::<AppRuntime>();
+            match read_settings(&runtime) {
+                Ok(settings) => {
+                    let settings = merge_local_window_state(&app, settings);
+                    restore_main_window_position(&app, &settings);
+                    restore_main_window_size(&app, &settings);
+                    let show_window_on_startup = settings
+                        .get("show_window_on_startup")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(true);
+                    if determine_startup_window_visibility(show_window_on_startup, false) {
+                        show_main_window(&app);
+                    } else {
+                        log::info!("Startup settings requested a background-only launch");
+                    }
+                    return;
+                }
+                Err(error) => {
+                    if let Ok(settings) = read_local_window_state(&app) {
+                        restore_main_window_position(&app, &settings);
+                        restore_main_window_size(&app, &settings);
+                    }
+                    if attempt == STARTUP_WINDOW_RECONCILE_ATTEMPTS {
+                        log::warn!(
+                            "Failed to load startup window preference after {} attempts: {}. Showing window by default.",
+                            STARTUP_WINDOW_RECONCILE_ATTEMPTS,
+                            error
+                        );
+                        show_main_window(&app);
+                        return;
+                    }
+                    std::thread::sleep(Duration::from_millis(
+                        STARTUP_WINDOW_RECONCILE_DELAY_MS,
                     ));
                 }
             }
@@ -539,11 +860,11 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 
     let run_playwright_item =
         MenuItemBuilder::with_id("run_playwright", "Run Playwright").build(app)?;
-    let toggle_open_web_ui_item = CheckMenuItemBuilder::with_id(
-        "toggle_open_web_ui",
-        "Open Browser on Startup",
+    let toggle_show_window_on_startup_item = CheckMenuItemBuilder::with_id(
+        "toggle_show_window_on_startup",
+        "Show Window on Startup",
     )
-    .checked(tray_settings.open_web_ui)
+    .checked(tray_settings.show_window_on_startup)
     .build(app)?;
     let toggle_exit_after_run_item = CheckMenuItemBuilder::with_id(
         "toggle_exit_after_run",
@@ -556,13 +877,14 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let menu = MenuBuilder::new(app)
         .items(&[
             &run_playwright_item,
-            &toggle_open_web_ui_item,
+            &toggle_show_window_on_startup_item,
             &toggle_exit_after_run_item,
             &exit_item,
         ])
         .build()?;
 
-    let toggle_open_web_ui_item_handle = toggle_open_web_ui_item.clone();
+    let toggle_show_window_on_startup_item_handle =
+        toggle_show_window_on_startup_item.clone();
     let toggle_exit_after_run_item_handle = toggle_exit_after_run_item.clone();
 
     TrayIconBuilder::with_id("main")
@@ -576,14 +898,17 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
                     log::error!("Failed to trigger Run Playwright: {error}");
                 }
             }
-            "toggle_open_web_ui" => {
+            "toggle_show_window_on_startup" => {
                 let runtime = app.state::<AppRuntime>();
-                match toggle_backend_setting(&runtime, "open_web_ui") {
+                match toggle_backend_setting(&runtime, "show_window_on_startup") {
                     Ok(value) => {
-                        let _ = toggle_open_web_ui_item_handle.set_checked(value);
+                        let _ = toggle_show_window_on_startup_item_handle
+                            .set_checked(value);
                     }
                     Err(error) => {
-                        log::error!("Failed to toggle open_web_ui: {error}");
+                        log::error!(
+                            "Failed to toggle show_window_on_startup: {error}"
+                        );
                     }
                 }
             }
@@ -659,13 +984,7 @@ pub fn run() {
             spawn_backend_sidecar(app);
             reconcile_autostart_preference(app.handle().clone());
             build_tray(app)?;
-
-            // Hide window on autostart launch so the app starts minimized to tray.
-            if std::env::args().any(|arg| arg == "--minimized") {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.hide();
-                }
-            }
+            reconcile_startup_window_visibility(app.handle().clone());
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -678,9 +997,14 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+            match event {
+                WindowEvent::CloseRequested { api, .. } => {
+                    api.prevent_close();
+                    persist_main_window_position(&window.app_handle());
+                    persist_main_window_size(&window.app_handle());
+                    let _ = window.hide();
+                }
+                _ => {}
             }
         })
         .build(tauri::generate_context!())
@@ -688,9 +1012,13 @@ pub fn run() {
 
     app.run(|app_handle, event| match event {
         RunEvent::ExitRequested { .. } => {
+            persist_main_window_position(app_handle);
+            persist_main_window_size(app_handle);
             stop_backend_sidecar(app_handle, "exit_requested", "app_run_event");
         }
         RunEvent::Exit => {
+            persist_main_window_position(app_handle);
+            persist_main_window_size(app_handle);
             stop_backend_sidecar(app_handle, "exit", "app_run_event");
         }
         _ => {}
@@ -700,9 +1028,11 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::{
-        determine_autostart_sync_action, determine_shutdown_escalation, AutostartSyncAction,
-        ShutdownEscalation,
+        determine_autostart_sync_action, determine_shutdown_escalation,
+        determine_startup_window_visibility, saved_window_position, saved_window_size,
+        AutostartSyncAction, ShutdownEscalation,
     };
+    use serde_json::json;
 
     #[test]
     fn autostart_sync_persists_existing_enabled_state() {
@@ -745,6 +1075,81 @@ mod tests {
         assert_eq!(
             determine_autostart_sync_action(Some(false), false),
             AutostartSyncAction::None
+        );
+    }
+
+    #[test]
+    fn startup_window_visibility_shows_for_normal_launches() {
+        assert!(determine_startup_window_visibility(true, false));
+    }
+
+    #[test]
+    fn startup_window_visibility_hides_when_setting_disabled() {
+        assert!(!determine_startup_window_visibility(false, false));
+    }
+
+    #[test]
+    fn startup_window_visibility_hides_for_minimized_launches() {
+        assert!(!determine_startup_window_visibility(true, true));
+    }
+
+    #[test]
+    fn saved_window_size_reads_valid_dimensions() {
+        assert_eq!(
+            saved_window_size(&json!({
+                "window_width": 1440,
+                "window_height": 900,
+            })),
+            Some((1440, 900))
+        );
+    }
+
+    #[test]
+    fn saved_window_size_rejects_missing_or_invalid_dimensions() {
+        assert_eq!(saved_window_size(&json!({"window_width": 1440})), None);
+        assert_eq!(
+            saved_window_size(&json!({
+                "window_width": 0,
+                "window_height": 900,
+            })),
+            None
+        );
+        assert_eq!(
+            saved_window_size(&json!({
+                "window_width": u64::from(u32::MAX) + 1,
+                "window_height": 900,
+            })),
+            None
+        );
+    }
+
+    #[test]
+    fn saved_window_position_reads_valid_coordinates() {
+        assert_eq!(
+            saved_window_position(&json!({
+                "window_x": -640,
+                "window_y": 120,
+            })),
+            Some((-640, 120))
+        );
+    }
+
+    #[test]
+    fn saved_window_position_rejects_missing_or_invalid_coordinates() {
+        assert_eq!(saved_window_position(&json!({"window_x": 12})), None);
+        assert_eq!(
+            saved_window_position(&json!({
+                "window_x": i64::from(i32::MAX) + 1,
+                "window_y": 120,
+            })),
+            None
+        );
+        assert_eq!(
+            saved_window_position(&json!({
+                "window_x": 12,
+                "window_y": i64::from(i32::MIN) - 1,
+            })),
+            None
         );
     }
 

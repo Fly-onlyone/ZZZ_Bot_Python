@@ -52,13 +52,15 @@ export default function ThemePicker() {
   return (
     <>
       <Tooltip title="Theme">
-        <IconButton
-          onClick={handleOpen}
-          disabled={!isBackendReady}
-          sx={{ color: themeColors.primary.light }}
-        >
-          <PaletteIcon />
-        </IconButton>
+        <span>
+          <IconButton
+            onClick={handleOpen}
+            disabled={!isBackendReady}
+            sx={{ color: themeColors.primary.light }}
+          >
+            <PaletteIcon />
+          </IconButton>
+        </span>
       </Tooltip>
       <Menu
         anchorEl={anchorEl}

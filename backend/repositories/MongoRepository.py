@@ -6,7 +6,7 @@ Multi-document collections (missions, redemptions) use TTL indexes for rotation.
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pymongo import ASCENDING
 
@@ -179,6 +179,47 @@ def save_mission_day(day_record: Dict) -> None:
         raise
 
 
+def replace_all_missions(day_records: List[Dict]) -> None:
+    """Replace the entire missions collection during backup restore."""
+    _ensure_indexes()
+    col = get_db().missions
+    before_count = col.count_documents({})
+    logger.warning(
+        "replace_all_missions: deleting %d existing documents before replace",
+        before_count,
+    )
+    try:
+        # Validate mission records before clearing the collection so a malformed
+        # backup does not destroy existing data first.
+        records = []
+        for day_record in day_records:
+            day = day_record["day"]
+            records.append(
+                {**{k: v for k, v in day_record.items() if k != "_id"}, "day": day}
+            )
+
+        # delete_many keeps the collection + its TTL index intact
+        col.delete_many({})
+        if records:
+            indexed_at = _now_utc()
+            for record in records:
+                col.find_one_and_replace(
+                    {"day": record["day"]},
+                    {**record, "indexed_at": indexed_at},
+                    upsert=True,
+                )
+            logger.info(
+                "replace_all_missions: restored %d documents (replaced %d)",
+                len(records),
+                before_count,
+            )
+        else:
+            logger.info("replace_all_missions: cleared collection (no new entries)")
+    except Exception:
+        logger.error("replace_all_missions: operation failed", exc_info=True)
+        raise
+
+
 # ============================================================================
 # Redemptions
 # ============================================================================
@@ -260,3 +301,157 @@ def save_last_run(data: Dict) -> None:
     except Exception:
         logger.error("save_last_run: failed to upsert last_run", exc_info=True)
         raise
+
+
+# ============================================================================
+# Backup & Restore
+# ============================================================================
+
+_BACKUP_CONFIG_DEFAULTS: Dict[str, Any] = {"export_path": ""}
+
+_BACKUP_VERSION = 1
+
+# Single-document collections use their save_*() helper directly
+_SINGLE_DOC_COLLECTIONS = {"settings", "account", "shopping", "last_run"}
+_MULTI_DOC_COLLECTIONS = {"missions", "redemptions"}
+_ALL_COLLECTIONS = _SINGLE_DOC_COLLECTIONS | _MULTI_DOC_COLLECTIONS
+
+_SINGLE_DOC_GETTERS: Dict[str, Any] = {
+    "settings": get_settings,
+    "account": get_account,
+    "shopping": get_shopping,
+    "last_run": get_last_run,
+}
+
+_SINGLE_DOC_SAVERS: Dict[str, Any] = {
+    "settings": save_settings,
+    "account": save_account,
+    "shopping": save_shopping,
+    "last_run": save_last_run,
+}
+
+
+def export_all_data() -> Dict:
+    """Aggregate all collections into a single backup document."""
+    return {
+        "version": _BACKUP_VERSION,
+        "exported_at": _now_utc().isoformat(),
+        "collections": {
+            "settings": get_settings(),
+            "account": get_account(),
+            "shopping": get_shopping(),
+            "redemptions": get_redemptions(),
+            "missions": get_missions(),
+            "last_run": get_last_run(),
+        },
+    }
+
+
+def import_data(data: Dict, collections: List[str]) -> Dict:
+    """Selectively restore collections from a backup document.
+
+    Args:
+        data: Full backup document with version and collections keys
+        collections: List of collection names to restore
+
+    Returns:
+        Report dict with restored, skipped, and errors keys
+    """
+    report: Dict[str, Any] = {"restored": [], "skipped": [], "errors": {}}
+
+    version = data.get("version")
+    if version != _BACKUP_VERSION:
+        report["errors"][
+            "_version"
+        ] = f"Unsupported backup version: {version} (expected {_BACKUP_VERSION})"
+        return report
+
+    source = data.get("collections", {})
+
+    for name in collections:
+        if name not in _ALL_COLLECTIONS:
+            report["skipped"].append(name)
+            continue
+
+        collection_data = source.get(name)
+        if collection_data is None:
+            report["skipped"].append(name)
+            continue
+
+        try:
+            if name in _SINGLE_DOC_COLLECTIONS:
+                _SINGLE_DOC_SAVERS[name](collection_data)
+            elif name == "missions":
+                if isinstance(collection_data, list):
+                    replace_all_missions(collection_data)
+                else:
+                    report["errors"][name] = "Expected a list of mission records"
+                    continue
+            elif name == "redemptions":
+                if isinstance(collection_data, list):
+                    replace_all_redemptions(collection_data)
+                else:
+                    report["errors"][name] = "Expected a list of redemption records"
+                    continue
+
+            report["restored"].append(name)
+        except Exception as exc:
+            logger.error(
+                "import_data: failed to restore %s: %s", name, exc, exc_info=True
+            )
+            report["errors"][name] = str(exc)
+
+    logger.info(
+        "import_data: restored=%s skipped=%s errors=%s",
+        report["restored"],
+        report["skipped"],
+        list(report["errors"].keys()),
+    )
+    return report
+
+
+def get_data_summary() -> Dict:
+    """Return metadata about each collection for the backup summary page."""
+    summary: Dict[str, Any] = {}
+
+    for name, getter in _SINGLE_DOC_GETTERS.items():
+        doc = getter()
+        summary[name] = {
+            "exists": doc is not None,
+            "field_count": len(doc) if doc else 0,
+        }
+
+    missions = get_missions()
+    summary["missions"] = {
+        "exists": len(missions) > 0,
+        "count": len(missions),
+    }
+
+    redemptions = get_redemptions()
+    summary["redemptions"] = {
+        "exists": len(redemptions) > 0,
+        "count": len(redemptions),
+    }
+
+    return summary
+
+
+# ============================================================================
+# Backup config (export path)
+# ============================================================================
+
+
+def get_backup_config() -> Dict:
+    doc = get_db().backup_config.find_one({"_id": "default"})
+    if doc:
+        return _clean(doc)
+    return dict(_BACKUP_CONFIG_DEFAULTS)
+
+
+def save_backup_config(data: Dict) -> None:
+    clean = {k: v for k, v in data.items() if k != "_id"}
+    merged = {**_BACKUP_CONFIG_DEFAULTS, **clean}
+    get_db().backup_config.find_one_and_replace(
+        {"_id": "default"}, {"_id": "default", **merged}, upsert=True
+    )
+    logger.info("save_backup_config: upserted backup config")

@@ -31,6 +31,8 @@ export const STALE_TIMES = {
   account: 1000 * 60 * 30, // 30 minutes (account credentials)
   "overview/mission": 1000 * 60 * 5, // 5 minutes (mission reports)
   "overview/hunt": 1000 * 60 * 5, // 5 minutes (hunt mode status)
+  "backup/summary": 1000 * 60 * 2, // 2 minutes (backup page metadata)
+  "backup/config": 1000 * 60 * 60, // 1 hour (backup export path, rarely changes)
 };
 
 /**

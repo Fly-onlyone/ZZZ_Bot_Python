@@ -1,7 +1,7 @@
 from typing import Any
 
 ADVANCED_SETTINGS_KEYS = (
-    "open_web_ui",
+    "show_window_on_startup",
     "exit_after_run",
     "hunt_poll_max_wait_seconds",
     "hunt_poll_interval_seconds",

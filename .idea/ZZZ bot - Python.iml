@@ -20,6 +20,9 @@
       <excludeFolder url="file://$MODULE_DIR$/src-tauri/binaries" />
       <excludeFolder url="file://$MODULE_DIR$/src-tauri/gen/schemas" />
       <excludeFolder url="file://$MODULE_DIR$/src-tauri/target" />
+      <excludeFolder url="file://$MODULE_DIR$/authentication data" />
+      <excludeFolder url="file://$MODULE_DIR$/backend/logs" />
+      <excludeFolder url="file://$MODULE_DIR$/product/build-sidecar" />
     </content>
     <orderEntry type="jdk" jdkName="uv (ZZZ bot - Python)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

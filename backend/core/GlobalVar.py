@@ -12,7 +12,10 @@ from starlette.staticfiles import StaticFiles
 
 from utils.DataHandler import Serializable
 from utils.StringUtil import clean_leading_dots
-from core.settings_compat import normalize_hunt_early_exit_default
+from core.settings_compat import (
+    normalize_hunt_early_exit_default,
+    normalize_show_window_on_startup_setting,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +140,11 @@ def generate_config(outside_folder, exclude_keys=None):
 class AppSettings(Serializable):
     schedule_times: List[str] = field(default_factory=lambda: ["08:00", "20:00"])
     exit_after_run: bool = False
-    open_web_ui: bool = True
+    show_window_on_startup: bool = True
+    window_x: int | None = None
+    window_y: int | None = None
+    window_width: int | None = None
+    window_height: int | None = None
     autostart_on_login: bool | None = None
     hide_browser: bool = False
     run_task: bool = True
@@ -411,8 +418,15 @@ def _load_settings() -> "AppSettings":
     # Read settings from the active database after applying runtime URI.
     active_data = MongoRepository.get_settings()
     source_data = active_data if active_data is not None else data
-    normalized_data = normalize_hunt_early_exit_default(
+    normalized_data = normalize_show_window_on_startup_setting(
         source_data,
+        has_marker=MongoRepository.has_app_metadata_marker,
+        set_marker=MongoRepository.set_app_metadata_marker,
+        save_settings=MongoRepository.save_settings,
+        logger=logger,
+    )
+    normalized_data = normalize_hunt_early_exit_default(
+        normalized_data,
         has_marker=MongoRepository.has_app_metadata_marker,
         set_marker=MongoRepository.set_app_metadata_marker,
         save_settings=MongoRepository.save_settings,

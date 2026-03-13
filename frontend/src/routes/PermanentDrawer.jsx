@@ -27,10 +27,18 @@ import { IconCards } from "@tabler/icons-react";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { AppHeader, NavigationDrawer, ValueAdapter } from "../components";
 import { BACKEND_URL } from "../config";
-import { Logs, ManualLogin, Overview, Redeem, Shopping } from "../pages";
+import {
+  Backup,
+  Logs,
+  ManualLogin,
+  Overview,
+  Redeem,
+  Shopping,
+} from "../pages";
 import { DataLoader } from "../services";
 import { useThemeContext } from "../theme/ThemeContext";
 import { ZoomProvider, useZoom } from "../hooks/useZoom.jsx";
+import useTaskEvents from "../hooks/useTaskEvents.js";
 import * as Sentry from "@sentry/react";
 import { logInfo, logWarn } from "../services/sentryLogger.js";
 
@@ -159,8 +167,11 @@ function AutostartToggle() {
 }
 
 const settingsTypeConfig = {
-  open_web_ui: {
-    label: "Open browser on startup",
+  run_task: {
+    label: "Enable automatic runs (master switch)",
+  },
+  show_window_on_startup: {
+    label: "Show window on startup",
   },
   theme: {
     type: "select",
@@ -251,6 +262,11 @@ function SettingsPanel() {
         Common automation options stay here. Advanced keeps tuning and
         monitoring controls out of the main setup.
       </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Turning off automatic runs stops scheduled and missed automatic browser
+        launches. The task toggles below stay saved so they apply again when you
+        re-enable automation or start a manual run.
+      </Typography>
       <ValueAdapter
         customSections={{
           General: {
@@ -299,7 +315,7 @@ function AdvancedSettingsPanel() {
         customSections={{
           Runtime: {
             icon: <TuneIcon />,
-            fields: ["open_web_ui", "exit_after_run"],
+            fields: ["show_window_on_startup", "exit_after_run"],
           },
           "Hunt Tuning": {
             icon: <TaskIcon />,
@@ -447,6 +463,19 @@ function AnimatedRoutes() {
           }
         />
         <Route
+          path="/backup"
+          element={
+            <motion.div
+              variants={pageVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              <Backup />
+            </motion.div>
+          }
+        />
+        <Route
           path="/settings"
           element={
             <motion.div
@@ -494,6 +523,8 @@ function PermanentDrawerContent() {
     isFetching: isBackendHealthFetching,
   } = useBackendHealth();
   const isBackendReady = healthData?.status === "ok";
+
+  useTaskEvents({ enabled: isBackendReady });
 
   useEffect(() => {
     if (!isBackendReady) {
