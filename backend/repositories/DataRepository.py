@@ -216,6 +216,11 @@ class SettingsRepository(JsonFileRepository):
             lambda: {
                 "schedule_times": ["08:00", "20:00"],
                 "exit_after_run": False,
+                "show_window_on_startup": True,
+                "window_x": None,
+                "window_y": None,
+                "window_width": None,
+                "window_height": None,
                 "hide_browser": True,
                 "run_task": False,
                 "gather_shopping_data": True,

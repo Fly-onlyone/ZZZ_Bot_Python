@@ -13,6 +13,7 @@ datas = []
 binaries = []
 hiddenimports = []
 hiddenimports += collect_submodules("plyer")
+hiddenimports += ["tkinter", "tkinter.filedialog", "_tkinter"]
 tmp_ret = collect_all("apprise")
 datas += tmp_ret[0]
 binaries += tmp_ret[1]

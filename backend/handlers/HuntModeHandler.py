@@ -398,6 +398,13 @@ def run_hunt():
 
     logger.info("Starting hunt mode...")
 
+    # WHY: Settings changes clear future schedules, but an already queued hunt
+    # job can still fire once. Guard here so disabling automatic runs prevents
+    # any late browser launch.
+    if not settings.run_task:
+        logger.info("Automatic runs are disabled in settings")
+        return
+
     if not settings.enable_hunt_mode:
         logger.info("Hunt mode is disabled in settings")
         return
@@ -601,6 +608,13 @@ def run_hunt():
                     )
                     logger.info(f"Items removed from hunt list: {successful_exchanges}")
                     logger.info("=" * 50)
+
+                    try:
+                        from core.event_bus import emit
+
+                        emit("task-completed", {"source": "hunt_mode"})
+                    except Exception:
+                        logger.debug("SSE emit after hunt_mode skipped", exc_info=True)
 
                 finally:
                     # Always close browser, even if errors occur

@@ -14,6 +14,16 @@ const STARTUP_MAX_RETRY_DELAY_MS = 3000;
 const RELATED_QUERY_KEYS_BY_ROUTE = {
   settings: [["settings"], ["settings/advanced"]],
   "settings/advanced": [["settings"], ["settings/advanced"]],
+  "backup/import": [
+    ["account"],
+    ["shopping"],
+    ["redeem"],
+    ["settings"],
+    ["settings/advanced"],
+    ["overview/hunt"],
+    ["overview/mission"],
+    ["backup/summary"],
+  ],
 };
 
 const getStartupRetryDelay = (attemptIndex) =>
@@ -240,10 +250,18 @@ export const DataLoader = () => {
 
     return useMutation({
       mutationFn: runAction,
-      onSuccess: () => {
+      onSuccess: async () => {
         logInfo("Frontend action completed", {
           route,
         });
+        const relatedQueryKeys = RELATED_QUERY_KEYS_BY_ROUTE[route];
+        if (relatedQueryKeys) {
+          await Promise.all(
+            relatedQueryKeys.map((queryKey) =>
+              queryClient.invalidateQueries({ queryKey })
+            )
+          );
+        }
       },
       onError: (error) => {
         logError("Frontend action failed", error, {

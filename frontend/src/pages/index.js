@@ -4,6 +4,7 @@
  * Central export point for all page components.
  */
 
+export { default as Backup } from "./Backup.jsx";
 export { default as Overview } from "./Overview.jsx";
 export { default as Shopping } from "./Shopping.jsx";
 export { default as Redeem } from "./Redeem.jsx";

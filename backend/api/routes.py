@@ -3,6 +3,7 @@
 Separates API logic from application bootstrapping for better maintainability.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -11,12 +12,13 @@ import sys
 import threading
 import time
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from secrets import compare_digest
 
 from fastapi import APIRouter, BackgroundTasks, Query
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse, Response, StreamingResponse
 
 import repositories.MongoRepository as MongoRepository
 from core.GlobalVar import CONFIG, RedeemItem, accounts, is_exe, resource_path, settings
@@ -27,6 +29,12 @@ logger = logging.getLogger(__name__)
 
 # Create router instance
 router = APIRouter()
+WINDOW_STATE_SETTING_KEYS = {
+    "window_x",
+    "window_y",
+    "window_width",
+    "window_height",
+}
 
 INTERNAL_ROUTE_PREFIXES = {
     "/docs",
@@ -42,9 +50,17 @@ INTERNAL_ROUTE_PREFIXES = {
     "/shutdown",
     "/tasks",
     "/maintenance",
+    "/backup",
+    "/events",
 }
 SHUTDOWN_RESPONSE_DELAY_SECONDS = 0.2
 SHUTDOWN_SENTRY_FLUSH_TIMEOUT_SECONDS = 2.0
+
+
+def _build_backup_export_filename(exported_at: datetime | None = None) -> str:
+    """Generate a timestamped backup filename so repeated exports stay distinct."""
+    timestamp = (exported_at or datetime.now()).strftime("%Y-%m-%d_%H-%M-%S-%f")
+    return f"zzz-bot-backup-{timestamp}.json"
 
 
 def _has_valid_desktop_token(request: Request) -> bool:
@@ -505,7 +521,7 @@ def run_playwright_now(request: Request):
 
     from Bot import run_playwright_task_async
 
-    run_playwright_task_async()
+    run_playwright_task_async(manual_run=True)
     return JSONResponse({"status": "started"})
 
 
@@ -618,7 +634,13 @@ async def _update_settings_payload(request: Request) -> JSONResponse:
                 status_code=400,
             )
 
-    schedule_tasks()
+    non_window_updates = {
+        key: change
+        for key, change in applied_updates.items()
+        if key not in WINDOW_STATE_SETTING_KEYS
+    }
+    if non_window_updates:
+        schedule_tasks()
 
     sentry_setting_keys = {
         "sentry_dsn",
@@ -788,3 +810,208 @@ def get_logs(
     entries = entries[offset : offset + limit]
 
     return {"entries": entries, "total": total, "files": file_names}
+
+
+# ============================================================================
+# SSE EVENTS
+# ============================================================================
+
+
+@router.get("/events")
+async def sse_events():
+    """Server-Sent Events stream for real-time task completion notifications."""
+    from core.event_bus import subscribe, unsubscribe
+
+    client_queue = subscribe()
+
+    async def event_generator():
+        try:
+            while True:
+                try:
+                    event_type, payload = await asyncio.wait_for(
+                        asyncio.get_event_loop().run_in_executor(
+                            None, client_queue.get, True, 30.0
+                        ),
+                        timeout=35.0,
+                    )
+                    yield f"event: {event_type}\ndata: {payload}\n\n"
+                except (asyncio.TimeoutError, Exception):
+                    # Send keepalive comment every ~30 seconds
+                    yield ": keepalive\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            unsubscribe(client_queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# ============================================================================
+# BACKUP ROUTES
+# ============================================================================
+
+
+@router.get("/backup/summary")
+def get_backup_summary():
+    """Return metadata summary of all collections for the backup page."""
+    return MongoRepository.get_data_summary()
+
+
+@router.get("/backup/config")
+def get_backup_config():
+    """Return backup configuration (export path, etc.)."""
+    return MongoRepository.get_backup_config()
+
+
+@router.post("/backup/config")
+async def update_backup_config(request: Request):
+    """Update backup configuration."""
+    data = await request.json()
+    MongoRepository.save_backup_config(data)
+    return JSONResponse({"message": "Backup config updated"})
+
+
+@router.post("/backup/browse")
+def browse_export_folder():
+    """Open a native folder picker dialog and return the selected path."""
+    import tkinter as tk
+    from tkinter import filedialog
+
+    # Get current config to use as initial directory
+    config = MongoRepository.get_backup_config()
+    initial_dir = (config.get("export_path") or "").strip() or None
+
+    root = tk.Tk()
+    root.withdraw()
+    # Bring the dialog to front on Windows
+    root.attributes("-topmost", True)
+    selected = filedialog.askdirectory(
+        title="Choose Backup Folder",
+        initialdir=initial_dir,
+    )
+    root.destroy()
+
+    if not selected:
+        return JSONResponse({"path": None, "cancelled": True})
+
+    # Normalize to OS-native separators
+    selected = str(Path(selected))
+    return {"path": selected, "cancelled": False}
+
+
+@router.post("/backup/export")
+def export_backup():
+    """Write backup JSON to the configured export path.
+
+    Returns:
+        Success message with the file path written, or error
+    """
+    config = MongoRepository.get_backup_config()
+    export_path = (config.get("export_path") or "").strip()
+
+    if not export_path:
+        return JSONResponse(
+            {"message": "Export path not configured. Set a folder first."},
+            status_code=400,
+        )
+
+    export_dir = Path(export_path)
+    if not export_dir.is_dir():
+        return JSONResponse(
+            {"message": f"Export folder does not exist: {export_path}"},
+            status_code=400,
+        )
+
+    data = MongoRepository.export_all_data()
+
+    file_name = _build_backup_export_filename()
+    file_path = export_dir / file_name
+
+    try:
+        file_path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+        logger.info("Backup exported to %s", file_path)
+    except Exception as exc:
+        logger.error("Backup export failed: %s", exc, exc_info=True)
+        return JSONResponse(
+            {"message": f"Failed to write backup: {exc}"}, status_code=500
+        )
+
+    return {"message": "Backup exported", "file": str(file_path)}
+
+
+@router.post("/backup/import")
+async def import_backup(request: Request):
+    """Import data from a backup JSON file with selective collection restore.
+
+    Args:
+        request: HTTP request with {data: <backup JSON>, collections: [str]}
+
+    Returns:
+        Import report with restored/skipped/errors
+    """
+    from Bot import schedule_hunt_tasks, schedule_tasks
+    from repositories.connection import get_db, set_runtime_uri
+
+    body = await request.json()
+    backup_data = body.get("data")
+    collections = body.get("collections", [])
+
+    if not backup_data or not isinstance(backup_data, dict):
+        return JSONResponse({"message": "Invalid backup data"}, status_code=400)
+
+    if not collections or not isinstance(collections, list):
+        return JSONResponse(
+            {"message": "No collections selected for import"}, status_code=400
+        )
+
+    report = MongoRepository.import_data(backup_data, collections)
+
+    # Reload in-memory state if settings or account were restored
+    if "settings" in report.get("restored", []):
+        previous_mongodb_uri = getattr(settings, "mongodb_uri", "")
+        restored_settings = MongoRepository.get_settings()
+        if restored_settings:
+            for key, value in restored_settings.items():
+                if hasattr(settings, key):
+                    setattr(settings, key, value)
+            restored_mongodb_uri = restored_settings.get("mongodb_uri")
+            if restored_mongodb_uri != previous_mongodb_uri:
+                try:
+                    set_runtime_uri(
+                        restored_mongodb_uri
+                        if isinstance(restored_mongodb_uri, str)
+                        else ""
+                    )
+                    get_db()
+                except Exception as exc:
+                    logger.error(
+                        "Failed to reconnect MongoDB after backup restore: %s",
+                        exc,
+                        exc_info=True,
+                    )
+                    report["errors"][
+                        "settings_runtime"
+                    ] = f"Settings restored but MongoDB reconnect failed: {exc}"
+        schedule_tasks()
+
+    if "account" in report.get("restored", []):
+        restored_account = MongoRepository.get_account()
+        if restored_account:
+            for key, value in restored_account.items():
+                if hasattr(accounts, key):
+                    setattr(accounts, key, value)
+
+    if "settings" not in report.get("restored", []) and "shopping" in report.get(
+        "restored", []
+    ):
+        schedule_hunt_tasks()
+
+    return JSONResponse(report)

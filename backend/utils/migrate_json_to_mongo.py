@@ -21,7 +21,11 @@ logger = logging.getLogger(__name__)
 _DEFAULT_SETTINGS_PAYLOAD = {
     "schedule_times": ["08:00", "20:00"],
     "exit_after_run": False,
-    "open_web_ui": True,
+    "show_window_on_startup": True,
+    "window_x": None,
+    "window_y": None,
+    "window_width": None,
+    "window_height": None,
     "hide_browser": False,
     "run_task": True,
     "gather_shopping_data": True,
@@ -112,8 +116,11 @@ def _is_default_settings_payload(data: Any) -> bool:
     """Return True when settings payload matches app defaults."""
     if not isinstance(data, dict):
         return False
+    normalized = dict(data)
+    if "show_window_on_startup" not in normalized and "open_web_ui" in normalized:
+        normalized["show_window_on_startup"] = normalized["open_web_ui"]
     return all(
-        data.get(key) == value for key, value in _DEFAULT_SETTINGS_PAYLOAD.items()
+        normalized.get(key) == value for key, value in _DEFAULT_SETTINGS_PAYLOAD.items()
     )
 
 
@@ -470,6 +477,29 @@ def _migrate_screenshots(
 def _backfill_settings(db: Any) -> None:
     """Remove deprecated fields and populate missing Sentry DSNs."""
     db.settings.update_many({}, {"$unset": {"sentry_profiles_sample_rate": ""}})
+    db.settings.update_many(
+        {
+            "show_window_on_startup": {"$exists": False},
+            "open_web_ui": {"$exists": True},
+        },
+        [
+            {
+                "$set": {
+                    "show_window_on_startup": "$open_web_ui",
+                }
+            },
+            {
+                "$unset": "open_web_ui",
+            },
+        ],
+    )
+    db.settings.update_many(
+        {
+            "show_window_on_startup": {"$exists": True},
+            "open_web_ui": {"$exists": True},
+        },
+        {"$unset": {"open_web_ui": ""}},
+    )
 
     for env_var, field in [
         ("SENTRY_DSN", "sentry_dsn"),

@@ -6,7 +6,6 @@ import subprocess
 import sys
 import threading
 import time
-import webbrowser
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
@@ -133,6 +132,11 @@ hosted_by_tauri = False
 # ============================================================================
 # Bot Logic
 # ============================================================================
+def automatic_runs_enabled() -> bool:
+    """Return whether scheduled automation may launch Playwright."""
+    return settings.run_task
+
+
 def _close_shopping_screen_helper(page):
     """Helper function to close shopping screen with retry logic.
 
@@ -207,9 +211,18 @@ def _close_mission_panel_if_open(page) -> bool:
     return closed
 
 
-def playwright_task():
-    """Core logic for the bot task."""
+def playwright_task(*, manual_run: bool = False):
+    """Run the full automation workflow.
+
+    Args:
+        manual_run: Allow explicit user-triggered runs even when scheduled runs
+            are disabled.
+    """
     import sentry_sdk
+
+    if not manual_run and not automatic_runs_enabled():
+        logger.info("Automatic automation is disabled, skipping scheduled run")
+        return
 
     previous_data, todays_data = prepare_mission_data(
         CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
@@ -265,21 +278,18 @@ def playwright_task():
                     )
                     return
 
-            if settings.run_task:
-                with sentry_sdk.start_span(op="automation.phase", name="mission_phase"):
-                    mission_completed = Mission.run(
-                        CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data
-                    )
-                    if mission_completed:
-                        _close_mission_panel_if_open(mino_page)
-
-                schedule_mission_email_delivery(
-                    todays_data,
-                    exit_after_run=settings.exit_after_run,
-                    send_func=_send_mission_email,
+            with sentry_sdk.start_span(op="automation.phase", name="mission_phase"):
+                mission_completed = Mission.run(
+                    CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data
                 )
-            else:
-                logger.info("Task cancelled due to setting.")
+                if mission_completed:
+                    _close_mission_panel_if_open(mino_page)
+
+            schedule_mission_email_delivery(
+                todays_data,
+                exit_after_run=settings.exit_after_run,
+                send_func=_send_mission_email,
+            )
 
             # Phase 1: Execute shopping with existing data (before draw)
             if settings.gather_shopping_data and settings.exchange_good:
@@ -338,6 +348,14 @@ def playwright_task():
                 logger.info("Gather data cancelled due to setting.")
 
             save_last_run()
+
+            try:
+                from core.event_bus import emit
+
+                emit("task-completed", {"source": "playwright_task"})
+            except Exception:
+                logger.debug("SSE emit after playwright_task skipped", exc_info=True)
+
             NotificationModule.notify(
                 title="ZZZ Bot",
                 message="Task finished",
@@ -405,6 +423,10 @@ def check_missed_runs():
 
     import repositories.MongoRepository as mongo
 
+    if not automatic_runs_enabled():
+        logger.info("Automatic automation is disabled, skipping missed-run check")
+        return
+
     with sentry_sdk.start_span(op="scheduler.check_missed", name="check-missed-runs"):
         last_run = datetime.min
         data = mongo.get_last_run()
@@ -432,6 +454,12 @@ def schedule_hunt_tasks():
     # Clear existing hunt tasks before scheduling new ones
     schedule.clear("hunt")
     logger.info("Cleared old hunt schedules")
+
+    if not automatic_runs_enabled():
+        _hunt_target_date = None
+        HuntMode.set_hunt_target_date(None)
+        logger.info("Automatic automation is disabled, skipping hunt scheduling")
+        return
 
     if not settings.enable_hunt_mode:
         _hunt_target_date = None
@@ -485,18 +513,21 @@ def schedule_hunt_tasks():
 def schedule_tasks():
     """Reschedule tasks based on current settings."""
     schedule.clear()
+    if not automatic_runs_enabled():
+        HuntMode.set_hunt_target_date(None)
+        logger.info("Automatic automation is disabled, skipping task scheduling")
+        return
+
     for scheduled_time in settings.schedule_times:
         schedule.every().day.at(scheduled_time).do(playwright_task)
 
-    # Note: Hunt tasks are NOT scheduled here
-    # They will be scheduled only after shopping data is refreshed in playwright_task()
+    schedule_hunt_tasks()
 
 
 def run_scheduled_tasks():
     """Run scheduled tasks in a loop."""
     try:
         schedule_tasks()
-        schedule_hunt_tasks()  # Restore hunt schedule on startup
         check_missed_runs()
     except Exception:
         logger.exception("Scheduler bootstrap failed")
@@ -510,9 +541,18 @@ def run_scheduled_tasks():
 
 
 # Runtime Helpers
-def run_playwright_task_async():
-    """Run playwright task in a background thread."""
-    threading.Thread(target=playwright_task, daemon=False).start()
+def run_playwright_task_async(*, manual_run: bool = False):
+    """Run the automation workflow in a background thread.
+
+    Args:
+        manual_run: Allow explicit user-triggered runs when scheduled runs are
+            disabled.
+    """
+    threading.Thread(
+        target=playwright_task,
+        kwargs={"manual_run": manual_run},
+        daemon=False,
+    ).start()
 
 
 def resolve_playwright_browsers_path() -> str | None:
@@ -857,12 +897,7 @@ if __name__ == "__main__":
     # === 4. Start Scheduler ===
     threading.Thread(target=run_scheduled_tasks, daemon=True).start()
 
-    # === 5. Open Web UI ===
-    if settings.open_web_ui and not hosted_by_tauri:
-        logger.info("Opening web UI...")
-        webbrowser.open_new_tab(CONFIG["WEB_UI_URL"])
-
-    # === 6. Start FastAPI Server ===
+    # === 5. Start FastAPI Server ===
     logger.info("Starting FastAPI server...")
     try:
         uvicorn.run(

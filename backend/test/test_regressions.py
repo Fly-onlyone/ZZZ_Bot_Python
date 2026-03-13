@@ -11,13 +11,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 image_processor_module = import_module("automation.ImageProcessor")
 routes_module = import_module("api.routes")
+bot_module = import_module("Bot")
+mongo_module = import_module("repositories.MongoRepository")
 from automation import EventNavigator
 from handlers import DrawHandler, HuntModeHandler, MissionHandler, ShoppingHandler
 from core.frontend_env import resolve_frontend_sentry_dsn
 from core.mission_email import schedule_mission_email_delivery
 from core.settings_compat import (
     HUNT_EARLY_EXIT_RESET_MARKER,
+    SHOW_WINDOW_ON_STARTUP_RENAME_MARKER,
     normalize_hunt_early_exit_default,
+    normalize_show_window_on_startup_setting,
 )
 from core.settings_contract import ADVANCED_SETTINGS_KEYS, extract_advanced_settings
 from repositories.DataRepository import SettingsRepository
@@ -806,6 +810,38 @@ def test_normalize_hunt_early_exit_default_resets_true_once():
     assert saved_payloads == [normalized]
 
 
+def test_normalize_show_window_on_startup_setting_renames_legacy_key_once():
+    markers: set[str] = set()
+    saved_payloads: list[dict] = []
+
+    normalized = normalize_show_window_on_startup_setting(
+        {"open_web_ui": False, "theme": "venom"},
+        has_marker=lambda marker: marker in markers,
+        set_marker=markers.add,
+        save_settings=lambda payload: saved_payloads.append(dict(payload)),
+    )
+
+    assert normalized == {
+        "show_window_on_startup": False,
+        "theme": "venom",
+    }
+    assert saved_payloads == [normalized]
+    assert SHOW_WINDOW_ON_STARTUP_RENAME_MARKER in markers
+
+    preserved = normalize_show_window_on_startup_setting(
+        {"open_web_ui": True, "theme": "venom"},
+        has_marker=lambda marker: marker in markers,
+        set_marker=markers.add,
+        save_settings=lambda payload: saved_payloads.append(dict(payload)),
+    )
+
+    assert preserved == {
+        "show_window_on_startup": True,
+        "theme": "venom",
+    }
+    assert saved_payloads == [normalized, preserved]
+
+
 def test_schedule_mission_email_delivery_runs_inline_for_exit_after_run():
     deliveries: list[dict] = []
 
@@ -844,10 +880,291 @@ def test_schedule_mission_email_delivery_uses_daemon_thread_for_normal_runs():
     assert thread_events[0]["name"] == "mission-email-sender"
 
 
+def test_playwright_task_skips_automatic_run_before_preparing_data(monkeypatch):
+    monkeypatch.setattr(bot_module.settings, "run_task", False)
+    monkeypatch.setattr(
+        bot_module,
+        "prepare_mission_data",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("prepare_mission_data should not run")
+        ),
+    )
+
+    bot_module.playwright_task()
+
+
+def test_playwright_task_manual_run_bypasses_automatic_gate(monkeypatch):
+    monkeypatch.setattr(bot_module.settings, "run_task", False)
+    monkeypatch.setattr(
+        bot_module,
+        "prepare_mission_data",
+        lambda *_args, **_kwargs: ({}, {}),
+    )
+
+    class _StopManualRun(Exception):
+        pass
+
+    class _FakePlaywrightContext:
+        def __enter__(self):
+            raise _StopManualRun()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(bot_module, "sync_playwright", lambda: _FakePlaywrightContext())
+
+    try:
+        bot_module.playwright_task(manual_run=True)
+    except _StopManualRun:
+        pass
+    else:
+        raise AssertionError("Manual run should enter the Playwright context")
+
+
+def test_schedule_tasks_skips_registration_when_automatic_runs_disabled(monkeypatch):
+    events: list[tuple[str, str | None]] = []
+
+    class _FakeSchedule:
+        def clear(self, tag=None):
+            events.append(("clear", tag))
+
+        def every(self):
+            raise AssertionError("No scheduled jobs should be registered")
+
+    monkeypatch.setattr(bot_module.settings, "run_task", False)
+    monkeypatch.setattr(bot_module, "schedule", _FakeSchedule())
+
+    bot_module.schedule_tasks()
+
+    assert events == [("clear", None)]
+
+
+def test_update_settings_skips_schedule_for_window_state_only_changes(monkeypatch):
+    saved_payloads: list[dict[str, Any]] = []
+    schedule_calls: list[str] = []
+
+    class FakeRequest:
+        def __init__(self, payload):
+            self.payload = payload
+
+        async def json(self):
+            return self.payload
+
+    monkeypatch.setattr(routes_module.settings, "window_x", 10)
+    monkeypatch.setattr(routes_module.settings, "window_y", 20)
+    monkeypatch.setattr(routes_module.settings, "window_width", 1200)
+    monkeypatch.setattr(routes_module.settings, "window_height", 800)
+    monkeypatch.setattr(
+        routes_module.MongoRepository,
+        "save_settings",
+        lambda payload: saved_payloads.append(dict(payload)),
+    )
+    monkeypatch.setattr(
+        bot_module, "schedule_tasks", lambda: schedule_calls.append("scheduled")
+    )
+
+    response = asyncio.run(
+        routes_module.update_settings(
+            FakeRequest(
+                {
+                    "window_x": 320,
+                    "window_y": 180,
+                    "window_width": 1440,
+                    "window_height": 900,
+                }
+            )
+        )
+    )
+
+    assert response.status_code == 200
+    assert saved_payloads[-1]["window_x"] == 320
+    assert saved_payloads[-1]["window_y"] == 180
+    assert saved_payloads[-1]["window_width"] == 1440
+    assert saved_payloads[-1]["window_height"] == 900
+    assert schedule_calls == []
+
+
+def test_update_settings_reschedules_for_non_window_changes(monkeypatch):
+    saved_payloads: list[dict[str, Any]] = []
+    schedule_calls: list[str] = []
+
+    class FakeRequest:
+        def __init__(self, payload):
+            self.payload = payload
+
+        async def json(self):
+            return self.payload
+
+    original_theme = routes_module.settings.theme
+    updated_theme = "venom" if original_theme != "venom" else "glacier"
+
+    monkeypatch.setattr(
+        routes_module.MongoRepository,
+        "save_settings",
+        lambda payload: saved_payloads.append(dict(payload)),
+    )
+    monkeypatch.setattr(
+        bot_module, "schedule_tasks", lambda: schedule_calls.append("scheduled")
+    )
+
+    response = asyncio.run(
+        routes_module.update_settings(FakeRequest({"theme": updated_theme}))
+    )
+
+    assert response.status_code == 200
+    assert saved_payloads[-1]["theme"] == updated_theme
+    assert schedule_calls == ["scheduled"]
+
+
+def test_schedule_hunt_tasks_skips_when_automatic_runs_disabled(monkeypatch):
+    events: list[tuple[str, str | None]] = []
+
+    class _FakeSchedule:
+        def clear(self, tag=None):
+            events.append(("clear", tag))
+
+    monkeypatch.setattr(bot_module.settings, "run_task", False)
+    monkeypatch.setattr(bot_module, "schedule", _FakeSchedule())
+    monkeypatch.setattr(
+        bot_module.HuntMode,
+        "get_next_hunt_time",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("Hunt scheduling should stop before reading hunt times")
+        ),
+    )
+
+    target_dates: list[Any] = []
+    monkeypatch.setattr(
+        bot_module.HuntMode,
+        "set_hunt_target_date",
+        lambda value: target_dates.append(value),
+    )
+
+    bot_module.schedule_hunt_tasks()
+
+    assert events == [("clear", "hunt")]
+    assert target_dates == [None]
+
+
+def test_replace_all_missions_replaces_existing_documents(monkeypatch):
+    indexed_at = datetime(2026, 3, 13, 8, 0, 0)
+
+    class _FakeMissionCollection:
+        def __init__(self):
+            self.docs = [
+                {"day": "2026-03-10", "indexed_at": "old"},
+                {"day": "2026-03-11", "indexed_at": "old"},
+            ]
+
+        def count_documents(self, _query):
+            return len(self.docs)
+
+        def delete_many(self, _query):
+            self.docs = []
+
+        def find_one_and_replace(self, query, record, upsert=False):
+            day = query["day"]
+            self.docs = [doc for doc in self.docs if doc["day"] != day]
+            self.docs.append(record)
+
+    class _FakeDb:
+        def __init__(self):
+            self.missions = _FakeMissionCollection()
+
+    fake_db = _FakeDb()
+    monkeypatch.setattr(mongo_module, "get_db", lambda: fake_db)
+    monkeypatch.setattr(mongo_module, "_ensure_indexes", lambda: None)
+    monkeypatch.setattr(mongo_module, "_now_utc", lambda: indexed_at)
+
+    mongo_module.replace_all_missions(
+        [{"day": "2026-03-12", "missions": [{"name": "Check-in"}]}]
+    )
+
+    assert fake_db.missions.docs == [
+        {
+            "day": "2026-03-12",
+            "missions": [{"name": "Check-in"}],
+            "indexed_at": indexed_at,
+        }
+    ]
+
+
+def test_backup_export_filename_includes_timestamp():
+    earlier = routes_module._build_backup_export_filename(
+        datetime(2026, 3, 13, 8, 0, 0)
+    )
+    later = routes_module._build_backup_export_filename(datetime(2026, 3, 13, 8, 0, 1))
+
+    assert earlier == "zzz-bot-backup-2026-03-13_08-00-00-000000.json"
+    assert later == "zzz-bot-backup-2026-03-13_08-00-01-000000.json"
+    assert earlier != later
+
+
+def test_backup_import_reschedules_hunt_tasks_when_shopping_restored(monkeypatch):
+    events: list[str] = []
+
+    class FakeRequest:
+        async def json(self):
+            return {
+                "data": {"version": 1, "collections": {"shopping": {"Hunt": ["Item"]}}},
+                "collections": ["shopping"],
+            }
+
+    monkeypatch.setattr(
+        mongo_module,
+        "import_data",
+        lambda data, collections: {
+            "restored": ["shopping"],
+            "skipped": [],
+            "errors": {},
+        },
+    )
+    monkeypatch.setattr(
+        bot_module,
+        "schedule_tasks",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("schedule_tasks should not run for shopping-only restores")
+        ),
+    )
+    monkeypatch.setattr(
+        bot_module, "schedule_hunt_tasks", lambda: events.append("hunt")
+    )
+
+    response = asyncio.run(routes_module.import_backup(FakeRequest()))
+
+    assert response.status_code == 200
+    assert response.body == b'{"restored":["shopping"],"skipped":[],"errors":{}}'
+    assert events == ["hunt"]
+
+
+def test_manual_run_route_starts_manual_override(monkeypatch):
+    monkeypatch.setenv("ZZZ_DESKTOP_TOKEN", "expected-token")
+    calls: list[bool] = []
+
+    class FakeRequest:
+        headers = {"x-desktop-token": "expected-token"}
+
+    monkeypatch.setattr(
+        bot_module,
+        "run_playwright_task_async",
+        lambda *, manual_run=False: calls.append(manual_run),
+    )
+
+    response = routes_module.run_playwright_now(FakeRequest())
+
+    assert response.status_code == 200
+    assert response.body == b'{"status":"started"}'
+    assert calls == [True]
+
+
 def test_extract_advanced_settings_returns_only_advanced_fields():
     full_settings = {
         "schedule_times": ["08:00", "20:00"],
-        "open_web_ui": True,
+        "show_window_on_startup": True,
+        "window_x": 120,
+        "window_y": 80,
+        "window_width": 1440,
+        "window_height": 900,
         "exit_after_run": False,
         "autostart_on_login": True,
         "hunt_poll_max_wait_seconds": 180,
@@ -867,6 +1184,10 @@ def test_extract_advanced_settings_returns_only_advanced_fields():
     assert "schedule_times" not in advanced_settings
     assert "theme" not in advanced_settings
     assert "autostart_on_login" not in advanced_settings
+    assert "window_x" not in advanced_settings
+    assert "window_y" not in advanced_settings
+    assert "window_width" not in advanced_settings
+    assert "window_height" not in advanced_settings
 
 
 def test_resolve_frontend_sentry_dsn_prefers_runtime_env():
@@ -895,6 +1216,11 @@ def test_settings_repository_uses_safe_hunt_early_exit_default(tmp_path: Path):
     settings = repository.get_settings()
 
     assert settings["hunt_early_exit_on_unavailable"] is False
+    assert settings["show_window_on_startup"] is True
+    assert settings["window_x"] is None
+    assert settings["window_y"] is None
+    assert settings["window_width"] is None
+    assert settings["window_height"] is None
 
 
 def test_dynamic_routes_hide_internal_action_endpoints():
