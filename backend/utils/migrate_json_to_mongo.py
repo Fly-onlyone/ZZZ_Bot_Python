@@ -26,6 +26,8 @@ _DEFAULT_SETTINGS_PAYLOAD = {
     "window_y": None,
     "window_width": None,
     "window_height": None,
+    "window_maximized": False,
+    "window_minimized": False,
     "hide_browser": False,
     "run_task": True,
     "gather_shopping_data": True,

@@ -921,6 +921,74 @@ def test_playwright_task_manual_run_bypasses_automatic_gate(monkeypatch):
         raise AssertionError("Manual run should enter the Playwright context")
 
 
+def test_asyncio_exception_handler_ignores_known_windows_transport_reset(monkeypatch):
+    monkeypatch.setattr(bot_module.os, "name", "nt", raising=False)
+
+    delegated_calls: list[dict[str, object]] = []
+
+    def fallback(_loop, context):
+        delegated_calls.append(context)
+
+    error = ConnectionResetError("remote host closed the socket")
+    error.winerror = 10054
+    handler = bot_module._build_asyncio_exception_handler(fallback)
+
+    handler(
+        object(),
+        {
+            "exception": error,
+            "message": "Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)",
+        },
+    )
+
+    assert delegated_calls == []
+
+
+def test_asyncio_exception_handler_delegates_other_errors(monkeypatch):
+    monkeypatch.setattr(bot_module.os, "name", "nt", raising=False)
+
+    delegated_calls: list[dict[str, object]] = []
+
+    def fallback(_loop, context):
+        delegated_calls.append(context)
+
+    handler = bot_module._build_asyncio_exception_handler(fallback)
+
+    handler(
+        object(),
+        {
+            "exception": RuntimeError("unexpected async failure"),
+            "message": "Exception in callback something_else",
+        },
+    )
+
+    assert len(delegated_calls) == 1
+
+
+def test_configure_windows_asyncio_exception_handler_is_idempotent(monkeypatch):
+    monkeypatch.setattr(bot_module.os, "name", "nt", raising=False)
+
+    class FakeLoop:
+        def __init__(self):
+            self.handler = None
+            self.set_calls = 0
+
+        def get_exception_handler(self):
+            return self.handler
+
+        def set_exception_handler(self, handler):
+            self.handler = handler
+            self.set_calls += 1
+
+    fake_loop = FakeLoop()
+
+    bot_module._configure_windows_asyncio_exception_handler(fake_loop)
+    bot_module._configure_windows_asyncio_exception_handler(fake_loop)
+
+    assert fake_loop.set_calls == 1
+    assert callable(fake_loop.handler)
+
+
 def test_schedule_tasks_skips_registration_when_automatic_runs_disabled(monkeypatch):
     events: list[tuple[str, str | None]] = []
 
@@ -954,6 +1022,8 @@ def test_update_settings_skips_schedule_for_window_state_only_changes(monkeypatc
     monkeypatch.setattr(routes_module.settings, "window_y", 20)
     monkeypatch.setattr(routes_module.settings, "window_width", 1200)
     monkeypatch.setattr(routes_module.settings, "window_height", 800)
+    monkeypatch.setattr(routes_module.settings, "window_maximized", False)
+    monkeypatch.setattr(routes_module.settings, "window_minimized", False)
     monkeypatch.setattr(
         routes_module.MongoRepository,
         "save_settings",
@@ -971,6 +1041,8 @@ def test_update_settings_skips_schedule_for_window_state_only_changes(monkeypatc
                     "window_y": 180,
                     "window_width": 1440,
                     "window_height": 900,
+                    "window_maximized": True,
+                    "window_minimized": False,
                 }
             )
         )
@@ -981,6 +1053,8 @@ def test_update_settings_skips_schedule_for_window_state_only_changes(monkeypatc
     assert saved_payloads[-1]["window_y"] == 180
     assert saved_payloads[-1]["window_width"] == 1440
     assert saved_payloads[-1]["window_height"] == 900
+    assert saved_payloads[-1]["window_maximized"] is True
+    assert saved_payloads[-1]["window_minimized"] is False
     assert schedule_calls == []
 
 
@@ -1013,6 +1087,64 @@ def test_update_settings_reschedules_for_non_window_changes(monkeypatch):
 
     assert response.status_code == 200
     assert saved_payloads[-1]["theme"] == updated_theme
+    assert schedule_calls == ["scheduled"]
+
+
+def test_update_settings_reschedules_for_mixed_window_and_non_window_changes(
+    monkeypatch,
+):
+    saved_payloads: list[dict[str, Any]] = []
+    schedule_calls: list[str] = []
+
+    class FakeRequest:
+        def __init__(self, payload):
+            self.payload = payload
+
+        async def json(self):
+            return self.payload
+
+    original_theme = routes_module.settings.theme
+    updated_theme = "venom" if original_theme != "venom" else "glacier"
+
+    monkeypatch.setattr(routes_module.settings, "window_x", 10)
+    monkeypatch.setattr(routes_module.settings, "window_y", 20)
+    monkeypatch.setattr(routes_module.settings, "window_width", 1200)
+    monkeypatch.setattr(routes_module.settings, "window_height", 800)
+    monkeypatch.setattr(routes_module.settings, "window_maximized", False)
+    monkeypatch.setattr(routes_module.settings, "window_minimized", False)
+    monkeypatch.setattr(
+        routes_module.MongoRepository,
+        "save_settings",
+        lambda payload: saved_payloads.append(dict(payload)),
+    )
+    monkeypatch.setattr(
+        bot_module, "schedule_tasks", lambda: schedule_calls.append("scheduled")
+    )
+
+    response = asyncio.run(
+        routes_module.update_settings(
+            FakeRequest(
+                {
+                    "theme": updated_theme,
+                    "window_x": 320,
+                    "window_y": 180,
+                    "window_width": 1440,
+                    "window_height": 900,
+                    "window_maximized": True,
+                    "window_minimized": False,
+                }
+            )
+        )
+    )
+
+    assert response.status_code == 200
+    assert saved_payloads[-1]["theme"] == updated_theme
+    assert saved_payloads[-1]["window_x"] == 320
+    assert saved_payloads[-1]["window_y"] == 180
+    assert saved_payloads[-1]["window_width"] == 1440
+    assert saved_payloads[-1]["window_height"] == 900
+    assert saved_payloads[-1]["window_maximized"] is True
+    assert saved_payloads[-1]["window_minimized"] is False
     assert schedule_calls == ["scheduled"]
 
 
@@ -1165,6 +1297,8 @@ def test_extract_advanced_settings_returns_only_advanced_fields():
         "window_y": 80,
         "window_width": 1440,
         "window_height": 900,
+        "window_maximized": True,
+        "window_minimized": False,
         "exit_after_run": False,
         "autostart_on_login": True,
         "hunt_poll_max_wait_seconds": 180,
@@ -1188,6 +1322,8 @@ def test_extract_advanced_settings_returns_only_advanced_fields():
     assert "window_y" not in advanced_settings
     assert "window_width" not in advanced_settings
     assert "window_height" not in advanced_settings
+    assert "window_maximized" not in advanced_settings
+    assert "window_minimized" not in advanced_settings
 
 
 def test_resolve_frontend_sentry_dsn_prefers_runtime_env():
@@ -1221,6 +1357,8 @@ def test_settings_repository_uses_safe_hunt_early_exit_default(tmp_path: Path):
     assert settings["window_y"] is None
     assert settings["window_width"] is None
     assert settings["window_height"] is None
+    assert settings["window_maximized"] is False
+    assert settings["window_minimized"] is False
 
 
 def test_dynamic_routes_hide_internal_action_endpoints():

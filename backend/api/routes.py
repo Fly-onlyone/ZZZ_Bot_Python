@@ -34,6 +34,8 @@ WINDOW_STATE_SETTING_KEYS = {
     "window_y",
     "window_width",
     "window_height",
+    "window_maximized",
+    "window_minimized",
 }
 
 INTERNAL_ROUTE_PREFIXES = {

@@ -145,6 +145,8 @@ class AppSettings(Serializable):
     window_y: int | None = None
     window_width: int | None = None
     window_height: int | None = None
+    window_maximized: bool = False
+    window_minimized: bool = False
     autostart_on_login: bool | None = None
     hide_browser: bool = False
     run_task: bool = True

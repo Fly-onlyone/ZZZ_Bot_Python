@@ -221,6 +221,8 @@ class SettingsRepository(JsonFileRepository):
                 "window_y": None,
                 "window_width": None,
                 "window_height": None,
+                "window_maximized": False,
+                "window_minimized": False,
                 "hide_browser": True,
                 "run_task": False,
                 "gather_shopping_data": True,

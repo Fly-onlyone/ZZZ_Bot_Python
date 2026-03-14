@@ -24,7 +24,18 @@ const BACKEND_SHUTDOWN_POST_KILL_WAIT_MS: u64 = 500;
 const BACKEND_SHUTDOWN_POLL_INTERVAL_MS: u64 = 100;
 const STARTUP_WINDOW_RECONCILE_ATTEMPTS: u32 = 20;
 const STARTUP_WINDOW_RECONCILE_DELAY_MS: u64 = 250;
+const WINDOW_STATE_PERSIST_DEBOUNCE_MS: u64 = 500;
 const WINDOW_STATE_FILE_NAME: &str = "window-state.json";
+const WINDOW_MAXIMIZED_KEY: &str = "window_maximized";
+const WINDOW_MINIMIZED_KEY: &str = "window_minimized";
+const WINDOW_STATE_KEYS: [&str; 6] = [
+    "window_x",
+    "window_y",
+    "window_width",
+    "window_height",
+    WINDOW_MAXIMIZED_KEY,
+    WINDOW_MINIMIZED_KEY,
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AutostartSyncAction {
@@ -49,6 +60,24 @@ enum ShutdownEscalation {
     DirectKill,
     ForceTaskkill,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StartupWindowAction {
+    ShowFocused,
+    ShowMinimized,
+    KeepHidden,
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+struct WindowGeometry {
+    position: Option<(i32, i32)>,
+    size: Option<(u32, u32)>,
+    persist_revision: u64,
+    persist_worker_running: bool,
+}
+
+#[derive(Debug, Default)]
+struct WindowStateCache(Mutex<WindowGeometry>);
 
 #[derive(Debug, Clone, Copy)]
 struct TraySettings {
@@ -240,11 +269,34 @@ fn reconcile_autostart_preference(app: AppHandle) {
     });
 }
 
-fn determine_startup_window_visibility(
+#[cfg(test)]
+fn determine_startup_window_action(
     show_window_on_startup: bool,
     started_minimized: bool,
-) -> bool {
-    show_window_on_startup && !started_minimized
+) -> StartupWindowAction {
+    determine_startup_window_action_with_saved_state(
+        show_window_on_startup,
+        started_minimized,
+        false,
+    )
+}
+
+fn determine_startup_window_action_with_saved_state(
+    show_window_on_startup: bool,
+    started_minimized: bool,
+    restore_minimized: bool,
+) -> StartupWindowAction {
+    if !show_window_on_startup || started_minimized {
+        StartupWindowAction::KeepHidden
+    } else if restore_minimized {
+        StartupWindowAction::ShowMinimized
+    } else {
+        StartupWindowAction::ShowFocused
+    }
+}
+
+fn should_persist_window_geometry(is_maximized: bool) -> bool {
+    !is_maximized
 }
 
 fn window_state_file_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -269,25 +321,34 @@ fn write_local_window_state(app: &AppHandle, payload: &Value) -> Result<(), Stri
     fs::write(path, serialized).map_err(|error| error.to_string())
 }
 
-fn merge_local_window_state(app: &AppHandle, mut settings: Value) -> Value {
-    let Ok(local_state) = read_local_window_state(app) else {
-        return settings;
-    };
-
+fn merge_window_state(settings: &mut Value, override_state: &Value) {
     let Some(settings_object) = settings.as_object_mut() else {
-        return settings;
+        return;
     };
-    let Some(local_object) = local_state.as_object() else {
-        return settings;
+    let Some(override_object) = override_state.as_object() else {
+        return;
     };
 
-    for key in ["window_x", "window_y", "window_width", "window_height"] {
-        if let Some(value) = local_object.get(key) {
+    for key in WINDOW_STATE_KEYS {
+        if let Some(value) = override_object.get(key) {
             settings_object.insert(key.to_string(), value.clone());
         }
     }
+}
 
-    settings
+fn resolved_window_state_for_restore(
+    settings: Option<Value>,
+    local_state: Option<Value>,
+) -> Option<Value> {
+    match (settings, local_state) {
+        (Some(mut settings), Some(local_state)) => {
+            merge_window_state(&mut settings, &local_state);
+            Some(settings)
+        }
+        (Some(settings), None) => Some(settings),
+        (None, Some(local_state)) => Some(local_state),
+        (None, None) => None,
+    }
 }
 
 fn update_window_size_payload(settings: &mut Value, width: u32, height: u32) -> Result<bool, String> {
@@ -336,6 +397,21 @@ fn update_window_position_payload(settings: &mut Value, x: i32, y: i32) -> Resul
     Ok(true)
 }
 
+fn update_window_flag_payload(settings: &mut Value, key: &str, value: bool) -> Result<bool, String> {
+    let current_value = settings.get(key).and_then(Value::as_bool);
+
+    if current_value == Some(value) {
+        return Ok(false);
+    }
+
+    let Some(object) = settings.as_object_mut() else {
+        return Err(format!("Settings payload is not an object while saving {key}"));
+    };
+
+    object.insert(key.to_string(), Value::from(value));
+    Ok(true)
+}
+
 fn saved_window_size(settings: &Value) -> Option<(u32, u32)> {
     let width = settings
         .get("window_width")
@@ -362,6 +438,18 @@ fn saved_window_position(settings: &Value) -> Option<(i32, i32)> {
         .and_then(|value| i32::try_from(value).ok());
 
     x.zip(y)
+}
+
+fn saved_window_flag(settings: &Value, key: &str) -> Option<bool> {
+    settings.get(key).and_then(Value::as_bool)
+}
+
+fn saved_window_maximized(settings: &Value) -> bool {
+    saved_window_flag(settings, WINDOW_MAXIMIZED_KEY).unwrap_or(false)
+}
+
+fn saved_window_minimized(settings: &Value) -> bool {
+    saved_window_flag(settings, WINDOW_MINIMIZED_KEY).unwrap_or(false)
 }
 
 fn restore_main_window_size(app: &AppHandle, settings: &Value) {
@@ -391,20 +479,95 @@ fn restore_main_window_position(app: &AppHandle, settings: &Value) {
     }
 }
 
+fn restore_main_window_geometry(app: &AppHandle, settings: &Value) {
+    restore_main_window_position(app, settings);
+    restore_main_window_size(app, settings);
+}
+
+fn apply_startup_window_state(
+    app: &AppHandle,
+    settings: &Value,
+    action: StartupWindowAction,
+) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    if saved_window_maximized(settings) {
+        if let Err(error) = window.maximize() {
+            log::warn!("Failed to restore maximized window state: {error}");
+        }
+    }
+
+    match action {
+        StartupWindowAction::ShowFocused => {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+        StartupWindowAction::ShowMinimized => {
+            let _ = window.show();
+            if let Err(error) = window.minimize() {
+                log::warn!("Failed to restore minimized window state: {error}");
+            }
+        }
+        StartupWindowAction::KeepHidden => {}
+    }
+}
+
+fn cache_window_size(app: &AppHandle, width: u32, height: u32) {
+    match app.state::<WindowStateCache>().0.lock() {
+        Ok(mut cache) => {
+            cache.size = Some((width, height));
+        }
+        Err(error) => {
+            log::warn!("Failed to cache window size before shutdown: {error}");
+        }
+    }
+}
+
+fn cache_window_position(app: &AppHandle, x: i32, y: i32) {
+    match app.state::<WindowStateCache>().0.lock() {
+        Ok(mut cache) => {
+            cache.position = Some((x, y));
+        }
+        Err(error) => {
+            log::warn!("Failed to cache window position before shutdown: {error}");
+        }
+    }
+}
+
+fn persist_updated_settings<FUpdate, FWrite>(
+    settings: &mut Value,
+    update: FUpdate,
+    write: FWrite,
+    write_error_message: &str,
+) where
+    FUpdate: FnOnce(&mut Value) -> Result<bool, String>,
+    FWrite: FnOnce(&Value) -> Result<(), String>,
+{
+    match update(settings) {
+        Ok(true) => {
+            if let Err(error) = write(settings) {
+                log::warn!("{write_error_message}: {error}");
+            }
+        }
+        Ok(false) => {}
+        Err(error) => {
+            log::warn!("{error}");
+        }
+    }
+}
+
 fn persist_window_size(app: &AppHandle, width: u32, height: u32) {
     let runtime = app.state::<AppRuntime>();
     match read_settings(&runtime) {
-        Ok(mut settings) => match update_window_size_payload(&mut settings, width, height) {
-            Ok(true) => {
-                if let Err(error) = write_settings(&runtime, &settings) {
-                    log::warn!("Failed to persist saved window size to backend: {error}");
-                }
-            }
-            Ok(false) => {}
-            Err(error) => {
-                log::warn!("{error}");
-            }
-        },
+        Ok(mut settings) => persist_updated_settings(
+            &mut settings,
+            |settings| update_window_size_payload(settings, width, height),
+            |settings| write_settings(&runtime, settings),
+            "Failed to persist saved window size to backend",
+        ),
         Err(error) => {
             log::info!("Skipping backend window size persistence: {error}");
         }
@@ -418,33 +581,23 @@ fn persist_window_size(app: &AppHandle, width: u32, height: u32) {
         }
     };
 
-    match update_window_size_payload(&mut local_settings, width, height) {
-        Ok(true) => {
-            if let Err(error) = write_local_window_state(app, &local_settings) {
-                log::warn!("Failed to persist saved window size locally: {error}");
-            }
-        }
-        Ok(false) => {}
-        Err(error) => {
-            log::warn!("{error}");
-        }
-    }
+    persist_updated_settings(
+        &mut local_settings,
+        |settings| update_window_size_payload(settings, width, height),
+        |settings| write_local_window_state(app, settings),
+        "Failed to persist saved window size locally",
+    );
 }
 
 fn persist_window_position(app: &AppHandle, x: i32, y: i32) {
     let runtime = app.state::<AppRuntime>();
     match read_settings(&runtime) {
-        Ok(mut settings) => match update_window_position_payload(&mut settings, x, y) {
-            Ok(true) => {
-                if let Err(error) = write_settings(&runtime, &settings) {
-                    log::warn!("Failed to persist saved window position to backend: {error}");
-                }
-            }
-            Ok(false) => {}
-            Err(error) => {
-                log::warn!("{error}");
-            }
-        },
+        Ok(mut settings) => persist_updated_settings(
+            &mut settings,
+            |settings| update_window_position_payload(settings, x, y),
+            |settings| write_settings(&runtime, settings),
+            "Failed to persist saved window position to backend",
+        ),
         Err(error) => {
             log::info!("Skipping backend window position persistence: {error}");
         }
@@ -458,17 +611,181 @@ fn persist_window_position(app: &AppHandle, x: i32, y: i32) {
         }
     };
 
-    match update_window_position_payload(&mut local_settings, x, y) {
-        Ok(true) => {
-            if let Err(error) = write_local_window_state(app, &local_settings) {
-                log::warn!("Failed to persist saved window position locally: {error}");
-            }
-        }
-        Ok(false) => {}
+    persist_updated_settings(
+        &mut local_settings,
+        |settings| update_window_position_payload(settings, x, y),
+        |settings| write_local_window_state(app, settings),
+        "Failed to persist saved window position locally",
+    );
+}
+
+fn persist_window_flag(
+    app: &AppHandle,
+    key: &str,
+    value: bool,
+    backend_error_message: &str,
+    local_error_message: &str,
+) {
+    let runtime = app.state::<AppRuntime>();
+    match read_settings(&runtime) {
+        Ok(mut settings) => persist_updated_settings(
+            &mut settings,
+            |settings| update_window_flag_payload(settings, key, value),
+            |settings| write_settings(&runtime, settings),
+            backend_error_message,
+        ),
         Err(error) => {
-            log::warn!("{error}");
+            log::info!("Skipping backend {key} persistence: {error}");
         }
     }
+
+    let mut local_settings = match read_local_window_state(app) {
+        Ok(settings) => settings,
+        Err(error) => {
+            log::warn!("Failed to read local window state before saving {key}: {error}");
+            json!({})
+        }
+    };
+
+    persist_updated_settings(
+        &mut local_settings,
+        |settings| update_window_flag_payload(settings, key, value),
+        |settings| write_local_window_state(app, settings),
+        local_error_message,
+    );
+}
+
+fn schedule_runtime_window_state_persist(app: &AppHandle) {
+    let should_spawn = match app.state::<WindowStateCache>().0.lock() {
+        Ok(mut cache) => {
+            cache.persist_revision = cache.persist_revision.saturating_add(1);
+            if cache.persist_worker_running {
+                false
+            } else {
+                cache.persist_worker_running = true;
+                true
+            }
+        }
+        Err(error) => {
+            log::warn!("Failed to schedule runtime window state persistence: {error}");
+            false
+        }
+    };
+
+    if !should_spawn {
+        return;
+    }
+
+    let app_handle = app.clone();
+    std::thread::spawn(move || loop {
+        let observed_revision = match app_handle.state::<WindowStateCache>().0.lock() {
+            Ok(cache) => cache.persist_revision,
+            Err(error) => {
+                log::warn!("Failed to inspect pending window state persistence: {error}");
+                return;
+            }
+        };
+
+        std::thread::sleep(Duration::from_millis(WINDOW_STATE_PERSIST_DEBOUNCE_MS));
+
+        let should_persist = match app_handle.state::<WindowStateCache>().0.lock() {
+            Ok(mut cache) => {
+                if cache.persist_revision == observed_revision {
+                    cache.persist_worker_running = false;
+                    true
+                } else {
+                    false
+                }
+            }
+            Err(error) => {
+                log::warn!("Failed to finalize runtime window state persistence: {error}");
+                return;
+            }
+        };
+
+        if should_persist {
+            persist_current_window_state(&app_handle);
+            return;
+        }
+    });
+}
+
+fn cached_window_geometry<T, F>(app: &AppHandle, select: F) -> Option<T>
+where
+    T: Copy,
+    F: FnOnce(&WindowGeometry) -> Option<T>,
+{
+    app.state::<WindowStateCache>()
+        .0
+        .lock()
+        .ok()
+        .and_then(|cache| select(&cache))
+}
+
+fn persist_cached_window_size(app: &AppHandle) {
+    if !should_persist_window_geometry(main_window_is_maximized(app)) {
+        return;
+    }
+
+    let cached_size = cached_window_geometry(app, |cache| cache.size);
+
+    if let Some((width, height)) = cached_size {
+        persist_window_size(app, width, height);
+    } else {
+        persist_main_window_size(app);
+    }
+}
+
+fn persist_cached_window_position(app: &AppHandle) {
+    if !should_persist_window_geometry(main_window_is_maximized(app)) {
+        return;
+    }
+
+    let cached_position = cached_window_geometry(app, |cache| cache.position);
+
+    if let Some((x, y)) = cached_position {
+        persist_window_position(app, x, y);
+    } else {
+        persist_main_window_position(app);
+    }
+}
+
+fn persist_main_window_display_state(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    let is_maximized = window.is_maximized().unwrap_or(false);
+    let is_minimized = window.is_minimized().unwrap_or(false);
+
+    persist_window_flag(
+        app,
+        WINDOW_MAXIMIZED_KEY,
+        is_maximized,
+        "Failed to persist maximized window state to backend",
+        "Failed to persist maximized window state locally",
+    );
+    persist_window_flag(
+        app,
+        WINDOW_MINIMIZED_KEY,
+        is_minimized,
+        "Failed to persist minimized window state to backend",
+        "Failed to persist minimized window state locally",
+    );
+}
+
+fn persist_current_window_state(app: &AppHandle) {
+    persist_main_window_display_state(app);
+    persist_cached_window_position(app);
+    persist_cached_window_size(app);
+}
+
+fn should_persist_display_state_on_window_event(event: &WindowEvent) -> bool {
+    matches!(event, WindowEvent::Focused(_))
+}
+
+fn should_schedule_runtime_window_state_persist(event: &WindowEvent) -> bool {
+    matches!(event, WindowEvent::Moved(_) | WindowEvent::Resized(_))
 }
 
 fn persist_main_window_size(app: &AppHandle) {
@@ -476,7 +793,7 @@ fn persist_main_window_size(app: &AppHandle) {
         return;
     };
 
-    if window.is_maximized().unwrap_or(false) {
+    if !should_persist_window_geometry(window.is_maximized().unwrap_or(false)) {
         return;
     }
 
@@ -492,7 +809,7 @@ fn persist_main_window_position(app: &AppHandle) {
         return;
     };
 
-    if window.is_maximized().unwrap_or(false) {
+    if !should_persist_window_geometry(window.is_maximized().unwrap_or(false)) {
         return;
     }
 
@@ -507,43 +824,78 @@ fn started_minimized() -> bool {
     std::env::args().any(|arg| arg == "--minimized")
 }
 
+fn main_window_is_maximized(app: &AppHandle) -> bool {
+    app.get_webview_window("main")
+        .and_then(|window| window.is_maximized().ok())
+        .unwrap_or(false)
+}
+
 fn reconcile_startup_window_visibility(app: AppHandle) {
-    if started_minimized() {
+    let started_hidden = started_minimized();
+    if started_hidden {
         log::info!("Autostart launch detected; keeping main window hidden");
-        return;
     }
 
     std::thread::spawn(move || {
         for attempt in 1..=STARTUP_WINDOW_RECONCILE_ATTEMPTS {
             let runtime = app.state::<AppRuntime>();
+            let local_state = read_local_window_state(&app).ok();
+
             match read_settings(&runtime) {
                 Ok(settings) => {
-                    let settings = merge_local_window_state(&app, settings);
-                    restore_main_window_position(&app, &settings);
-                    restore_main_window_size(&app, &settings);
                     let show_window_on_startup = settings
                         .get("show_window_on_startup")
                         .and_then(Value::as_bool)
                         .unwrap_or(true);
-                    if determine_startup_window_visibility(show_window_on_startup, false) {
-                        show_main_window(&app);
-                    } else {
+                    if let Some(settings) =
+                        resolved_window_state_for_restore(Some(settings), local_state)
+                    {
+                        restore_main_window_geometry(&app, &settings);
+                        apply_startup_window_state(
+                            &app,
+                            &settings,
+                            determine_startup_window_action_with_saved_state(
+                                show_window_on_startup,
+                                started_hidden,
+                                saved_window_minimized(&settings),
+                            ),
+                        );
+                    }
+                    if !show_window_on_startup && !started_hidden {
                         log::info!("Startup settings requested a background-only launch");
                     }
                     return;
                 }
                 Err(error) => {
-                    if let Ok(settings) = read_local_window_state(&app) {
-                        restore_main_window_position(&app, &settings);
-                        restore_main_window_size(&app, &settings);
+                    if let Some(settings) =
+                        resolved_window_state_for_restore(None, local_state)
+                    {
+                        restore_main_window_geometry(&app, &settings);
+                        apply_startup_window_state(
+                            &app,
+                            &settings,
+                            determine_startup_window_action_with_saved_state(
+                                false,
+                                started_hidden,
+                                saved_window_minimized(&settings),
+                            ),
+                        );
                     }
                     if attempt == STARTUP_WINDOW_RECONCILE_ATTEMPTS {
-                        log::warn!(
-                            "Failed to load startup window preference after {} attempts: {}. Showing window by default.",
-                            STARTUP_WINDOW_RECONCILE_ATTEMPTS,
-                            error
-                        );
-                        show_main_window(&app);
+                        if started_hidden {
+                            log::warn!(
+                                "Failed to load startup window preference after {} attempts: {}. Keeping autostart launch hidden.",
+                                STARTUP_WINDOW_RECONCILE_ATTEMPTS,
+                                error
+                            );
+                        } else {
+                            log::warn!(
+                                "Failed to load startup window preference after {} attempts: {}. Showing window by default.",
+                                STARTUP_WINDOW_RECONCILE_ATTEMPTS,
+                                error
+                            );
+                            show_main_window(&app);
+                        }
                         return;
                     }
                     std::thread::sleep(Duration::from_millis(
@@ -974,6 +1326,7 @@ pub fn run() {
                 backend_terminated: Mutex::new(false),
                 shutdown_in_progress: Mutex::new(false),
             });
+            app.manage(WindowStateCache::default());
 
             if let Some(window) = app.get_webview_window("main") {
                 if let Some(icon) = app.default_window_icon().cloned() {
@@ -997,11 +1350,23 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            if should_persist_display_state_on_window_event(event) {
+                persist_main_window_display_state(&window.app_handle());
+            }
+            if should_schedule_runtime_window_state_persist(event) {
+                schedule_runtime_window_state_persist(&window.app_handle());
+            }
+
             match event {
+                WindowEvent::Moved(position) => {
+                    cache_window_position(&window.app_handle(), position.x, position.y);
+                }
+                WindowEvent::Resized(size) => {
+                    cache_window_size(&window.app_handle(), size.width, size.height);
+                }
                 WindowEvent::CloseRequested { api, .. } => {
                     api.prevent_close();
-                    persist_main_window_position(&window.app_handle());
-                    persist_main_window_size(&window.app_handle());
+                    persist_current_window_state(&window.app_handle());
                     let _ = window.hide();
                 }
                 _ => {}
@@ -1012,13 +1377,11 @@ pub fn run() {
 
     app.run(|app_handle, event| match event {
         RunEvent::ExitRequested { .. } => {
-            persist_main_window_position(app_handle);
-            persist_main_window_size(app_handle);
+            persist_current_window_state(app_handle);
             stop_backend_sidecar(app_handle, "exit_requested", "app_run_event");
         }
         RunEvent::Exit => {
-            persist_main_window_position(app_handle);
-            persist_main_window_size(app_handle);
+            persist_current_window_state(app_handle);
             stop_backend_sidecar(app_handle, "exit", "app_run_event");
         }
         _ => {}
@@ -1029,10 +1392,17 @@ pub fn run() {
 mod tests {
     use super::{
         determine_autostart_sync_action, determine_shutdown_escalation,
-        determine_startup_window_visibility, saved_window_position, saved_window_size,
-        AutostartSyncAction, ShutdownEscalation,
+        determine_startup_window_action, determine_startup_window_action_with_saved_state,
+        merge_window_state, resolved_window_state_for_restore, saved_window_flag,
+        saved_window_position, saved_window_size,
+        should_persist_display_state_on_window_event, should_persist_window_geometry,
+        should_schedule_runtime_window_state_persist, update_window_flag_payload,
+        update_window_position_payload, update_window_size_payload, AutostartSyncAction,
+        ShutdownEscalation, StartupWindowAction, WINDOW_MAXIMIZED_KEY,
+        WINDOW_MINIMIZED_KEY,
     };
     use serde_json::json;
+    use tauri::{PhysicalPosition, PhysicalSize, WindowEvent};
 
     #[test]
     fn autostart_sync_persists_existing_enabled_state() {
@@ -1080,17 +1450,224 @@ mod tests {
 
     #[test]
     fn startup_window_visibility_shows_for_normal_launches() {
-        assert!(determine_startup_window_visibility(true, false));
+        assert_eq!(
+            determine_startup_window_action(true, false),
+            StartupWindowAction::ShowFocused
+        );
     }
 
     #[test]
     fn startup_window_visibility_hides_when_setting_disabled() {
-        assert!(!determine_startup_window_visibility(false, false));
+        assert_eq!(
+            determine_startup_window_action(false, false),
+            StartupWindowAction::KeepHidden
+        );
     }
 
     #[test]
     fn startup_window_visibility_hides_for_minimized_launches() {
-        assert!(!determine_startup_window_visibility(true, true));
+        assert_eq!(
+            determine_startup_window_action(true, true),
+            StartupWindowAction::KeepHidden
+        );
+    }
+
+    #[test]
+    fn startup_window_action_restores_minimized_windows() {
+        assert_eq!(
+            determine_startup_window_action_with_saved_state(true, false, true),
+            StartupWindowAction::ShowMinimized
+        );
+    }
+
+    #[test]
+    fn maximized_windows_skip_geometry_persistence() {
+        assert!(!should_persist_window_geometry(true));
+        assert!(should_persist_window_geometry(false));
+    }
+
+    #[test]
+    fn merge_window_state_overrides_only_window_state_keys() {
+        let mut settings = json!({
+            "window_x": 120,
+            "window_y": 80,
+            "window_width": 1280,
+            "window_height": 720,
+            "window_maximized": false,
+            "theme": "nebula",
+        });
+
+        merge_window_state(
+            &mut settings,
+            &json!({
+                "window_x": 320,
+                "window_height": 900,
+                "window_maximized": true,
+                "theme": "venom",
+            }),
+        );
+
+        assert_eq!(
+            settings,
+            json!({
+                "window_x": 320,
+                "window_y": 80,
+                "window_width": 1280,
+                "window_height": 900,
+                "window_maximized": true,
+                "theme": "nebula",
+            })
+        );
+    }
+
+    #[test]
+    fn resolved_window_state_prefers_local_geometry_over_backend() {
+        assert_eq!(
+            resolved_window_state_for_restore(
+                Some(json!({
+                    "window_x": 120,
+                    "window_y": 80,
+                    "window_width": 1280,
+                    "window_height": 720,
+                    "window_maximized": false,
+                    "show_window_on_startup": true,
+                })),
+                Some(json!({
+                    "window_x": 320,
+                    "window_width": 1440,
+                    "window_minimized": true,
+                })),
+            ),
+            Some(json!({
+                "window_x": 320,
+                "window_y": 80,
+                "window_width": 1440,
+                "window_height": 720,
+                "window_maximized": false,
+                "window_minimized": true,
+                "show_window_on_startup": true,
+            }))
+        );
+    }
+
+    #[test]
+    fn resolved_window_state_uses_local_fallback_without_backend_settings() {
+        assert_eq!(
+            resolved_window_state_for_restore(
+                None,
+                Some(json!({
+                    "window_x": 320,
+                    "window_y": 180,
+                    "window_width": 1440,
+                    "window_height": 900,
+                    "window_maximized": true,
+                    "window_minimized": false,
+                })),
+            ),
+            Some(json!({
+                "window_x": 320,
+                "window_y": 180,
+                "window_width": 1440,
+                "window_height": 900,
+                "window_maximized": true,
+                "window_minimized": false,
+            }))
+        );
+    }
+
+    #[test]
+    fn update_window_size_payload_is_noop_for_unchanged_dimensions() {
+        let mut settings = json!({
+            "window_width": 1440,
+            "window_height": 900,
+        });
+
+        assert_eq!(
+            update_window_size_payload(&mut settings, 1440, 900),
+            Ok(false)
+        );
+        assert_eq!(
+            settings,
+            json!({
+                "window_width": 1440,
+                "window_height": 900,
+            })
+        );
+    }
+
+    #[test]
+    fn update_window_flag_payload_is_noop_for_unchanged_value() {
+        let mut settings = json!({
+            "window_maximized": true,
+        });
+
+        assert_eq!(
+            update_window_flag_payload(&mut settings, WINDOW_MAXIMIZED_KEY, true),
+            Ok(false)
+        );
+        assert_eq!(
+            settings,
+            json!({
+                "window_maximized": true,
+            })
+        );
+    }
+
+    #[test]
+    fn saved_window_flag_reads_boolean_values() {
+        let settings = json!({
+            "window_maximized": true,
+            "window_minimized": false,
+        });
+
+        assert_eq!(saved_window_flag(&settings, WINDOW_MAXIMIZED_KEY), Some(true));
+        assert_eq!(saved_window_flag(&settings, WINDOW_MINIMIZED_KEY), Some(false));
+    }
+
+    #[test]
+    fn display_state_persists_on_resize_and_focus_events() {
+        assert!(should_persist_display_state_on_window_event(
+            &WindowEvent::Focused(false)
+        ));
+        assert!(!should_persist_display_state_on_window_event(
+            &WindowEvent::Resized(PhysicalSize::new(1440, 900))
+        ));
+        assert!(!should_persist_display_state_on_window_event(
+            &WindowEvent::Moved(PhysicalPosition::new(320, 180))
+        ));
+    }
+
+    #[test]
+    fn runtime_window_state_persist_schedules_on_move_and_resize_events() {
+        assert!(should_schedule_runtime_window_state_persist(
+            &WindowEvent::Moved(PhysicalPosition::new(320, 180))
+        ));
+        assert!(should_schedule_runtime_window_state_persist(
+            &WindowEvent::Resized(PhysicalSize::new(1440, 900))
+        ));
+        assert!(!should_schedule_runtime_window_state_persist(
+            &WindowEvent::Focused(false)
+        ));
+    }
+
+    #[test]
+    fn update_window_position_payload_is_noop_for_unchanged_coordinates() {
+        let mut settings = json!({
+            "window_x": 320,
+            "window_y": 180,
+        });
+
+        assert_eq!(
+            update_window_position_payload(&mut settings, 320, 180),
+            Ok(false)
+        );
+        assert_eq!(
+            settings,
+            json!({
+                "window_x": 320,
+                "window_y": 180,
+            })
+        );
     }
 
     #[test]

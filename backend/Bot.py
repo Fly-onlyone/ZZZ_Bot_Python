@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import logging
 import os
 import signal
@@ -46,6 +47,74 @@ logger = logging.getLogger(__name__)
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 STDOUT_LOGGER_NAME = "zzz_bot.stdout"
 STDERR_LOGGER_NAME = "zzz_bot.stderr"
+
+
+def _should_ignore_windows_transport_reset(
+    exception: BaseException | None, context: dict[str, object]
+) -> bool:
+    """Return whether a Windows Proactor transport reset is safe to ignore."""
+    if os.name != "nt":
+        return False
+    if not isinstance(exception, ConnectionResetError):
+        return False
+    if getattr(exception, "winerror", None) != 10054:
+        return False
+
+    message = context.get("message")
+    handle = context.get("handle")
+    target = "_ProactorBasePipeTransport._call_connection_lost"
+    return isinstance(message, str) and target in message or target in repr(handle)
+
+
+def _build_asyncio_exception_handler(fallback_handler):
+    """Wrap the loop handler so benign Windows transport resets stay out of logs."""
+
+    def handler(loop: asyncio.AbstractEventLoop, context: dict[str, object]) -> None:
+        exception = context.get("exception")
+        if isinstance(
+            exception, BaseException
+        ) and _should_ignore_windows_transport_reset(exception, context):
+            logger.debug(
+                "Ignoring benign Windows asyncio transport reset during connection cleanup"
+            )
+            return
+
+        if fallback_handler is not None:
+            fallback_handler(loop, context)
+        else:
+            loop.default_exception_handler(context)
+
+    return handler
+
+
+def _configure_windows_asyncio_exception_handler(
+    loop: asyncio.AbstractEventLoop,
+) -> None:
+    """Install the Windows transport reset filter on a loop once."""
+    if os.name != "nt":
+        return
+    if getattr(loop, "_zzz_asyncio_exception_handler_installed", False):
+        return
+
+    loop.set_exception_handler(
+        _build_asyncio_exception_handler(loop.get_exception_handler())
+    )
+    setattr(loop, "_zzz_asyncio_exception_handler_installed", True)
+
+
+def _build_runner_loop_factory(base_loop_factory):
+    """Create the loop factory used by the backend server runner."""
+
+    def runner_loop_factory() -> asyncio.AbstractEventLoop:
+        loop = (
+            base_loop_factory()
+            if base_loop_factory is not None
+            else asyncio.new_event_loop()
+        )
+        _configure_windows_asyncio_exception_handler(loop)
+        return loop
+
+    return runner_loop_factory
 
 
 def _create_file_handler(log_path: str) -> TimedRotatingFileHandler:
@@ -118,6 +187,7 @@ def _configure_external_log_levels() -> None:
 
 # Include API routes from separate module
 app.include_router(router)
+
 
 # Hunt mode target date (used for date validation in run_hunt)
 _hunt_target_date: datetime | None = None
@@ -900,13 +970,18 @@ if __name__ == "__main__":
     # === 5. Start FastAPI Server ===
     logger.info("Starting FastAPI server...")
     try:
-        uvicorn.run(
+        config = uvicorn.Config(
             app,
             host="127.0.0.1",
             port=args.port,
             log_config=None,
             ws="wsproto",
         )
+        server = uvicorn.Server(config)
+        with asyncio.Runner(
+            loop_factory=_build_runner_loop_factory(config.get_loop_factory())
+        ) as runner:
+            runner.run(server.serve())
     finally:
         if not is_exe and react_server is not None:
             try:
