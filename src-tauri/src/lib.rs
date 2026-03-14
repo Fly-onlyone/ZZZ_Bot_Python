@@ -64,7 +64,6 @@ enum ShutdownEscalation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StartupWindowAction {
     ShowFocused,
-    ShowMinimized,
     KeepHidden,
 }
 
@@ -284,15 +283,71 @@ fn determine_startup_window_action(
 fn determine_startup_window_action_with_saved_state(
     show_window_on_startup: bool,
     started_minimized: bool,
-    restore_minimized: bool,
+    _restore_minimized: bool,
 ) -> StartupWindowAction {
     if !show_window_on_startup || started_minimized {
         StartupWindowAction::KeepHidden
-    } else if restore_minimized {
-        StartupWindowAction::ShowMinimized
     } else {
         StartupWindowAction::ShowFocused
     }
+}
+
+fn spans_intersect(start_a: i32, length_a: u32, start_b: i32, length_b: u32) -> bool {
+    let end_a = i64::from(start_a) + i64::from(length_a);
+    let end_b = i64::from(start_b) + i64::from(length_b);
+
+    i64::from(start_a) < end_b && i64::from(start_b) < end_a
+}
+
+fn window_rect_intersects_monitor(
+    window_position: (i32, i32),
+    window_size: Option<(u32, u32)>,
+    monitor_position: (i32, i32),
+    monitor_size: (u32, u32),
+) -> bool {
+    match window_size {
+        Some((window_width, window_height)) => {
+            spans_intersect(
+                window_position.0,
+                window_width,
+                monitor_position.0,
+                monitor_size.0,
+            ) && spans_intersect(
+                window_position.1,
+                window_height,
+                monitor_position.1,
+                monitor_size.1,
+            )
+        }
+        None => {
+            let monitor_right = i64::from(monitor_position.0) + i64::from(monitor_size.0);
+            let monitor_bottom = i64::from(monitor_position.1) + i64::from(monitor_size.1);
+
+            i64::from(window_position.0) >= i64::from(monitor_position.0)
+                && i64::from(window_position.0) < monitor_right
+                && i64::from(window_position.1) >= i64::from(monitor_position.1)
+                && i64::from(window_position.1) < monitor_bottom
+        }
+    }
+}
+
+fn saved_window_rect_intersects_any_monitor(
+    settings: &Value,
+    monitors: &[tauri::Monitor],
+) -> bool {
+    let Some(window_position) = saved_window_position(settings) else {
+        return true;
+    };
+    let window_size = saved_window_size(settings);
+
+    monitors.iter().any(|monitor| {
+        window_rect_intersects_monitor(
+            window_position,
+            window_size,
+            (monitor.position().x, monitor.position().y),
+            (monitor.size().width, monitor.size().height),
+        )
+    })
 }
 
 fn should_persist_window_geometry(is_maximized: bool) -> bool {
@@ -471,6 +526,23 @@ fn restore_main_window_position(app: &AppHandle, settings: &Value) {
     };
 
     if let Some(window) = app.get_webview_window("main") {
+        match window.available_monitors() {
+            Ok(monitors)
+                if !monitors.is_empty()
+                    && !saved_window_rect_intersects_any_monitor(settings, &monitors) =>
+            {
+                log::warn!(
+                    "Saved window position {x},{y} is outside the available monitors; centering window instead"
+                );
+                let _ = window.center();
+                return;
+            }
+            Ok(_) => {}
+            Err(error) => {
+                log::warn!("Failed to inspect available monitors before restoring position: {error}");
+            }
+        }
+
         if let Err(error) =
             window.set_position(Position::Physical(PhysicalPosition::new(x, y)))
         {
@@ -504,12 +576,6 @@ fn apply_startup_window_state(
             let _ = window.unminimize();
             let _ = window.show();
             let _ = window.set_focus();
-        }
-        StartupWindowAction::ShowMinimized => {
-            let _ = window.show();
-            if let Err(error) = window.minimize() {
-                log::warn!("Failed to restore minimized window state: {error}");
-            }
         }
         StartupWindowAction::KeepHidden => {}
     }
@@ -1394,12 +1460,12 @@ mod tests {
         determine_autostart_sync_action, determine_shutdown_escalation,
         determine_startup_window_action, determine_startup_window_action_with_saved_state,
         merge_window_state, resolved_window_state_for_restore, saved_window_flag,
-        saved_window_position, saved_window_size,
+        saved_window_position, saved_window_size, spans_intersect,
         should_persist_display_state_on_window_event, should_persist_window_geometry,
         should_schedule_runtime_window_state_persist, update_window_flag_payload,
-        update_window_position_payload, update_window_size_payload, AutostartSyncAction,
-        ShutdownEscalation, StartupWindowAction, WINDOW_MAXIMIZED_KEY,
-        WINDOW_MINIMIZED_KEY,
+        update_window_position_payload, update_window_size_payload,
+        window_rect_intersects_monitor, AutostartSyncAction, ShutdownEscalation,
+        StartupWindowAction, WINDOW_MAXIMIZED_KEY, WINDOW_MINIMIZED_KEY,
     };
     use serde_json::json;
     use tauri::{PhysicalPosition, PhysicalSize, WindowEvent};
@@ -1473,11 +1539,37 @@ mod tests {
     }
 
     #[test]
-    fn startup_window_action_restores_minimized_windows() {
+    fn startup_window_action_ignores_saved_minimized_state_for_manual_launches() {
         assert_eq!(
             determine_startup_window_action_with_saved_state(true, false, true),
-            StartupWindowAction::ShowMinimized
+            StartupWindowAction::ShowFocused
         );
+    }
+
+    #[test]
+    fn spans_intersect_when_ranges_overlap() {
+        assert!(spans_intersect(100, 300, 250, 200));
+        assert!(!spans_intersect(100, 100, 200, 100));
+    }
+
+    #[test]
+    fn window_rect_intersects_monitor_when_top_left_is_offscreen_but_window_is_visible() {
+        assert!(window_rect_intersects_monitor(
+            (-200, 120),
+            Some((800, 600)),
+            (0, 0),
+            (1920, 1080),
+        ));
+    }
+
+    #[test]
+    fn window_rect_does_not_intersect_monitor_when_completely_offscreen() {
+        assert!(!window_rect_intersects_monitor(
+            (2600, 200),
+            Some((800, 600)),
+            (0, 0),
+            (1920, 1080),
+        ));
     }
 
     #[test]
