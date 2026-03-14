@@ -3,8 +3,9 @@ import { DataGrid } from "@mui/x-data-grid";
 import { Box, Grid2, Typography } from "@mui/material";
 import { useLocation } from "react-router-dom";
 import { DataLoader } from "../services";
-import { SaveButton } from "../components";
-import { usePriorityManagement, useShoppingState } from "../hooks";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import { EmptyState, SaveButton, SortableSelectedItems } from "../components";
+import { useShoppingState } from "../hooks";
 import { logInfo, logWarn } from "../services/sentryLogger.js";
 
 export default function Shopping() {
@@ -24,15 +25,10 @@ export default function Shopping() {
   const {
     selectedRows,
     huntItems,
-    setSelectedRows,
     handleHuntToggle,
     handleRowSelectionChange,
+    handleDragEnd,
   } = useShoppingState(shopping);
-
-  const { processRowUpdate } = usePriorityManagement(
-    selectedRows,
-    setSelectedRows
-  );
 
   useEffect(() => {
     if (!shopping) {
@@ -62,6 +58,19 @@ export default function Shopping() {
   }
   if (error) {
     return <Typography>Error loading data: {error.message}</Typography>;
+  }
+
+  if (
+    !shopping["Item's list"] ||
+    Object.keys(shopping["Item's list"]).length === 0
+  ) {
+    return (
+      <EmptyState
+        icon={<ShoppingCartIcon />}
+        title="No Items Available"
+        subtitle="The shop item list is empty. Run the bot to gather shopping data first."
+      />
+    );
   }
 
   // Convert shopping data into rows and add purchased items
@@ -109,38 +118,11 @@ export default function Shopping() {
       headerName: "Priority",
       flex: 1,
       type: "number",
-      editable: true,
       renderCell: (params) => {
         const isSelected = selectedRows.some(
           (row) => row.Name === params.row.Name
         );
         return isSelected ? params.value : "N/A";
-      },
-    },
-    {
-      field: "Hunt",
-      headerName: "Hunt",
-      flex: 0.5,
-      renderCell: (params) => {
-        const isSelected = selectedRows.some(
-          (row) => row.Name === params.row.Name
-        );
-        return (
-          <input
-            type="checkbox"
-            checked={huntItems.includes(params.row.Name)}
-            onChange={() => handleHuntToggle(params.row.Name)}
-            disabled={!isSelected}
-            className={`h-4 w-4 ${
-              isSelected ? "cursor-pointer" : "cursor-not-allowed opacity-50"
-            }`}
-            title={
-              isSelected
-                ? "Enable hunt mode for this item"
-                : "Select item for shopping first"
-            }
-          />
-        );
       },
     },
   ];
@@ -198,6 +180,14 @@ export default function Shopping() {
         </Typography>
       </Grid2>
 
+      {/* Sortable Selected Items */}
+      <SortableSelectedItems
+        selectedRows={selectedRows}
+        huntItems={huntItems}
+        onDragEnd={handleDragEnd}
+        onHuntToggle={handleHuntToggle}
+      />
+
       {/* Data Grid */}
       <div className="flex flex-col">
         <DataGrid
@@ -208,10 +198,6 @@ export default function Shopping() {
           getRowId={(row) => row.Name}
           rowSelectionModel={selectedRows.map((row) => row.Name)}
           onRowSelectionModelChange={handleRowSelectionChange}
-          processRowUpdate={processRowUpdate}
-          isCellEditable={(params) => {
-            return selectedRows.some((row) => row.Name === params.row.Name);
-          }}
           getRowClassName={(params) =>
             params.row.isPurchased ? "purchased-row" : ""
           }

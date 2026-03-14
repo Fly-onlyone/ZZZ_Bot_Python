@@ -1,6 +1,7 @@
 import { BACKEND_URL, DataLoader } from "../services/DataLoader";
 import { Alert, Typography } from "@mui/material";
-import { RunningStatusSkeleton } from "../components";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import { EmptyState, RunningStatusSkeleton } from "../components";
 import { motion } from "framer-motion";
 import React from "react";
 import { DateTimeField } from "@mui/x-date-pickers";
@@ -55,6 +56,16 @@ export default function RunningStatus() {
   }
 
   const { last_run, next_run } = data;
+
+  if (!last_run && !next_run) {
+    return (
+      <EmptyState
+        icon={<ScheduleIcon />}
+        title="No Run History"
+        subtitle="The bot hasn't run yet. Schedule a run or start one manually."
+      />
+    );
+  }
 
   return (
     <motion.div

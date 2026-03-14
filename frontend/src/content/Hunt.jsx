@@ -8,7 +8,9 @@ import { DateTimeField } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { useThemeContext } from "../theme/ThemeContext";
 import { COMMON_COLORS } from "../theme/colors";
-import { HuntSkeleton } from "../components";
+import SearchOffIcon from "@mui/icons-material/SearchOff";
+import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
+import { EmptyState, HuntSkeleton } from "../components";
 
 // Animation variants
 const containerVariants = {
@@ -82,20 +84,22 @@ export default function Hunt() {
   // If hunt mode is disabled
   if (!enabled) {
     return (
-      <Alert severity="info" sx={{ borderRadius: "12px" }}>
-        Hunt mode is currently disabled. Enable it in Settings to start hunting
-        for items.
-      </Alert>
+      <EmptyState
+        icon={<PauseCircleOutlineIcon />}
+        title="Hunt Mode Disabled"
+        subtitle="Enable hunt mode in Settings to start hunting for items when the shop renews."
+      />
     );
   }
 
   // If hunt mode is enabled but no items
   if (!hunt_items || hunt_items.length === 0) {
     return (
-      <Alert severity="warning" sx={{ borderRadius: "12px" }}>
-        Hunt mode is enabled but no items are marked for hunting. Add items to
-        hunt in the Shopping page.
-      </Alert>
+      <EmptyState
+        icon={<SearchOffIcon />}
+        title="No Items Being Hunted"
+        subtitle="Hunt mode is active but no items are marked for hunting. Add items to hunt on the Shopping page."
+      />
     );
   }
 

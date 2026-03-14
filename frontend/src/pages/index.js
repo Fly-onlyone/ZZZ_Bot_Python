@@ -10,3 +10,4 @@ export { default as Shopping } from "./Shopping.jsx";
 export { default as Redeem } from "./Redeem.jsx";
 export { default as ManualLogin } from "./ManualLogin.jsx";
 export { default as Logs } from "./Logs.jsx";
+export { default as SettingsPage } from "./SettingsPage.jsx";

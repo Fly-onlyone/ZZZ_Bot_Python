@@ -6,7 +6,8 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import { useThemeContext } from "../theme/ThemeContext";
 import { COMMON_COLORS } from "../theme/colors";
-import { MissionSkeleton } from "../components";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import { EmptyState, MissionSkeleton } from "../components";
 
 // Animation variants
 const containerVariants = {
@@ -77,7 +78,13 @@ export default function Mission() {
   }
   const { day, check_in, missions } = mission;
   if (!missions) {
-    return <Alert severity="error">Today task hasn't done yet</Alert>;
+    return (
+      <EmptyState
+        icon={<AssignmentIcon />}
+        title="No Mission Report Yet"
+        subtitle="Today's tasks haven't been completed. Run the bot or wait for the next scheduled run."
+      />
+    );
   }
 
   return (

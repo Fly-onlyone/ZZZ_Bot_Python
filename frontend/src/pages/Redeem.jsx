@@ -5,7 +5,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import { DataGrid } from "@mui/x-data-grid";
 import { Button } from "@mui/material";
 import { useEffect, useState } from "react";
-import { SaveButton } from "../components";
+import RedeemIcon from "@mui/icons-material/Redeem";
+import { EmptyState, SaveButton } from "../components";
 import { logInfo, logWarn } from "../services/sentryLogger.js";
 
 export default function Redeem() {
@@ -93,6 +94,16 @@ export default function Redeem() {
   if (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return <p className="text-red-500">{errorMessage}</p>;
+  }
+
+  if (redeemList.length === 0) {
+    return (
+      <EmptyState
+        icon={<RedeemIcon />}
+        title="No Redemption Codes"
+        subtitle="No codes available yet. Codes will appear here after shopping exchanges."
+      />
+    );
   }
 
   const columns = [
