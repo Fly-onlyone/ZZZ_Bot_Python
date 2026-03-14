@@ -16,7 +16,6 @@ import ArticleIcon from "@mui/icons-material/Article";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import RedeemIcon from "@mui/icons-material/Redeem";
-import TuneIcon from "@mui/icons-material/Tune";
 import { IconDatabaseExport, IconLogin2 } from "@tabler/icons-react";
 import { COMMON_COLORS } from "../../theme/colors";
 import { TRANSITIONS } from "../../theme/styles";
@@ -35,7 +34,6 @@ const tabs = [
   { label: "Logs", icon: <ArticleIcon />, path: "/logs" },
   { label: "Backup", icon: <IconDatabaseExport />, path: "/backup" },
   { label: "Settings", icon: <SettingsIcon />, path: "/settings" },
-  { label: "Advanced", icon: <TuneIcon />, path: "/settings/advanced" },
 ];
 
 /**

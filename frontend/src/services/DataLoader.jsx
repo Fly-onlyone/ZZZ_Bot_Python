@@ -12,14 +12,12 @@ const STARTUP_RETRY_COUNT = 12;
 const STARTUP_RETRY_DELAY_MS = 500;
 const STARTUP_MAX_RETRY_DELAY_MS = 3000;
 const RELATED_QUERY_KEYS_BY_ROUTE = {
-  settings: [["settings"], ["settings/advanced"]],
-  "settings/advanced": [["settings"], ["settings/advanced"]],
+  settings: [["settings"]],
   "backup/import": [
     ["account"],
     ["shopping"],
     ["redeem"],
     ["settings"],
-    ["settings/advanced"],
     ["overview/hunt"],
     ["overview/mission"],
     ["backup/summary"],

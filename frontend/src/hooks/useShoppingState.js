@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { arrayMove } from "@dnd-kit/sortable";
 import { DEFAULT_PRIORITY_OFFSET } from "../config";
 
 /**
@@ -71,6 +72,25 @@ export function useShoppingState(shopping) {
     );
   };
 
+  /**
+   * Handle drag end from dnd-kit sortable list
+   * Reorders items and reassigns sequential priorities
+   */
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setSelectedRows((prev) => {
+      const oldIndex = prev.findIndex((row) => row.Name === active.id);
+      const newIndex = prev.findIndex((row) => row.Name === over.id);
+      const reordered = arrayMove(prev, oldIndex, newIndex);
+      return reordered.map((row, index) => ({
+        ...row,
+        Priority: index + DEFAULT_PRIORITY_OFFSET,
+      }));
+    });
+  };
+
   return {
     selectedRows,
     huntItems,
@@ -78,5 +98,6 @@ export function useShoppingState(shopping) {
     setHuntItems,
     handleHuntToggle,
     handleRowSelectionChange,
+    handleDragEnd,
   };
 }
