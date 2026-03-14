@@ -5,9 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import TaskIcon from "@mui/icons-material/Task";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import TuneIcon from "@mui/icons-material/Tune";
-import { IconCards } from "@tabler/icons-react";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { ValueAdapter } from "../components";
+import { SettingsSkeleton, ValueAdapter } from "../components";
 import { BACKEND_URL } from "../config";
 import { DataLoader } from "../services";
 import { useThemeContext } from "../theme/ThemeContext";
@@ -77,15 +76,6 @@ const settingsTypeConfig = {
       { value: "cyber", label: "Cyber" },
     ],
   },
-  sentry_traces_sample_rate: {
-    type: "select",
-    options: [
-      { value: 1.0, label: "1.0 (Always)" },
-      { value: 0.5, label: "0.5" },
-      { value: 0.25, label: "0.25" },
-      { value: 0.1, label: "0.1" },
-    ],
-  },
   hunt_poll_max_wait_seconds: {
     type: "select",
     options: [
@@ -105,17 +95,6 @@ const settingsTypeConfig = {
     ],
   },
 };
-
-function formatCleanupSummary(report) {
-  const deleted = report?.deleted || {};
-  return (
-    `Cleanup completed. Deleted ` +
-    `${deleted["auth_storage_file"] || 0} auth file(s), ` +
-    `${deleted["log_files"] || 0} log file(s), ` +
-    `${deleted["screenshot_files"] || 0} screenshot file(s), ` +
-    `${deleted["json_files"] || 0} JSON file(s).`
-  );
-}
 
 function AutostartToggle() {
   const { useRouteData } = DataLoader();
@@ -256,58 +235,32 @@ const TAB_CONFIGS = [
       },
     },
   },
-  {
-    label: "Monitoring",
-    sections: {
-      Monitoring: {
-        icon: <IconCards />,
-        fields: [
-          "sentry_dsn",
-          "sentry_frontend_dsn",
-          "sentry_send_test_event",
-          "sentry_traces_sample_rate",
-        ],
-      },
-    },
-    showCleanup: true,
-  },
 ];
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState(0);
   const [tabDirection, setTabDirection] = useState(1);
   const { themeColors, prefersReducedMotion } = useThemeContext();
-  const { useRouteData, useActionData } = DataLoader();
-  const { data: settings = {} } = useRouteData("settings");
-  const cleanupMutation = useActionData("maintenance/local-cleanup");
-  const isAutomationOff = settings.run_task === false;
+  const { useRouteData } = DataLoader();
+  const { data: settings, isLoading } = useRouteData("settings");
+  const resolvedSettings = settings || {};
+  const isAutomationOff = resolvedSettings.run_task === false;
   const isAffectedTab = activeTab === 1 || activeTab === 2;
   const panelVariants = prefersReducedMotion
     ? reducedMotionPanelVariants
     : settingsPanelVariants;
-
-  const handleRunCleanup = async () => {
-    return cleanupMutation.mutateAsync({});
-  };
 
   const handleTabChange = (_, newValue) => {
     setTabDirection(newValue >= activeTab ? 1 : -1);
     setActiveTab(newValue);
   };
 
+  if (isLoading && !settings) {
+    return <SettingsSkeleton />;
+  }
+
   const tabConfig = TAB_CONFIGS[activeTab];
 
-  const extraActions = tabConfig.showCleanup
-    ? [
-        {
-          key: "run-local-cleanup",
-          label: "Run Local Cleanup",
-          onClick: handleRunCleanup,
-          successMessage: formatCleanupSummary,
-          errorMessage: "Failed to run local cleanup.",
-        },
-      ]
-    : [];
   /** @type {import("react").ReactNode[]} */
   const tabItems = TAB_CONFIGS.map((tab) => (
     <Tab key={tab.label} label={tab.label} />
@@ -383,7 +336,6 @@ export default function SettingsPage() {
               key={activeTab}
               customSections={tabConfig.sections}
               typeConfig={settingsTypeConfig}
-              extraActions={extraActions}
             />
           </Box>
           {tabConfig.showAutostart && <AutostartToggle />}

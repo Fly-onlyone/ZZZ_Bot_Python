@@ -1,20 +1,16 @@
 import { DataLoader } from "../services";
-import { useLocation } from "react-router-dom";
 import DoneIcon from "@mui/icons-material/Done";
 import CloseIcon from "@mui/icons-material/Close";
 import { DataGrid } from "@mui/x-data-grid";
 import { Button } from "@mui/material";
 import { useEffect, useState } from "react";
 import RedeemIcon from "@mui/icons-material/Redeem";
-import { EmptyState, SaveButton } from "../components";
+import { EmptyState, RedeemSkeleton, SaveButton } from "../components";
 import { logInfo, logWarn } from "../services/sentryLogger.js";
 
 export default function Redeem() {
-  const location = useLocation();
-  const route = location.pathname.replace("/", "");
-
   const { useRouteData, useSaveData } = DataLoader();
-  const { data: redeemList = [], error } = useRouteData(route);
+  const { data: redeemList = [], isLoading, error } = useRouteData("redeem");
   const { mutate: saveData } = useSaveData("redeem");
 
   const [rows, setRows] = useState([]);
@@ -90,6 +86,10 @@ export default function Redeem() {
       },
     });
   };
+
+  if (isLoading && redeemList.length === 0) {
+    return <RedeemSkeleton />;
+  }
 
   if (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

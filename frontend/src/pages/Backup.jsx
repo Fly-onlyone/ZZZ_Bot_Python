@@ -24,7 +24,7 @@ import {
   IconInfoCircle,
 } from "@tabler/icons-react";
 
-import { SectionCard } from "../components";
+import { BackupSkeleton, SectionCard } from "../components";
 import { BACKEND_URL } from "../config";
 import { DataLoader } from "../services";
 import { logError, logInfo } from "../services/sentryLogger.js";
@@ -72,19 +72,9 @@ const cardVariants = {
   }),
 };
 
-function DataSummary() {
-  const { useRouteData } = DataLoader();
-  const { data: summary, isLoading } = useRouteData("backup/summary");
+function DataSummary({ summary }) {
   /** @type {BackupSummary} */
   const resolvedSummary = summary || {};
-
-  if (isLoading || !summary) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        Loading summary...
-      </Typography>
-    );
-  }
 
   /** @type {React.ReactNode[]} */
   const summaryRows = ALL_COLLECTIONS.map((name) => {
@@ -400,6 +390,10 @@ export default function Backup() {
    * }} BackupAlertState
    */
 
+  const { useRouteData } = DataLoader();
+  const { data: summary, isLoading: isSummaryLoading } =
+    useRouteData("backup/summary");
+
   /** @type {[BackupAlertState, React.Dispatch<React.SetStateAction<BackupAlertState>>]} */
   const [alert, setAlert] = useState({
     open: false,
@@ -409,6 +403,10 @@ export default function Backup() {
 
   const showAlert = (type, message) => setAlert({ open: true, type, message });
   const handleAlertClose = () => setAlert({ ...alert, open: false });
+
+  if (isSummaryLoading && !summary) {
+    return <BackupSkeleton />;
+  }
 
   return (
     <div className="space-y-6">
@@ -423,7 +421,7 @@ export default function Backup() {
           icon={<IconInfoCircle size={24} color="#ffffff" />}
           colorScheme="primary"
         >
-          <DataSummary />
+          <DataSummary summary={summary} />
         </SectionCard>
       </motion.div>
 

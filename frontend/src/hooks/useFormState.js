@@ -18,7 +18,7 @@ import { logInfo, logWarn } from "../services/sentryLogger.js";
  *   - mutation: React Query mutation object
  *   - route: Current route name
  */
-export function useFormState() {
+export function useFormState(routeOverride) {
   const [alert, setAlert] = useState({
     open: false,
     type: "success",
@@ -26,7 +26,7 @@ export function useFormState() {
   });
 
   const location = useLocation();
-  const route = location.pathname.replace("/", "");
+  const route = routeOverride || location.pathname.replace("/", "");
   const queryClient = useQueryClient();
 
   const { useRouteData, useSaveData } = DataLoader();

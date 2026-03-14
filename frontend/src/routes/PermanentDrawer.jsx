@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   BrowserRouter,
   Navigate,
@@ -6,22 +6,24 @@ import {
   Routes,
   useLocation,
 } from "react-router-dom";
-import { Box, CircularProgress, CssBaseline, Toolbar, Typography } from "@mui/material";
-import { AnimatePresence, motion } from "framer-motion";
-import PersonIcon from "@mui/icons-material/Person";
-import PasswordIcon from "@mui/icons-material/Password";
-import CampaignIcon from "@mui/icons-material/Campaign";
-
-import { AppHeader, NavigationDrawer, ValueAdapter } from "../components";
-import { BACKEND_URL } from "../config";
 import {
-  Backup,
-  Logs,
-  ManualLogin,
+  Box,
+  CircularProgress,
+  CssBaseline,
+  Toolbar,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import { AnimatePresence, motion } from "framer-motion";
+
+import { AppHeader, NavigationDrawer } from "../components";
+import {
+  AccountPage,
   Overview,
-  Redeem,
   SettingsPage,
   Shopping,
+  ToolsPage,
 } from "../pages";
 import { DataLoader } from "../services";
 import { useThemeContext } from "../theme/ThemeContext";
@@ -33,16 +35,7 @@ import { logInfo, logWarn } from "../services/sentryLogger.js";
 const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes);
 
 // Route order determines slide direction for page transitions
-const ROUTE_ORDER = [
-  "/",
-  "/shopping",
-  "/redeem",
-  "/account",
-  "/manual",
-  "/logs",
-  "/backup",
-  "/settings",
-];
+const ROUTE_ORDER = ["/", "/shopping", "/account", "/settings", "/tools"];
 
 function useTransitionDirection() {
   const location = useLocation();
@@ -87,6 +80,30 @@ const directionalPageVariants = {
     },
   }),
 };
+
+function RouteTransition({ children, direction, fillHeight = false }) {
+  return (
+    <motion.div
+      variants={directionalPageVariants}
+      custom={direction}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      style={
+        fillHeight
+          ? {
+              height: "100%",
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+            }
+          : undefined
+      }
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 function StartupStatus({ isLoading, error }) {
   const message = isLoading ? "Starting backend..." : "Waiting for backend...";
@@ -133,140 +150,41 @@ function AnimatedRoutes() {
         <Route
           path="/"
           element={
-            <motion.div
-              variants={directionalPageVariants}
-              custom={direction}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
+            <RouteTransition direction={direction}>
               <Overview />
-            </motion.div>
-          }
-        />
-        <Route
-          path="/account"
-          element={
-            <motion.div
-              variants={directionalPageVariants}
-              custom={direction}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <ValueAdapter
-                customSections={{
-                  "HoYo Account": {
-                    icon: (
-                      <img
-                        src={`${BACKEND_URL}/images/Hoyo.png`}
-                        alt="HoYoLab"
-                        style={{
-                          width: "1.5rem",
-                          height: "1.5rem",
-                          borderRadius: "4px",
-                        }}
-                      />
-                    ),
-                    fields: ["hoyo_username", "hoyo_password"],
-                  },
-                  "Apprise Notification": {
-                    icon: <CampaignIcon />,
-                    fields: ["username", "app_password"],
-                  },
-                }}
-                customIcons={{
-                  hoyo_username: <PersonIcon />,
-                  hoyo_password: <PasswordIcon />,
-                  username: <PersonIcon />,
-                  app_password: <PasswordIcon />,
-                }}
-              />
-            </motion.div>
+            </RouteTransition>
           }
         />
         <Route
           path="/shopping"
           element={
-            <motion.div
-              variants={directionalPageVariants}
-              custom={direction}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
+            <RouteTransition direction={direction}>
               <Shopping />
-            </motion.div>
+            </RouteTransition>
           }
         />
         <Route
-          path="/redeem"
+          path="/account"
           element={
-            <motion.div
-              variants={directionalPageVariants}
-              custom={direction}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <Redeem />
-            </motion.div>
-          }
-        />
-        <Route
-          path="/manual"
-          element={
-            <motion.div
-              variants={directionalPageVariants}
-              custom={direction}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <ManualLogin />
-            </motion.div>
-          }
-        />
-        <Route
-          path="/logs"
-          element={
-            <motion.div
-              variants={directionalPageVariants}
-              custom={direction}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <Logs />
-            </motion.div>
-          }
-        />
-        <Route
-          path="/backup"
-          element={
-            <motion.div
-              variants={directionalPageVariants}
-              custom={direction}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <Backup />
-            </motion.div>
+            <RouteTransition direction={direction}>
+              <AccountPage />
+            </RouteTransition>
           }
         />
         <Route
           path="/settings"
           element={
-            <motion.div
-              variants={directionalPageVariants}
-              custom={direction}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
+            <RouteTransition direction={direction}>
               <SettingsPage />
-            </motion.div>
+            </RouteTransition>
+          }
+        />
+        <Route
+          path="/tools"
+          element={
+            <RouteTransition direction={direction} fillHeight>
+              <ToolsPage />
+            </RouteTransition>
           }
         />
         <Route path="*" element={<Navigate to="/settings" />} />
@@ -284,6 +202,9 @@ function PermanentDrawerContent() {
   const { prefetchAllRoutes, useBackendHealth } = DataLoader();
   const { themeColors } = useThemeContext();
   const { zoomLevel } = useZoom();
+  const muiTheme = useTheme();
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const {
     data: healthData,
     error: backendHealthError,
@@ -291,6 +212,7 @@ function PermanentDrawerContent() {
     isFetching: isBackendHealthFetching,
   } = useBackendHealth();
   const isBackendReady = healthData?.status === "ok";
+  const scaledViewportHeight = `calc(100dvh / ${zoomLevel})`;
 
   useTaskEvents({ enabled: isBackendReady });
 
@@ -333,7 +255,9 @@ function PermanentDrawerContent() {
     <Box
       className="flex"
       sx={{
-        minHeight: "100vh",
+        width: "100%",
+        height: scaledViewportHeight,
+        overflow: "hidden",
         background: themeColors.gradients.background,
         backgroundAttachment: "fixed",
         backgroundSize: "cover",
@@ -341,25 +265,46 @@ function PermanentDrawerContent() {
       }}
     >
       <CssBaseline />
-      <AppHeader />
-      <NavigationDrawer />
+      <AppHeader
+        isMobile={isMobile}
+        onMenuClick={() => setMobileDrawerOpen(true)}
+      />
+      <NavigationDrawer
+        isMobile={isMobile}
+        open={mobileDrawerOpen}
+        onClose={() => setMobileDrawerOpen(false)}
+      />
       <Box
         component="main"
         sx={{
           flexGrow: 1,
+          minWidth: 0,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
           p: { xs: 2, sm: 3, md: 4, lg: 6 },
-          overflow: "auto",
+          overflowY: "auto",
+          overflowX: "hidden",
         }}
       >
         <Toolbar />
-        {isBackendReady ? (
-          <AnimatedRoutes />
-        ) : (
-          <StartupStatus
-            isLoading={isBackendHealthLoading || isBackendHealthFetching}
-            error={backendHealthError}
-          />
-        )}
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {isBackendReady ? (
+            <AnimatedRoutes />
+          ) : (
+            <StartupStatus
+              isLoading={isBackendHealthLoading || isBackendHealthFetching}
+              error={backendHealthError}
+            />
+          )}
+        </Box>
       </Box>
     </Box>
   );

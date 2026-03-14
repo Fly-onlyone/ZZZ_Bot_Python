@@ -21,7 +21,8 @@ import ArticleIcon from "@mui/icons-material/Article";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
 import SectionCard from "../components/common/SectionCard.jsx";
-import { BACKEND_URL } from "../config/constants.js";
+import { LogsSkeleton } from "../components";
+import { BACKEND_URL } from "../config";
 import { COMMON_COLORS } from "../theme/colors.js";
 import { useThemeContext } from "../theme/ThemeContext.jsx";
 
@@ -147,16 +148,20 @@ export default function Logs() {
     [entries]
   );
 
+  if (isLoading && !data) {
+    return <LogsSkeleton />;
+  }
+
   const toggleLevel = (lvl) =>
     setSelectedLevels((prev) =>
       prev.includes(lvl) ? prev.filter((l) => l !== lvl) : [...prev, lvl]
     );
 
-  // 112px = Toolbar spacer (64) + page padding-top (24) + page padding-bottom (24)
   return (
     <Box
       sx={{
-        height: "calc(100vh - 112px)",
+        flex: 1,
+        minHeight: 0,
         display: "flex",
         flexDirection: "column",
       }}
@@ -188,6 +193,7 @@ export default function Logs() {
           {/* File selector */}
           <FormControl size="small" sx={{ minWidth: 180 }}>
             <Select
+              variant="outlined"
               value={selectedFile}
               onChange={(e) => setSelectedFile(e.target.value)}
               displayEmpty
@@ -244,14 +250,16 @@ export default function Logs() {
             placeholder="Search…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon
-                    sx={{ fontSize: 18, color: COMMON_COLORS.text.muted }}
-                  />
-                </InputAdornment>
-              ),
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon
+                      sx={{ fontSize: 18, color: COMMON_COLORS.text.muted }}
+                    />
+                  </InputAdornment>
+                ),
+              },
             }}
             sx={{ flex: 1, minWidth: 160, maxWidth: 280 }}
           />

@@ -1,27 +1,61 @@
 import React, { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { Box, Grid2, Typography } from "@mui/material";
-import { useLocation } from "react-router-dom";
-import { DataLoader } from "../services";
+import { Box, Grid2, Tab, Tabs, Typography } from "@mui/material";
+import { AnimatePresence, motion } from "framer-motion";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import { EmptyState, SaveButton, SortableSelectedItems } from "../components";
+import { DataLoader } from "../services";
+import {
+  EmptyState,
+  SaveButton,
+  ShoppingSkeleton,
+  SortableSelectedItems,
+} from "../components";
 import { useShoppingState } from "../hooks";
 import { logInfo, logWarn } from "../services/sentryLogger.js";
+import Redeem from "./Redeem";
+import Hunt from "../content/Hunt";
+import { useThemeContext } from "../theme/ThemeContext";
+import { COMMON_COLORS } from "../theme/colors";
 
-export default function Shopping() {
+const panelVariants = {
+  initial: (direction) => ({
+    opacity: 0,
+    x: direction * 20,
+    scale: 0.995,
+  }),
+  animate: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 140,
+      damping: 22,
+      mass: 0.9,
+    },
+  },
+  exit: (direction) => ({
+    opacity: 0,
+    x: direction * -20,
+    scale: 0.995,
+    transition: {
+      duration: 0.18,
+      ease: "easeInOut",
+    },
+  }),
+};
+
+function ShoppingItems() {
   const [alert, setAlert] = useState({
     open: false,
     type: "success",
     message: "",
   });
 
-  const location = useLocation();
-  const route = location.pathname.replace("/", "");
   const { useRouteData, useSaveData } = DataLoader();
-  const { data: shopping, error } = useRouteData(route);
-  const mutation = useSaveData(route);
+  const { data: shopping, error } = useRouteData("shopping");
+  const mutation = useSaveData("shopping");
 
-  // Use custom hooks for state management
   const {
     selectedRows,
     huntItems,
@@ -54,7 +88,7 @@ export default function Shopping() {
   }, [error]);
 
   if (!shopping) {
-    return <Typography>Loading...</Typography>;
+    return <ShoppingSkeleton />;
   }
   if (error) {
     return <Typography>Error loading data: {error.message}</Typography>;
@@ -75,7 +109,6 @@ export default function Shopping() {
 
   // Convert shopping data into rows and add purchased items
   const rows = [
-    // Add purchased items first
     ...(shopping.Purchased || []).map((itemName) => ({
       id: itemName,
       Name: itemName,
@@ -86,7 +119,6 @@ export default function Shopping() {
         selectedRows.find((row) => row.Name === itemName)?.Priority || null,
       isPurchased: true,
     })),
-    // Add regular shopping items
     ...Object.entries(shopping["Item's list"])
       .filter(([, item]) => !(shopping.Purchased || []).includes(item.Name))
       .map(([, item]) => ({
@@ -98,7 +130,6 @@ export default function Shopping() {
       })),
   ];
 
-  // Define the columns
   const columns = [
     { field: "Name", headerName: "Name", flex: 2 },
     {
@@ -220,6 +251,78 @@ export default function Shopping() {
 
       {/* Save Button */}
       <SaveButton onSave={handleSave} alert={alert} setAlert={setAlert} />
+    </Box>
+  );
+}
+
+export default function Shopping() {
+  const [activeTab, setActiveTab] = useState(0);
+  const [tabDirection, setTabDirection] = useState(1);
+  const { themeColors } = useThemeContext();
+
+  const handleTabChange = (_, newValue) => {
+    setTabDirection(newValue >= activeTab ? 1 : -1);
+    setActiveTab(newValue);
+  };
+
+  return (
+    <Box>
+      <Tabs
+        value={activeTab}
+        onChange={handleTabChange}
+        centered
+        sx={{
+          mb: 3,
+          minHeight: 48,
+          "& .MuiTabs-indicator": { display: "none" },
+          "& .MuiTab-root": {
+            minHeight: 48,
+            minWidth: "auto",
+            px: 2.5,
+            color: COMMON_COLORS.text.muted,
+            fontWeight: 600,
+            textTransform: "none",
+            position: "relative",
+            "&::after": {
+              content: '""',
+              position: "absolute",
+              left: 12,
+              right: 12,
+              bottom: 0,
+              height: 3,
+              borderRadius: "999px",
+              backgroundColor: "transparent",
+              transition: "background-color 0.2s ease",
+            },
+            "&.Mui-selected": {
+              color: themeColors.primary.light,
+            },
+            "&.Mui-selected::after": {
+              backgroundColor: themeColors.primary.main,
+            },
+          },
+        }}
+      >
+        <Tab label="Items" />
+        <Tab label="Redeem Codes" />
+        <Tab label="Hunt Mode" />
+      </Tabs>
+
+      <AnimatePresence mode="wait" initial={false} custom={tabDirection}>
+        <Box
+          key={activeTab}
+          component={motion.div}
+          custom={tabDirection}
+          variants={panelVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+        >
+          {activeTab === 0 && <ShoppingItems />}
+          {activeTab === 1 && <Redeem />}
+          {activeTab === 2 && <Hunt />}
+        </Box>
+      </AnimatePresence>
     </Box>
   );
 }
