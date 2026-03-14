@@ -1,18 +1,10 @@
 import React from "react";
 import { motion } from "framer-motion";
 import Mission from "../content/Mission";
-import RunningStatus from "../content/RunningStatus";
-import Hunt from "../content/Hunt";
-import {
-  IconActivity,
-  IconReportAnalytics,
-  IconTarget,
-} from "@tabler/icons-react";
+import { CompactRunningStatus } from "../content/RunningStatus";
+import { IconReportAnalytics } from "@tabler/icons-react";
 import { SectionCard } from "../components";
 
-/**
- * Animation variants for staggered card animations
- */
 const cardVariants = {
   hidden: { opacity: 0, y: 20, scale: 0.95 },
   visible: (i) => ({
@@ -30,6 +22,8 @@ const cardVariants = {
 export default function Overview() {
   return (
     <div className="space-y-6">
+      <CompactRunningStatus />
+
       <motion.div
         custom={0}
         variants={cardVariants}
@@ -42,36 +36,6 @@ export default function Overview() {
           colorScheme="primary"
         >
           <Mission />
-        </SectionCard>
-      </motion.div>
-
-      <motion.div
-        custom={1}
-        variants={cardVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <SectionCard
-          title="Hunt Mode"
-          icon={<IconTarget size={24} color="#ffffff" />}
-          colorScheme="primary"
-        >
-          <Hunt />
-        </SectionCard>
-      </motion.div>
-
-      <motion.div
-        custom={2}
-        variants={cardVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <SectionCard
-          title="Running Status"
-          icon={<IconActivity size={24} color="#ffffff" />}
-          colorScheme="success"
-        >
-          <RunningStatus />
         </SectionCard>
       </motion.div>
     </div>

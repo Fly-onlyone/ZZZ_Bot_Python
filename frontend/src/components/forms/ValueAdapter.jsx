@@ -22,10 +22,11 @@ export default function ValueAdapter({
   customSections = null,
   typeConfig = {},
   extraActions = [],
+  route,
 }) {
   const { themeColors } = useThemeContext();
   const { value, error, handleChange, handleSubmit, alert, setAlert } =
-    useFormState();
+    useFormState(route);
   const { renderField } = useFieldRenderer(typeConfig);
   const [actionLoading, setActionLoading] = React.useState({});
   /** @type {{key: string, label: string, onClick: Function, successMessage?: string | Function, errorMessage?: string}[]} */

@@ -4,11 +4,13 @@ import {
   Box,
   Button,
   Chip,
+  IconButton,
   Popover,
   Toolbar,
   Typography,
 } from "@mui/material";
 import zIndex from "@mui/material/styles/zIndex";
+import MenuIcon from "@mui/icons-material/Menu";
 import { COMMON_COLORS } from "../../theme/colors";
 import { TRANSITIONS } from "../../theme/styles";
 import { useThemeContext } from "../../theme/ThemeContext";
@@ -68,8 +70,9 @@ function ZoomChip({ zoomPercent, onRestore }) {
  * AppHeader Component
  *
  * Application header bar with logo, title, theme picker, and zoom indicator.
+ * Shows hamburger menu on mobile.
  */
-export default function AppHeader() {
+export default function AppHeader({ isMobile = false, onMenuClick }) {
   const { themeColors } = useThemeContext();
   const { zoomLevel, resetZoom } = useZoom();
   const Qingyi02 = "/Qingyi02.ico";
@@ -78,8 +81,19 @@ export default function AppHeader() {
   return (
     <AppBar position="fixed" sx={{ zIndex: zIndex.drawer + 1 }}>
       <Toolbar className="relative flex items-center justify-center">
-        {/* App Icon */}
+        {/* Left: Hamburger (mobile) or App Icon (desktop) */}
         <div className="absolute left-4 flex items-center gap-2">
+          {isMobile && (
+            <IconButton
+              color="inherit"
+              aria-label="Open navigation menu"
+              edge="start"
+              onClick={onMenuClick}
+              sx={{ color: COMMON_COLORS.text.primary }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
           <Box
             sx={{
               width: 48,

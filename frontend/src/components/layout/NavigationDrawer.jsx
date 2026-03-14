@@ -12,11 +12,9 @@ import {
 import { motion } from "framer-motion";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import ArticleIcon from "@mui/icons-material/Article";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import RedeemIcon from "@mui/icons-material/Redeem";
-import { IconDatabaseExport, IconLogin2 } from "@tabler/icons-react";
+import BuildIcon from "@mui/icons-material/Build";
 import { COMMON_COLORS } from "../../theme/colors";
 import { TRANSITIONS } from "../../theme/styles";
 import { useThemeContext } from "../../theme/ThemeContext";
@@ -28,12 +26,9 @@ import { DRAWER_WIDTH } from "../../config";
 const tabs = [
   { label: "Overview", icon: <DashboardIcon />, path: "/" },
   { label: "Shopping", icon: <ShoppingCartIcon />, path: "/shopping" },
-  { label: "Redeem", icon: <RedeemIcon />, path: "/redeem" },
   { label: "Account", icon: <AccountCircleIcon />, path: "/account" },
-  { label: "Manual Login", icon: <IconLogin2 />, path: "/manual" },
-  { label: "Logs", icon: <ArticleIcon />, path: "/logs" },
-  { label: "Backup", icon: <IconDatabaseExport />, path: "/backup" },
   { label: "Settings", icon: <SettingsIcon />, path: "/settings" },
+  { label: "Tools", icon: <BuildIcon />, path: "/tools" },
 ];
 
 /**
@@ -66,14 +61,25 @@ const listItemVariants = {
  * NavigationDrawer Component
  *
  * Side navigation drawer with route links.
- * Highlights the active route and provides smooth navigation.
+ * Supports permanent (desktop) and temporary (mobile) variants.
  */
-const NavigationDrawer = memo(function NavigationDrawer() {
+const NavigationDrawer = memo(function NavigationDrawer({
+  isMobile = false,
+  open = false,
+  onClose,
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { themeColors } = useThemeContext();
 
   const isActive = (path) => location.pathname === path;
+
+  const handleNavClick = (path) => {
+    navigate(path);
+    if (isMobile && onClose) {
+      onClose();
+    }
+  };
 
   // Memoize style functions to prevent recreating objects on every render
   const getListItemStyles = useMemo(
@@ -137,6 +143,59 @@ const NavigationDrawer = memo(function NavigationDrawer() {
     [location.pathname]
   );
 
+  const drawerContent = (
+    <Box className="overflow-auto">
+      <List sx={{ px: 1 }} role="navigation" aria-label="Main navigation">
+        {tabs.map((tab, index) => (
+          <motion.div
+            key={tab.label}
+            custom={index}
+            variants={listItemVariants}
+            initial="hidden"
+            animate="visible"
+            whileHover="hover"
+            whileTap="tap"
+          >
+            <ListItemButton
+              onClick={() => handleNavClick(tab.path)}
+              aria-label={`Navigate to ${tab.label}`}
+              aria-current={isActive(tab.path) ? "page" : undefined}
+              sx={getListItemStyles(tab.path)}
+            >
+              <ListItemIcon sx={getIconStyles(tab.path)}>
+                {tab.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={tab.label}
+                sx={getTextStyles(tab.path)}
+                className="overflow-hidden text-ellipsis whitespace-nowrap"
+              />
+            </ListItemButton>
+          </motion.div>
+        ))}
+      </List>
+    </Box>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer
+        variant="temporary"
+        open={open}
+        onClose={onClose}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          [`& .MuiDrawer-paper`]: {
+            width: DRAWER_WIDTH,
+            boxSizing: "border-box",
+          },
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+    );
+  }
+
   return (
     <Drawer
       className="w-60 shrink-0"
@@ -149,37 +208,7 @@ const NavigationDrawer = memo(function NavigationDrawer() {
       }}
     >
       <Toolbar />
-      <Box className="overflow-auto">
-        <List sx={{ px: 1 }} role="navigation" aria-label="Main navigation">
-          {tabs.map((tab, index) => (
-            <motion.div
-              key={tab.label}
-              custom={index}
-              variants={listItemVariants}
-              initial="hidden"
-              animate="visible"
-              whileHover="hover"
-              whileTap="tap"
-            >
-              <ListItemButton
-                onClick={() => navigate(tab.path)}
-                aria-label={`Navigate to ${tab.label}`}
-                aria-current={isActive(tab.path) ? "page" : undefined}
-                sx={getListItemStyles(tab.path)}
-              >
-                <ListItemIcon sx={getIconStyles(tab.path)}>
-                  {tab.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={tab.label}
-                  sx={getTextStyles(tab.path)}
-                  className="overflow-hidden text-ellipsis whitespace-nowrap"
-                />
-              </ListItemButton>
-            </motion.div>
-          ))}
-        </List>
-      </Box>
+      {drawerContent}
     </Drawer>
   );
 });
