@@ -33,6 +33,14 @@ from . import ShoppingHandler
 
 logger = logging.getLogger(__name__)
 
+
+def _safe_track(page, selector: str, action: str, success: bool, *, error_message: str | None = None) -> None:
+    try:
+        from automation.LocatorTracker import track_locator
+        track_locator(page, selector, "HuntModeHandler", action, success, error_message=error_message)
+    except Exception:
+        pass
+
 # Wait buffer time before item becomes available (in seconds)
 WAIT_BUFFER_SECONDS = 120  # Open shopping screen 2 minutes early
 POLL_INTERVAL_SECONDS = 1  # Check button text every 1 second
@@ -265,6 +273,9 @@ def wait_for_exchange_button(
                 logger.warning(
                     "Stopped waiting for '%s' with reason: %s", item_name, exit_reason
                 )
+            _safe_track(page, SHOPPING_ITEM_BUTTON, "wait_for", False, error_message=f"{item_name}: {exit_reason}")
+        else:
+            _safe_track(page, SHOPPING_ITEM_BUTTON, "wait_for", True)
 
         return available
 
@@ -288,6 +299,7 @@ def exchange_item_only(page: Page, item_name: str) -> Optional[str]:
 
     if item_locator.count() == 0:
         logger.warning(f"Item '{item_name}' not found on page")
+        _safe_track(page, SHOPPING_ITEM, "count", False, error_message=f"Hunt item '{item_name}' not found")
         return None
 
     try:

@@ -33,6 +33,7 @@ export const STALE_TIMES = {
   "overview/hunt": 1000 * 60 * 5, // 5 minutes (hunt mode status)
   "backup/summary": 1000 * 60 * 2, // 2 minutes (backup page metadata)
   "backup/config": 1000 * 60 * 60, // 1 hour (backup export path, rarely changes)
+  "locator-tracker": 1000 * 60 * 2, // 2 minutes (locator tracker data)
 };
 
 /**

@@ -43,6 +43,12 @@ def _ensure_indexes() -> None:
         expireAfterSeconds=30 * 24 * 60 * 60,
         name="redemptions_ttl",
     )
+    # Locator tracker: 7-day TTL
+    db.locator_tracker.create_index(
+        [("indexed_at", ASCENDING)],
+        expireAfterSeconds=7 * 24 * 60 * 60,
+        name="locator_tracker_ttl",
+    )
 
     _indexed_db_identity = current_identity
     logger.debug("MongoDB TTL indexes ensured for db=%s", db.name)
@@ -304,6 +310,44 @@ def save_last_run(data: Dict) -> None:
 
 
 # ============================================================================
+# Locator tracker
+# ============================================================================
+
+
+def upsert_locator_entry(entry: Dict) -> None:
+    """Insert or replace a locator tracking entry (keyed by _id)."""
+    _ensure_indexes()
+    doc_id = entry["_id"]
+    try:
+        get_db().locator_tracker.find_one_and_replace(
+            {"_id": doc_id}, {**entry, "indexed_at": _now_utc()}, upsert=True
+        )
+    except Exception:
+        logger.error(
+            "upsert_locator_entry: failed for _id=%s", doc_id, exc_info=True
+        )
+
+
+def get_locator_entries() -> List[Dict]:
+    """Return all locator tracker documents."""
+    _ensure_indexes()
+    results = []
+    for doc in get_db().locator_tracker.find():
+        cleaned = {k: v for k, v in doc.items() if k != "indexed_at"}
+        # Expose _id as 'id' for the frontend
+        cleaned["id"] = cleaned.pop("_id", None)
+        results.append(cleaned)
+    return results
+
+
+def clear_locator_entries() -> None:
+    """Remove all locator tracker documents."""
+    _ensure_indexes()
+    get_db().locator_tracker.delete_many({})
+    logger.info("clear_locator_entries: collection cleared")
+
+
+# ============================================================================
 # Backup & Restore
 # ============================================================================
 
@@ -313,7 +357,7 @@ _BACKUP_VERSION = 1
 
 # Single-document collections use their save_*() helper directly
 _SINGLE_DOC_COLLECTIONS = {"settings", "account", "shopping", "last_run"}
-_MULTI_DOC_COLLECTIONS = {"missions", "redemptions"}
+_MULTI_DOC_COLLECTIONS = {"missions", "redemptions", "locator_tracker"}
 _ALL_COLLECTIONS = _SINGLE_DOC_COLLECTIONS | _MULTI_DOC_COLLECTIONS
 
 _SINGLE_DOC_GETTERS: Dict[str, Any] = {

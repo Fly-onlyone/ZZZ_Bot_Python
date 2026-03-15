@@ -54,6 +54,7 @@ INTERNAL_ROUTE_PREFIXES = {
     "/maintenance",
     "/backup",
     "/events",
+    "/locator-tracker",
 }
 SHUTDOWN_RESPONSE_DELAY_SECONDS = 0.2
 SHUTDOWN_SENTRY_FLUSH_TIMEOUT_SECONDS = 2.0
@@ -240,6 +241,28 @@ def get_screenshot_asset(filename: str):
         media_type="image/png",
         headers={"Cache-Control": "no-store"},
     )
+
+
+# ============================================================================
+# LOCATOR TRACKER ROUTES
+# ============================================================================
+
+
+@router.get("/locator-tracker")
+def get_locator_tracker():
+    """Return all locator tracking entries."""
+    from automation.LocatorTracker import get_all_entries
+
+    return get_all_entries()
+
+
+@router.post("/locator-tracker/clear")
+def clear_locator_tracker():
+    """Clear all locator tracking entries."""
+    from automation.LocatorTracker import clear_entries
+
+    clear_entries()
+    return {"message": "Locator tracker cleared"}
 
 
 # ============================================================================

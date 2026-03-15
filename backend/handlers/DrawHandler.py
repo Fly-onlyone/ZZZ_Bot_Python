@@ -20,6 +20,14 @@ from utils.StringUtil import extract_price, extract_number
 
 logger = logging.getLogger(__name__)
 
+
+def _safe_track(page: Page, selector: str, action: str, success: bool, *, error_message: str | None = None) -> None:
+    try:
+        from automation.LocatorTracker import track_locator
+        track_locator(page, selector, "DrawHandler", action, success, error_message=error_message)
+    except Exception:
+        pass
+
 # Selector constants
 DRAW_BUTTON_INDEX = 2  # nth image role
 SCREEN_SELECTOR = ".panelTitle-6aEu3I"
@@ -59,9 +67,11 @@ def _draw_screen_ready(page: Page) -> bool:
     """Return whether the draw screen is visibly open and interactive."""
     prize_screen = page.locator(SCREEN_SELECTOR).filter(has_text=SCREEN_TEXT)
     draw_button = page.locator(DRAW_BUTTON_SELECTOR)
-    return EventNavigator.is_locator_visible(
-        prize_screen
-    ) and EventNavigator.is_locator_visible(draw_button)
+    screen_visible = EventNavigator.is_locator_visible(prize_screen)
+    button_visible = EventNavigator.is_locator_visible(draw_button)
+    result = screen_visible and button_visible
+    _safe_track(page, SCREEN_SELECTOR, "visibility_check", result)
+    return result
 
 
 def _draw_launcher_candidates(page: Page):
@@ -129,6 +139,7 @@ def _wait_for_success_dialog(page: Page, draw_number: int) -> Optional[Locator]:
         "Draw %s: Success dialog did not become visible after clicking draw",
         draw_number,
     )
+    _safe_track(page, SUCCESS_DIALOG_SELECTOR, "wait_for", False, error_message=f"Draw {draw_number}: dialog not visible")
     return None
 
 
@@ -186,6 +197,10 @@ def _find_reward_image(success_dialog: Locator, draw_number: int) -> Optional[Lo
     logger.warning(
         f"Draw {draw_number}: Could not find reward image after trying all selectors with escalating timeouts"
     )
+    try:
+        _safe_track(success_dialog.page, REWARD_IMAGE_SELECTOR, "wait_for", False, error_message=f"Draw {draw_number}: reward image not found")
+    except Exception:
+        pass
     return None
 
 
@@ -471,6 +486,7 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
         # Verify button is visible
         if not draw_button.is_visible(timeout=3000):
             logger.error(f"Draw {draw_number}: Draw button not visible")
+            _safe_track(page, DRAW_BUTTON_SELECTOR, "visibility_check", False, error_message=f"Draw {draw_number}: not visible")
             return False
 
         # Note: is_enabled() check removed - the button appears enabled even when
