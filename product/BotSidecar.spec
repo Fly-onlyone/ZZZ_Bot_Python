@@ -21,6 +21,15 @@ hiddenimports = [
     "_tkinter",
 ]
 hiddenimports += collect_submodules("apprise.plugins.email")
+datas += collect_data_files(
+    "apprise",
+    include_py_files=True,
+    includes=[
+        "plugins/__init__.py",
+        "plugins/base.py",
+        "plugins/email/**/*",
+    ],
+)
 
 # NumPy 2.x wheels on Windows ship hashed DLLs in numpy.libs (OpenBLAS/MSVCP).
 datas += collect_data_files("numpy")
