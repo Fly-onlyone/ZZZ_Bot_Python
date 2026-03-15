@@ -6,6 +6,7 @@ Handles daily check-ins, mission completion, and reward collection.
 import logging
 import re
 import time
+from contextlib import suppress
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -13,6 +14,7 @@ from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeout
 
 from automation import RetryHelper
 from automation.ImageProcessor import ImageProcessor, find_correct_avatar
+from automation.tracking import safe_track
 from core.constants import PANEL_BACK_SELECTOR
 from utils.DataHandler import maintain_mission_data
 from utils.NotificationHelper import NotificationModule
@@ -20,32 +22,6 @@ from utils.screenshot_store import save_locator_screenshot, save_page_screenshot
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
-
-def _safe_track(
-    page: Page,
-    selector: str,
-    action: str,
-    success: bool,
-    *,
-    error_message: str | None = None,
-    locator=None,
-) -> None:
-    try:
-        from automation.LocatorTracker import track_locator
-
-        track_locator(
-            page,
-            selector,
-            "MissionHandler",
-            action,
-            success,
-            error_message=error_message,
-            locator=locator,
-        )
-    except Exception:
-        pass
-
 
 # Constants
 CHECK_IN_URL = "https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html"
@@ -99,12 +75,20 @@ def _close_dialog_if_visible(page: Page) -> None:
         close_btn = page.locator(DIALOG_CLOSE_SELECTOR)
         if close_btn.is_visible(timeout=1000):
             close_btn.click()
-            _safe_track(page, DIALOG_CLOSE_SELECTOR, "click", True, locator=close_btn)
-            logger.info("Closed popup dialog")
-        else:
-            _safe_track(
+            safe_track(
                 page,
                 DIALOG_CLOSE_SELECTOR,
+                "MissionHandler",
+                "click",
+                True,
+                locator=close_btn,
+            )
+            logger.info("Closed popup dialog")
+        else:
+            safe_track(
+                page,
+                DIALOG_CLOSE_SELECTOR,
+                "MissionHandler",
                 "visibility_check",
                 False,
                 locator=close_btn,
@@ -117,10 +101,9 @@ def _close_dialog_if_visible(page: Page) -> None:
 
 def _locator_is_visible(locator: Locator, timeout: int = 500) -> bool:
     """Return whether the first locator match is visible without raising."""
-    try:
+    with suppress(Exception):
         return locator.first.is_visible(timeout=timeout)
-    except Exception:
-        return False
+    return False
 
 
 def _set_check_in_status(
@@ -341,9 +324,10 @@ def handle_check_in(new_page: Page, todays_data: Dict) -> None:
 
         if readiness != CHECK_IN_READY:
             reason = f"Check-in popup opened but '{day_text}' never became actionable"
-            _safe_track(
+            safe_track(
                 new_page,
                 DIALOG_BODY_SELECTOR,
+                "MissionHandler",
                 "visibility_check",
                 False,
                 error_message=reason,
@@ -413,9 +397,10 @@ def handle_check_in(new_page: Page, todays_data: Dict) -> None:
             )
         else:
             reason = f"Check-in popup opened but clicking '{day_text}' did not produce success"
-            _safe_track(
+            safe_track(
                 new_page,
                 DIALOG_BODY_SELECTOR,
+                "MissionHandler",
                 "visibility_check",
                 False,
                 locator=success_msg,
@@ -531,9 +516,10 @@ class Mission:
             except PlaywrightTimeoutError:
                 logger.warning(f"Mission button not enabled on attempt {attempt}")
                 if attempt == max_retries:
-                    _safe_track(
+                    safe_track(
                         self.page,
                         TASK_ITEM_SELECTOR,
+                        "MissionHandler",
                         "click",
                         False,
                         error_message="Button not enabled after max retries",
@@ -598,17 +584,23 @@ def open_mission_screen(page: Page) -> bool:
     success = RetryHelper.retry_until_screen_appears(target_screen, mission_button)
     if success:
         logger.info("Mission screen opened successfully")
-        _safe_track(
-            page, PANEL_BACK_SELECTOR, "visibility_check", True, locator=target_screen
+        safe_track(
+            page,
+            PANEL_BACK_SELECTOR,
+            "MissionHandler",
+            "visibility_check",
+            True,
+            locator=target_screen,
         )
     else:
         logger.warning(
             "Mission screen did not open after clicking launcher text '%s'",
             MISSION_BUTTON_TEXT,
         )
-        _safe_track(
+        safe_track(
             page,
             PANEL_BACK_SELECTOR,
+            "MissionHandler",
             "visibility_check",
             False,
             locator=target_screen,
@@ -631,9 +623,10 @@ def count_mission(page: Page) -> int:
 
     if not avatar:
         logger.warning("ZZZ avatar not found, no missions available")
-        _safe_track(
+        safe_track(
             page,
             AVATAR_SELECTOR,
+            "MissionHandler",
             "visibility_check",
             False,
             error_message="ZZZ avatar not found",
@@ -641,15 +634,16 @@ def count_mission(page: Page) -> int:
         return 0
 
     avatar.click()
-    _safe_track(page, AVATAR_SELECTOR, "click", True, locator=avatar)
+    safe_track(page, AVATAR_SELECTOR, "MissionHandler", "click", True, locator=avatar)
     logger.info("Clicked on ZZZ avatar")
 
     mission_items = page.locator(TASK_ITEM_SELECTOR)
     count = RetryHelper.retry_until_non_zero_count(mission_items)
 
-    _safe_track(
+    safe_track(
         page,
         TASK_ITEM_SELECTOR,
+        "MissionHandler",
         "count",
         count > 0,
         locator=mission_items,
@@ -727,9 +721,10 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
             logger.info(f"Mission name: {mission_name}")
         except Exception as e:
             logger.error(f"Failed to get mission name: {e}")
-            _safe_track(
+            safe_track(
                 page,
                 mission_text_selector,
+                "MissionHandler",
                 "inner_text",
                 False,
                 locator=mission_text_loc,

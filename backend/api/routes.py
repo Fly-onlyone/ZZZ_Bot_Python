@@ -226,19 +226,19 @@ async def get_routes():
 @router.get("/assets/screenshot/{filename}")
 def get_screenshot_asset(filename: str):
     """Serve screenshot assets from MongoDB storage."""
-    from utils.screenshot_store import get_screenshot_bytes
+    from utils.screenshot_store import get_screenshot_asset as load_screenshot_asset
 
     safe_name = Path(filename).name
     if not safe_name:
         return JSONResponse({"message": "Invalid screenshot filename"}, status_code=400)
 
-    image_bytes = get_screenshot_bytes(safe_name)
-    if image_bytes is None:
+    asset = load_screenshot_asset(safe_name)
+    if asset is None:
         return JSONResponse({"message": "Screenshot not found"}, status_code=404)
 
     return Response(
-        content=image_bytes,
-        media_type="image/png",
+        content=asset["payload"],
+        media_type=asset["content_type"],
         headers={"Cache-Control": "no-store"},
     )
 
@@ -254,6 +254,17 @@ def get_locator_tracker():
     from automation.LocatorTracker import get_all_entries
 
     return get_all_entries()
+
+
+@router.get("/locator-tracker/failures")
+def get_locator_tracker_failures(
+    limit: int = Query(100, ge=1, le=500),
+    summary_id: str | None = Query(None),
+):
+    """Return recent locator tracker failure events."""
+    from automation.LocatorTracker import get_failure_events
+
+    return get_failure_events(limit=limit, summary_id=summary_id)
 
 
 @router.post("/locator-tracker/clear")

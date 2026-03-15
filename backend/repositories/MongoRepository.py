@@ -8,7 +8,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from pymongo import ASCENDING
+from pymongo import ASCENDING, DESCENDING
+from pymongo.errors import PyMongoError
 
 from repositories.connection import get_db
 
@@ -16,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 _indexed_db_identity: tuple[int, str] | None = None
 APP_METADATA_COLLECTION = "app_metadata"
+LOCATOR_TRACKER_FAILURES_COLLECTION = "locator_tracker_failures"
+LOCATOR_TRACKER_ASSET_OWNER = "locator_tracker"
+LOCATOR_TRACKER_TTL_SECONDS = 7 * 24 * 60 * 60
+LOCATOR_TRACKER_SCHEMA_MARKER = "locator_tracker_schema_v2"
 
 
 # ============================================================================
@@ -46,12 +51,60 @@ def _ensure_indexes() -> None:
     # Locator tracker: 7-day TTL
     db.locator_tracker.create_index(
         [("indexed_at", ASCENDING)],
-        expireAfterSeconds=7 * 24 * 60 * 60,
+        expireAfterSeconds=LOCATOR_TRACKER_TTL_SECONDS,
         name="locator_tracker_ttl",
     )
+    db[LOCATOR_TRACKER_FAILURES_COLLECTION].create_index(
+        [("indexed_at", ASCENDING)],
+        expireAfterSeconds=LOCATOR_TRACKER_TTL_SECONDS,
+        name="locator_tracker_failures_ttl",
+    )
+    db[LOCATOR_TRACKER_FAILURES_COLLECTION].create_index(
+        [("summary_id", ASCENDING), ("seen_at", DESCENDING)],
+        name="locator_tracker_failures_summary_seen_at",
+    )
+    db.binary_assets.create_index(
+        [("updated_at", ASCENDING)],
+        expireAfterSeconds=LOCATOR_TRACKER_TTL_SECONDS,
+        partialFilterExpression={"metadata.owner": LOCATOR_TRACKER_ASSET_OWNER},
+        name="locator_tracker_binary_assets_ttl",
+    )
+
+    _ensure_locator_tracker_schema(db)
 
     _indexed_db_identity = current_identity
     logger.debug("MongoDB TTL indexes ensured for db=%s", db.name)
+
+
+def _ensure_locator_tracker_schema(db) -> None:
+    marker = db[APP_METADATA_COLLECTION].find_one(
+        {"_id": LOCATOR_TRACKER_SCHEMA_MARKER},
+        {"_id": 1},
+    )
+    if marker:
+        return
+
+    try:
+        db.locator_tracker.delete_many({})
+        db[LOCATOR_TRACKER_FAILURES_COLLECTION].delete_many({})
+        db.binary_assets.delete_many(
+            {
+                "$or": [
+                    {"metadata.owner": LOCATOR_TRACKER_ASSET_OWNER},
+                    {"_id": {"$regex": r"^screenshot:locator(?:_el|_dom)?_"}},
+                    {"source_path": {"$regex": r"^locator(?:_el|_dom)?_"}},
+                ]
+            }
+        )
+        db[APP_METADATA_COLLECTION].find_one_and_replace(
+            {"_id": LOCATOR_TRACKER_SCHEMA_MARKER},
+            {"_id": LOCATOR_TRACKER_SCHEMA_MARKER, "updated_at": _now_utc()},
+            upsert=True,
+        )
+        logger.info("locator tracker schema reset completed")
+    except PyMongoError:
+        logger.error("locator tracker schema reset failed", exc_info=True)
+        raise
 
 
 def _clean(doc: Dict) -> Dict:
@@ -322,20 +375,57 @@ def upsert_locator_entry(entry: Dict) -> None:
         get_db().locator_tracker.find_one_and_replace(
             {"_id": doc_id}, {**entry, "indexed_at": _now_utc()}, upsert=True
         )
-    except Exception:
-        logger.error(
-            "upsert_locator_entry: failed for _id=%s", doc_id, exc_info=True
-        )
+    except PyMongoError:
+        logger.error("upsert_locator_entry: failed for _id=%s", doc_id, exc_info=True)
 
 
 def get_locator_entries() -> List[Dict]:
     """Return all locator tracker documents."""
     _ensure_indexes()
     results = []
-    for doc in get_db().locator_tracker.find():
+    for doc in get_db().locator_tracker.find().sort("last_seen", DESCENDING):
         cleaned = {k: v for k, v in doc.items() if k != "indexed_at"}
         # Expose _id as 'id' for the frontend
         cleaned["id"] = cleaned.pop("_id", None)
+        results.append(cleaned)
+    return results
+
+
+def save_locator_failure_event(entry: Dict) -> None:
+    """Append a single locator tracker failure event."""
+    _ensure_indexes()
+    record = {
+        **{k: v for k, v in entry.items() if k != "_id"},
+        "indexed_at": _now_utc(),
+    }
+    if "_id" in entry:
+        record["_id"] = entry["_id"]
+    try:
+        get_db()[LOCATOR_TRACKER_FAILURES_COLLECTION].insert_one(record)
+    except PyMongoError:
+        logger.error(
+            "save_locator_failure_event: failed to insert failure", exc_info=True
+        )
+
+
+def get_locator_failure_events(
+    limit: int = 100,
+    summary_id: str | None = None,
+) -> List[Dict]:
+    """Return recent locator tracker failure events."""
+    _ensure_indexes()
+    query = {"summary_id": summary_id} if summary_id else {}
+    results = []
+    cursor = (
+        get_db()[LOCATOR_TRACKER_FAILURES_COLLECTION]
+        .find(query)
+        .sort("seen_at", DESCENDING)
+        .limit(max(1, limit))
+    )
+    for doc in cursor:
+        cleaned = {k: v for k, v in doc.items() if k != "indexed_at"}
+        doc_id = cleaned.pop("_id", None)
+        cleaned["id"] = str(doc_id) if doc_id is not None else None
         results.append(cleaned)
     return results
 
@@ -344,6 +434,8 @@ def clear_locator_entries() -> None:
     """Remove all locator tracker documents."""
     _ensure_indexes()
     get_db().locator_tracker.delete_many({})
+    get_db()[LOCATOR_TRACKER_FAILURES_COLLECTION].delete_many({})
+    get_db().binary_assets.delete_many({"metadata.owner": LOCATOR_TRACKER_ASSET_OWNER})
     logger.info("clear_locator_entries: collection cleared")
 
 
@@ -357,8 +449,11 @@ _BACKUP_VERSION = 1
 
 # Single-document collections use their save_*() helper directly
 _SINGLE_DOC_COLLECTIONS = {"settings", "account", "shopping", "last_run"}
-_MULTI_DOC_COLLECTIONS = {"missions", "redemptions", "locator_tracker"}
-_ALL_COLLECTIONS = _SINGLE_DOC_COLLECTIONS | _MULTI_DOC_COLLECTIONS
+_MULTI_DOC_COLLECTIONS = {"missions", "redemptions"}
+_EPHEMERAL_COLLECTIONS = {"locator_tracker", LOCATOR_TRACKER_FAILURES_COLLECTION}
+_ALL_COLLECTIONS = (
+    _SINGLE_DOC_COLLECTIONS | _MULTI_DOC_COLLECTIONS | _EPHEMERAL_COLLECTIONS
+)
 
 _SINGLE_DOC_GETTERS: Dict[str, Any] = {
     "settings": get_settings,
@@ -413,6 +508,10 @@ def import_data(data: Dict, collections: List[str]) -> Dict:
     source = data.get("collections", {})
 
     for name in collections:
+        if name in _EPHEMERAL_COLLECTIONS:
+            report["skipped"].append(name)
+            continue
+
         if name not in _ALL_COLLECTIONS:
             report["skipped"].append(name)
             continue

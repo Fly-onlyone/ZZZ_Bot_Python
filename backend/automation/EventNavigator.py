@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import logging
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
 from playwright.sync_api import Locator, Page
 
 from .Selectors import MISSION_DIALOG_CLOSE, SHOPPING_CLOSE_BUTTON
+from .tracking import safe_track_locator
 from core.constants import PANEL_BACK_SELECTOR
 
 logger = logging.getLogger(__name__)
@@ -30,37 +32,14 @@ class PanelOpenResult:
     last_error: Exception | None = None
 
 
-def _safe_track(
-    locator: Locator, action: str, success: bool, *, error_message: str | None = None
-) -> None:
-    """Track a locator interaction without breaking existing flows."""
-    try:
-        from .LocatorTracker import track_locator, _extract_selector
-
-        selector = _extract_selector(locator)
-        page = locator.page
-        track_locator(
-            page,
-            selector,
-            "EventNavigator",
-            action,
-            success,
-            error_message=error_message,
-            locator=locator,
-        )
-    except Exception:
-        pass
-
-
 def is_locator_visible(locator: Locator, timeout: int = 1000) -> bool:
     """Return whether the first matching locator is visible without raising."""
-    try:
+    with suppress(Exception):
         result = locator.count() > 0 and locator.first.is_visible(timeout=timeout)
-        _safe_track(locator, "visibility_check", result)
+        safe_track_locator(locator, "EventNavigator", "visibility_check", result)
         return result
-    except Exception:
-        _safe_track(locator, "visibility_check", False)
-        return False
+    safe_track_locator(locator, "EventNavigator", "visibility_check", False)
+    return False
 
 
 def close_reward_dialog(
@@ -117,7 +96,6 @@ def close_panel_back(
         return False
 
     logger.info("Closing open panel while %s", context)
-    last_error = None
     for force_click in (False, True):
         try:
             page.locator(PANEL_BACK_SELECTOR).first.click(
@@ -125,13 +103,10 @@ def close_panel_back(
                 timeout=timeout,
             )
             page.wait_for_timeout(500)
-            try:
+            with suppress(Exception):
                 page.wait_for_load_state("domcontentloaded", timeout=2000)
-            except Exception:
-                pass
             return True
         except Exception as exc:
-            last_error = exc
             if not force_click:
                 logger.warning(
                     "Panel back click failed while %s (%s), retrying with force",
@@ -139,9 +114,7 @@ def close_panel_back(
                     exc,
                 )
 
-    logger.warning(
-        "Skipping panel close after click race while %s: %s", context, last_error
-    )
+    logger.warning("Skipping panel close after click race while %s", context)
     return False
 
 
@@ -204,10 +177,8 @@ def open_panel(
                 if ready_predicate():
                     return PanelOpenResult(True, candidate_name, last_error)
 
-                try:
+                with suppress(Exception):
                     page.wait_for_load_state("domcontentloaded", timeout=3000)
-                except Exception:
-                    pass
 
                 if ready_predicate():
                     return PanelOpenResult(True, candidate_name, last_error)

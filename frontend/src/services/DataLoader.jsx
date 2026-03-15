@@ -13,7 +13,7 @@ const STARTUP_RETRY_DELAY_MS = 500;
 const STARTUP_MAX_RETRY_DELAY_MS = 3000;
 const RELATED_QUERY_KEYS_BY_ROUTE = {
   settings: [["settings"]],
-  "locator-tracker/clear": [["locator-tracker"]],
+  "locator-tracker/clear": [["locator-tracker"], ["locator-tracker/failures"]],
   "backup/import": [
     ["account"],
     ["shopping"],

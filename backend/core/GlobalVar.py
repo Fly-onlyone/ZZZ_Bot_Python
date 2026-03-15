@@ -160,7 +160,7 @@ class AppSettings(Serializable):
     hunt_poll_interval_seconds: int = 1
     hunt_poll_backoff_enabled: bool = True
     hunt_early_exit_on_unavailable: bool = False
-    theme: str = "purple"  # purple, green, blue
+    theme: str = "nebula"
     sentry_dsn: str = ""  # Backend DSN (overrides SENTRY_DSN env var)
     sentry_frontend_dsn: str = ""  # Frontend DSN fallback when Vite env is unset
     sentry_send_test_event: bool = False
@@ -333,6 +333,7 @@ def _init_startup_sentry_if_configured() -> None:
                 LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
                 PyMongoIntegration(),
             ],
+            auto_enabling_integrations=False,
             traces_sample_rate=traces_sample_rate,
             enable_logs=enable_logs,
             send_default_pii=False,
