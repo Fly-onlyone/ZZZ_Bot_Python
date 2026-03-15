@@ -21,6 +21,14 @@ from utils.screenshot_store import save_locator_screenshot, save_page_screenshot
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
+def _safe_track(page: Page, selector: str, action: str, success: bool, *, error_message: str | None = None) -> None:
+    try:
+        from automation.LocatorTracker import track_locator
+        track_locator(page, selector, "MissionHandler", action, success, error_message=error_message)
+    except Exception:
+        pass
+
 # Constants
 CHECK_IN_URL = "https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html"
 CHECK_IN_URL_WITH_AUTH = (
@@ -73,7 +81,10 @@ def _close_dialog_if_visible(page: Page) -> None:
         close_btn = page.locator(DIALOG_CLOSE_SELECTOR)
         if close_btn.is_visible(timeout=1000):
             close_btn.click()
+            _safe_track(page, DIALOG_CLOSE_SELECTOR, "click", True)
             logger.info("Closed popup dialog")
+        else:
+            _safe_track(page, DIALOG_CLOSE_SELECTOR, "visibility_check", False)
     except PlaywrightTimeoutError:
         logger.debug("No dialog found to close")
     except Exception as e:
@@ -306,6 +317,7 @@ def handle_check_in(new_page: Page, todays_data: Dict) -> None:
 
         if readiness != CHECK_IN_READY:
             reason = f"Check-in popup opened but '{day_text}' never became actionable"
+            _safe_track(new_page, DIALOG_BODY_SELECTOR, "visibility_check", False, error_message=reason)
             _record_check_in_failure(
                 todays_data,
                 reason,
@@ -480,6 +492,8 @@ class Mission:
 
             except PlaywrightTimeoutError:
                 logger.warning(f"Mission button not enabled on attempt {attempt}")
+                if attempt == max_retries:
+                    _safe_track(self.page, TASK_ITEM_SELECTOR, "click", False, error_message="Button not enabled after max retries")
             except Exception as e:
                 logger.error(f"Error performing mission (attempt {attempt}): {e}")
 

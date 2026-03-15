@@ -42,6 +42,14 @@ from . import HuntModeHandler as HuntMode
 
 logger = logging.getLogger(__name__)
 
+
+def _safe_track(page: Page, selector: str, action: str, success: bool, *, error_message: str | None = None) -> None:
+    try:
+        from automation.LocatorTracker import track_locator
+        track_locator(page, selector, "ShoppingHandler", action, success, error_message=error_message)
+    except Exception:
+        pass
+
 # Constants
 SHOPPING_BUTTON_SELECTOR = 1  # nth image role for shopping button
 TIME_PATTERN = re.compile(r"^\d+:\d{2}:\d{2}$")  # Allow any number of digits for hours
@@ -68,17 +76,20 @@ def _shopping_ready(page: Page) -> bool:
 
     try:
         if duration.count() > 0 and duration.first.is_visible(timeout=1000):
+            _safe_track(page, SHOPPING_DURATION, "visibility_check", True)
             return True
     except Exception:
         pass
 
     try:
-        return (
+        result = (
             points.count() > 0
             and avatars.count() > 0
             and points.first.is_visible(timeout=1000)
             and avatars.first.is_visible(timeout=1000)
         )
+        _safe_track(page, SHOPPING_CURRENT_POINTS, "visibility_check", result)
+        return result
     except Exception:
         return False
 
@@ -321,6 +332,7 @@ def handle_exchange_dialog(page: Page, item_name: str) -> Optional[str]:
 
         if not confirm_dialog.is_visible(timeout=5000):
             logger.warning("Confirmation dialog did not appear")
+            _safe_track(page, SHOPPING_CONFIRM_DIALOG, "visibility_check", False, error_message="Confirm dialog not visible")
             return None
 
         logger.info("Confirmation dialog detected")
@@ -503,6 +515,7 @@ def _extract_current_points(page: Page) -> int:
     except (ValueError, AttributeError, IndexError) as e:
         logger.error(f"Failed to extract points: {e}")
         logger.error(f"Point text was: '{point_text or 'N/A'}'")
+        _safe_track(page, SHOPPING_CURRENT_POINTS, "inner_text", False, error_message=str(e))
         raise ValueError(
             f"Could not parse point balance from element {SHOPPING_CURRENT_POINTS}"
         ) from e
@@ -655,6 +668,7 @@ def _process_single_item(page: Page, item_name: str, item_data: Dict) -> bool:
 
     if item_locator.count() == 0:
         logger.warning(f"Item '{item_name}' not found on page, skipping")
+        _safe_track(page, SHOPPING_ITEM, "count", False, error_message=f"Item '{item_name}' not found")
         return False
 
     # Check exchange button

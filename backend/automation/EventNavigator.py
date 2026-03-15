@@ -30,11 +30,25 @@ class PanelOpenResult:
     last_error: Exception | None = None
 
 
+def _safe_track(locator: Locator, action: str, success: bool, *, error_message: str | None = None) -> None:
+    """Track a locator interaction without breaking existing flows."""
+    try:
+        from .LocatorTracker import track_locator, _extract_selector
+        selector = _extract_selector(locator)
+        page = locator.page
+        track_locator(page, selector, "EventNavigator", action, success, error_message=error_message)
+    except Exception:
+        pass
+
+
 def is_locator_visible(locator: Locator, timeout: int = 1000) -> bool:
     """Return whether the first matching locator is visible without raising."""
     try:
-        return locator.count() > 0 and locator.first.is_visible(timeout=timeout)
+        result = locator.count() > 0 and locator.first.is_visible(timeout=timeout)
+        _safe_track(locator, "visibility_check", result)
+        return result
     except Exception:
+        _safe_track(locator, "visibility_check", False)
         return False
 
 

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { IconCards } from "@tabler/icons-react";
 import Logs from "./Logs";
 import Backup from "./Backup";
+import LocatorTracker from "./LocatorTracker";
 import { ValueAdapter } from "../components";
 import { DataLoader } from "../services";
 import { useThemeContext } from "../theme/ThemeContext";
@@ -154,6 +155,7 @@ export default function ToolsPage() {
         <Tab label="Logs" />
         <Tab label="Backup" />
         <Tab label="Monitoring" />
+        <Tab label="Locator" />
       </Tabs>
 
       <AnimatePresence mode="wait" initial={false} custom={tabDirection}>
@@ -175,6 +177,7 @@ export default function ToolsPage() {
           {activeTab === 0 && <Logs />}
           {activeTab === 1 && <Backup />}
           {activeTab === 2 && <MonitoringPanel />}
+          {activeTab === 3 && <LocatorTracker />}
         </Box>
       </AnimatePresence>
     </Box>
