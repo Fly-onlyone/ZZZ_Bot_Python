@@ -30,13 +30,24 @@ class PanelOpenResult:
     last_error: Exception | None = None
 
 
-def _safe_track(locator: Locator, action: str, success: bool, *, error_message: str | None = None) -> None:
+def _safe_track(
+    locator: Locator, action: str, success: bool, *, error_message: str | None = None
+) -> None:
     """Track a locator interaction without breaking existing flows."""
     try:
         from .LocatorTracker import track_locator, _extract_selector
+
         selector = _extract_selector(locator)
         page = locator.page
-        track_locator(page, selector, "EventNavigator", action, success, error_message=error_message)
+        track_locator(
+            page,
+            selector,
+            "EventNavigator",
+            action,
+            success,
+            error_message=error_message,
+            locator=locator,
+        )
     except Exception:
         pass
 

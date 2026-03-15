@@ -240,7 +240,10 @@ export default function LocatorTracker() {
                   </TableSortLabel>
                 </TableCell>
                 <TableCell sx={{ color: COMMON_COLORS.text.muted, fontWeight: 700 }}>
-                  Screenshot
+                  Page
+                </TableCell>
+                <TableCell sx={{ color: COMMON_COLORS.text.muted, fontWeight: 700 }}>
+                  Element
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -328,11 +331,36 @@ export default function LocatorTracker() {
                         >
                           <img
                             src={screenshotUrl(entry.screenshot_asset_id)}
-                            alt="Screenshot"
+                            alt="Page"
                             style={{
                               width: 48,
                               height: 48,
                               objectFit: "cover",
+                              borderRadius: 4,
+                            }}
+                          />
+                        </IconButton>
+                      ) : (
+                        <ImageIcon sx={{ color: COMMON_COLORS.text.muted, opacity: 0.3, fontSize: 20 }} />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {entry.locator_screenshot_asset_id ? (
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            setScreenshotDialog(
+                              screenshotUrl(entry.locator_screenshot_asset_id)
+                            )
+                          }
+                        >
+                          <img
+                            src={screenshotUrl(entry.locator_screenshot_asset_id)}
+                            alt="Element"
+                            style={{
+                              width: 48,
+                              height: 48,
+                              objectFit: "contain",
                               borderRadius: 4,
                             }}
                           />
