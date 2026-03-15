@@ -57,36 +57,59 @@ PROJECT_ROOT = BACKEND_ROOT.parent
 sys.path.insert(0, str(BACKEND_ROOT))
 os.chdir(PROJECT_ROOT)
 
-from fastmcp import FastMCP
-
-from core.GlobalVar import CONFIG
-from mcp_tools.locator_factory import (
-    SelectorType,
-    analyze_selector_stability,
-    create_locator,
-    suggest_alternative_selectors,
-)
-from mcp_tools.session_manager import BrowserSession
-from mcp_tools.image_helpers import (
-    fetch_image_from_locator_async,
-    compare_images_sync,
-    scan_folder_for_best_match,
-)
+from core.GlobalVar import CONFIG, is_exe
 
 logger = logging.getLogger(__name__)
+INSPECTOR_DISABLED_MESSAGE = "ZZZ Bot Inspector is disabled in packaged builds."
+
+
+class _DisabledMCP:
+    """No-op MCP placeholder used to keep packaged builds import-safe."""
+
+    def tool(self, func):
+        logger.debug(
+            "Skipping MCP tool registration for %s in packaged mode",
+            self.__class__.__name__,
+        )
+        return func
+
+    def run(self, transport: str = "stdio") -> None:
+        logger.info("%s (transport=%s)", INSPECTOR_DISABLED_MESSAGE, transport)
+        print(INSPECTOR_DISABLED_MESSAGE)
+
+
+if is_exe:
+    BrowserSession = None
+    SelectorType = None
+    analyze_selector_stability = None
+    create_locator = None
+    suggest_alternative_selectors = None
+    fetch_image_from_locator_async = None
+    compare_images_sync = None
+    scan_folder_for_best_match = None
+    mcp = _DisabledMCP()
+else:
+    from fastmcp import FastMCP
+    from mcp_tools.locator_factory import (
+        SelectorType,
+        analyze_selector_stability,
+        create_locator,
+        suggest_alternative_selectors,
+    )
+    from mcp_tools.session_manager import BrowserSession
+    from mcp_tools.image_helpers import (
+        fetch_image_from_locator_async,
+        compare_images_sync,
+        scan_folder_for_best_match,
+    )
+
+    mcp = FastMCP("ZZZ Bot Inspector")
 
 # Default event page URL
 DEFAULT_URL = (
     "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html"
     "?game=zzz&act_id=e202406271631371"
 )
-
-mcp = FastMCP("ZZZ Bot Inspector")
-
-
-# =============================================================================
-# Session Management Tools
-# =============================================================================
 
 
 @mcp.tool
