@@ -2,7 +2,6 @@
 from pathlib import Path
 import sys
 
-from PyInstaller.utils.hooks import collect_all
 from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.hooks import collect_delvewheel_libs_directory
 from PyInstaller.utils.hooks import collect_dynamic_libs
@@ -11,13 +10,17 @@ from PyInstaller.utils.hooks import collect_submodules
 
 datas = []
 binaries = []
-hiddenimports = []
-hiddenimports += collect_submodules("plyer")
-hiddenimports += ["tkinter", "tkinter.filedialog", "_tkinter"]
-tmp_ret = collect_all("apprise")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
+hiddenimports = [
+    "plyer",
+    "plyer.utils",
+    "plyer.facades.notification",
+    "plyer.platforms.win.notification",
+    "plyer.platforms.win.libs.balloontip",
+    "tkinter",
+    "tkinter.filedialog",
+    "_tkinter",
+]
+hiddenimports += collect_submodules("apprise.plugins.email")
 
 # NumPy 2.x wheels on Windows ship hashed DLLs in numpy.libs (OpenBLAS/MSVCP).
 datas += collect_data_files("numpy")
@@ -77,7 +80,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=["fastmcp", "mcp", "mcp_tools", "sentry_sdk.integrations.mcp"],
     noarchive=False,
     optimize=1,
 )
