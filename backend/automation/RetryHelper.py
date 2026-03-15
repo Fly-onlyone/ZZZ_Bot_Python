@@ -4,33 +4,13 @@ Provides robust retry mechanisms for element interactions and visibility checks.
 """
 
 import logging
-from typing import Optional
+from typing import Literal, Optional
 
 from playwright.sync_api import Locator, TimeoutError as PlaywrightTimeoutError
 
+from .tracking import safe_track_locator
+
 logger = logging.getLogger(__name__)
-
-
-def _safe_track(
-    locator: Locator, action: str, success: bool, *, error_message: str | None = None
-) -> None:
-    """Track a locator interaction without breaking existing flows."""
-    try:
-        from .LocatorTracker import track_locator, _extract_selector
-
-        selector = _extract_selector(locator)
-        page = locator.page
-        track_locator(
-            page,
-            selector,
-            "RetryHelper",
-            action,
-            success,
-            error_message=error_message,
-            locator=locator,
-        )
-    except Exception:
-        pass
 
 
 # Constants
@@ -87,8 +67,12 @@ def retry_until_screen_appears(
 
     # Diagnostic logging when max retries reached
     logger.error(f"Max retries ({max_retries}) reached. Target screen did not appear.")
-    _safe_track(
-        screen, "wait_for", False, error_message=f"Max retries ({max_retries}) reached"
+    safe_track_locator(
+        screen,
+        "RetryHelper",
+        "wait_for",
+        False,
+        error_message=f"Max retries ({max_retries}) reached",
     )
 
     try:
@@ -150,7 +134,7 @@ def retry_until_non_zero_count(
                 logger.info(
                     f"Non-zero count found: {count} (attempt {attempt}/{max_retries})"
                 )
-                _safe_track(locator, "count", True)
+                safe_track_locator(locator, "RetryHelper", "count", True)
                 return count
 
             logger.debug(f"Attempt {attempt}/{max_retries}: Count is 0, retrying...")
@@ -165,8 +149,9 @@ def retry_until_non_zero_count(
             locator.page.wait_for_timeout(delay_ms)
 
     logger.warning(f"Max retries ({max_retries}) reached. Count is still 0.")
-    _safe_track(
+    safe_track_locator(
         locator,
+        "RetryHelper",
         "count",
         False,
         error_message=f"Count still 0 after {max_retries} retries",
@@ -176,7 +161,7 @@ def retry_until_non_zero_count(
 
 def wait_for_element(
     locator: Locator,
-    state: str = "visible",
+    state: Literal["visible", "hidden", "attached", "detached"] = "visible",
     timeout: int = VISIBILITY_TIMEOUT,
     element_name: Optional[str] = None,
 ) -> bool:
@@ -196,14 +181,15 @@ def wait_for_element(
     try:
         locator.wait_for(state=state, timeout=timeout)
         logger.info(f"{element_desc} reached state '{state}'")
-        _safe_track(locator, "wait_for", True)
+        safe_track_locator(locator, "RetryHelper", "wait_for", True)
         return True
     except PlaywrightTimeoutError:
         logger.warning(
             f"{element_desc} did not reach state '{state}' within {timeout}ms"
         )
-        _safe_track(
+        safe_track_locator(
             locator,
+            "RetryHelper",
             "wait_for",
             False,
             error_message=f"Timeout waiting for state '{state}' ({timeout}ms)",
@@ -211,5 +197,7 @@ def wait_for_element(
         return False
     except Exception as e:
         logger.error(f"Error waiting for {element_desc}: {e}")
-        _safe_track(locator, "wait_for", False, error_message=str(e))
+        safe_track_locator(
+            locator, "RetryHelper", "wait_for", False, error_message=str(e)
+        )
         return False

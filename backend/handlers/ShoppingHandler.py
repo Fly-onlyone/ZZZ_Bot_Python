@@ -5,6 +5,7 @@ Handles shopping item gathering, exchange, and redemption code automation.
 
 import logging
 import re
+from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
@@ -13,6 +14,7 @@ from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeout
 
 from automation import EventNavigator, RedeemAutofill, RetryHelper
 from automation.ImageProcessor import find_correct_avatar
+from automation.tracking import safe_track
 from automation.Selectors import (
     AVATAR_SELECTOR,
     SHOPPING_SCREEN,
@@ -43,12 +45,25 @@ from . import HuntModeHandler as HuntMode
 logger = logging.getLogger(__name__)
 
 
-def _safe_track(page: Page, selector: str, action: str, success: bool, *, error_message: str | None = None) -> None:
-    try:
-        from automation.LocatorTracker import track_locator
-        track_locator(page, selector, "ShoppingHandler", action, success, error_message=error_message)
-    except Exception:
-        pass
+def _safe_track(
+    page: Page,
+    selector: str,
+    action: str,
+    success: bool,
+    *,
+    error_message: str | None = None,
+    locator: Locator | None = None,
+) -> None:
+    safe_track(
+        page,
+        selector,
+        "ShoppingHandler",
+        action,
+        success,
+        error_message=error_message,
+        locator=locator,
+    )
+
 
 # Constants
 SHOPPING_BUTTON_SELECTOR = 1  # nth image role for shopping button
@@ -74,24 +89,33 @@ def _shopping_ready(page: Page) -> bool:
     points = page.locator(SHOPPING_CURRENT_POINTS)
     avatars = page.locator(AVATAR_SELECTOR)
 
-    try:
+    with suppress(Exception):
         if duration.count() > 0 and duration.first.is_visible(timeout=1000):
-            _safe_track(page, SHOPPING_DURATION, "visibility_check", True)
+            _safe_track(
+                page,
+                SHOPPING_DURATION,
+                "visibility_check",
+                True,
+                locator=duration,
+            )
             return True
-    except Exception:
-        pass
 
-    try:
+    with suppress(Exception):
         result = (
             points.count() > 0
             and avatars.count() > 0
             and points.first.is_visible(timeout=1000)
             and avatars.first.is_visible(timeout=1000)
         )
-        _safe_track(page, SHOPPING_CURRENT_POINTS, "visibility_check", result)
+        _safe_track(
+            page,
+            SHOPPING_CURRENT_POINTS,
+            "visibility_check",
+            result,
+            locator=points,
+        )
         return result
-    except Exception:
-        return False
+    return False
 
 
 def _close_blocking_reward_dialog(page: Page) -> bool:
@@ -332,7 +356,14 @@ def handle_exchange_dialog(page: Page, item_name: str) -> Optional[str]:
 
         if not confirm_dialog.is_visible(timeout=5000):
             logger.warning("Confirmation dialog did not appear")
-            _safe_track(page, SHOPPING_CONFIRM_DIALOG, "visibility_check", False, error_message="Confirm dialog not visible")
+            _safe_track(
+                page,
+                SHOPPING_CONFIRM_DIALOG,
+                "visibility_check",
+                False,
+                error_message="Confirm dialog not visible",
+                locator=confirm_dialog,
+            )
             return None
 
         logger.info("Confirmation dialog detected")
@@ -481,10 +512,9 @@ def _extract_current_points(page: Page) -> int:
     """
     logger.info("Extracting current points...")
     point_text = ""
+    point_element = page.locator(SHOPPING_CURRENT_POINTS)
 
     try:
-        point_element = page.locator(SHOPPING_CURRENT_POINTS)
-
         # Wait for element to be visible and have content
         point_element.wait_for(state="visible", timeout=5000)
         # Wait for non-empty text content instead of fixed timeout
@@ -515,7 +545,14 @@ def _extract_current_points(page: Page) -> int:
     except (ValueError, AttributeError, IndexError) as e:
         logger.error(f"Failed to extract points: {e}")
         logger.error(f"Point text was: '{point_text or 'N/A'}'")
-        _safe_track(page, SHOPPING_CURRENT_POINTS, "inner_text", False, error_message=str(e))
+        _safe_track(
+            page,
+            SHOPPING_CURRENT_POINTS,
+            "inner_text",
+            False,
+            error_message=str(e),
+            locator=point_element,
+        )
         raise ValueError(
             f"Could not parse point balance from element {SHOPPING_CURRENT_POINTS}"
         ) from e
@@ -648,14 +685,12 @@ def run(page: Page) -> None:
             raise
 
 
-def _process_single_item(page: Page, item_name: str, item_data: Dict) -> bool:
+def _process_single_item(page: Page, item_name: str) -> bool:
     """Process exchange for a single shopping item.
 
     Args:
         page: Playwright Page instance
         item_name: Name of the item to exchange
-        item_data: Item data dictionary
-
     Returns:
         True if exchange was successful, False otherwise
     """
@@ -668,7 +703,14 @@ def _process_single_item(page: Page, item_name: str, item_data: Dict) -> bool:
 
     if item_locator.count() == 0:
         logger.warning(f"Item '{item_name}' not found on page, skipping")
-        _safe_track(page, SHOPPING_ITEM, "count", False, error_message=f"Item '{item_name}' not found")
+        _safe_track(
+            page,
+            SHOPPING_ITEM,
+            "count",
+            False,
+            error_message=f"Item '{item_name}' not found",
+            locator=item_locator,
+        )
         return False
 
     # Check exchange button
@@ -759,7 +801,7 @@ def run_shopping(page: Page, shopping_data: Dict) -> None:
             continue
 
         # Process exchange
-        if _process_single_item(page, item_name, item_data):
+        if _process_single_item(page, item_name):
             successful_exchanges += 1
             successful_items.append(item_name)
         else:

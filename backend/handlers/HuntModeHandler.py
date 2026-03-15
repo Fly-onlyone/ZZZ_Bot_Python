@@ -6,6 +6,7 @@ Handles automatic purchasing of specific items when the shop renews.
 import logging
 import os
 import time
+from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -21,6 +22,7 @@ from automation.Selectors import (
     SHOPPING_ITEM,
     SHOPPING_ITEM_BUTTON,
 )
+from automation.tracking import safe_track
 from core.GlobalVar import CONFIG, settings
 from utils import NotificationHelper
 from utils.DataHandler import load_shopping_data, save_shopping_data
@@ -34,12 +36,25 @@ from . import ShoppingHandler
 logger = logging.getLogger(__name__)
 
 
-def _safe_track(page, selector: str, action: str, success: bool, *, error_message: str | None = None) -> None:
-    try:
-        from automation.LocatorTracker import track_locator
-        track_locator(page, selector, "HuntModeHandler", action, success, error_message=error_message)
-    except Exception:
-        pass
+def _safe_track(
+    page,
+    selector: str,
+    action: str,
+    success: bool,
+    *,
+    error_message: str | None = None,
+    locator=None,
+) -> None:
+    safe_track(
+        page,
+        selector,
+        "HuntModeHandler",
+        action,
+        success,
+        error_message=error_message,
+        locator=locator,
+    )
+
 
 # Wait buffer time before item becomes available (in seconds)
 WAIT_BUFFER_SECONDS = 120  # Open shopping screen 2 minutes early
@@ -273,9 +288,21 @@ def wait_for_exchange_button(
                 logger.warning(
                     "Stopped waiting for '%s' with reason: %s", item_name, exit_reason
                 )
-            _safe_track(page, SHOPPING_ITEM_BUTTON, "wait_for", False, error_message=f"{item_name}: {exit_reason}")
+            _safe_track(
+                page,
+                SHOPPING_ITEM_BUTTON,
+                "wait_for",
+                False,
+                error_message=f"{item_name}: {exit_reason}",
+            )
         else:
-            _safe_track(page, SHOPPING_ITEM_BUTTON, "wait_for", True)
+            _safe_track(
+                page,
+                SHOPPING_ITEM_BUTTON,
+                "wait_for",
+                True,
+                locator=page.locator(SHOPPING_ITEM_BUTTON),
+            )
 
         return available
 
@@ -299,7 +326,14 @@ def exchange_item_only(page: Page, item_name: str) -> Optional[str]:
 
     if item_locator.count() == 0:
         logger.warning(f"Item '{item_name}' not found on page")
-        _safe_track(page, SHOPPING_ITEM, "count", False, error_message=f"Hunt item '{item_name}' not found")
+        _safe_track(
+            page,
+            SHOPPING_ITEM,
+            "count",
+            False,
+            error_message=f"Hunt item '{item_name}' not found",
+            locator=item_locator,
+        )
         return None
 
     try:
@@ -621,12 +655,14 @@ def run_hunt():
                     logger.info(f"Items removed from hunt list: {successful_exchanges}")
                     logger.info("=" * 50)
 
-                    try:
+                    emitted = False
+                    with suppress(ImportError, RuntimeError):
                         from core.event_bus import emit
 
                         emit("task-completed", {"source": "hunt_mode"})
-                    except Exception:
-                        logger.debug("SSE emit after hunt_mode skipped", exc_info=True)
+                        emitted = True
+                    if not emitted:
+                        logger.debug("SSE emit after hunt_mode skipped")
 
                 finally:
                     # Always close browser, even if errors occur
@@ -644,7 +680,5 @@ def run_hunt():
             )
             # Ensure browser is closed in case of exceptions
             if browser:
-                try:
+                with suppress(Exception):
                     browser.close()
-                except:
-                    pass  # Browser may already be closed

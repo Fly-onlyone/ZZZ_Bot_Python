@@ -6,6 +6,7 @@ Handles automated prize draws, reward detection, and redemption code processing.
 import logging
 import os
 import time
+from contextlib import suppress
 from datetime import datetime
 from typing import Optional
 
@@ -13,6 +14,7 @@ from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, Lo
 
 from automation import EventNavigator, RedeemAutofill
 from automation.ImageProcessor import find_correct_lottery_logo, detect_reward
+from automation.tracking import safe_track
 from core.GlobalVar import CONFIG, resource_path, is_exe
 from utils import NotificationHelper
 from utils.screenshot_store import save_page_screenshot
@@ -21,12 +23,25 @@ from utils.StringUtil import extract_price, extract_number
 logger = logging.getLogger(__name__)
 
 
-def _safe_track(page: Page, selector: str, action: str, success: bool, *, error_message: str | None = None) -> None:
-    try:
-        from automation.LocatorTracker import track_locator
-        track_locator(page, selector, "DrawHandler", action, success, error_message=error_message)
-    except Exception:
-        pass
+def _safe_track(
+    page: Page,
+    selector: str,
+    action: str,
+    success: bool,
+    *,
+    error_message: str | None = None,
+    locator: Locator | None = None,
+) -> None:
+    safe_track(
+        page,
+        selector,
+        "DrawHandler",
+        action,
+        success,
+        error_message=error_message,
+        locator=locator,
+    )
+
 
 # Selector constants
 DRAW_BUTTON_INDEX = 2  # nth image role
@@ -70,7 +85,7 @@ def _draw_screen_ready(page: Page) -> bool:
     screen_visible = EventNavigator.is_locator_visible(prize_screen)
     button_visible = EventNavigator.is_locator_visible(draw_button)
     result = screen_visible and button_visible
-    _safe_track(page, SCREEN_SELECTOR, "visibility_check", result)
+    _safe_track(page, SCREEN_SELECTOR, "visibility_check", result, locator=prize_screen)
     return result
 
 
@@ -139,7 +154,14 @@ def _wait_for_success_dialog(page: Page, draw_number: int) -> Optional[Locator]:
         "Draw %s: Success dialog did not become visible after clicking draw",
         draw_number,
     )
-    _safe_track(page, SUCCESS_DIALOG_SELECTOR, "wait_for", False, error_message=f"Draw {draw_number}: dialog not visible")
+    _safe_track(
+        page,
+        SUCCESS_DIALOG_SELECTOR,
+        "wait_for",
+        False,
+        error_message=f"Draw {draw_number}: dialog not visible",
+        locator=success_dialog,
+    )
     return None
 
 
@@ -197,10 +219,15 @@ def _find_reward_image(success_dialog: Locator, draw_number: int) -> Optional[Lo
     logger.warning(
         f"Draw {draw_number}: Could not find reward image after trying all selectors with escalating timeouts"
     )
-    try:
-        _safe_track(success_dialog.page, REWARD_IMAGE_SELECTOR, "wait_for", False, error_message=f"Draw {draw_number}: reward image not found")
-    except Exception:
-        pass
+    with suppress(Exception):
+        _safe_track(
+            success_dialog.page,
+            REWARD_IMAGE_SELECTOR,
+            "wait_for",
+            False,
+            error_message=f"Draw {draw_number}: reward image not found",
+            locator=success_dialog.locator(REWARD_IMAGE_SELECTOR).first,
+        )
     return None
 
 
@@ -249,15 +276,11 @@ def _capture_missing_draw_result_event(
     point_text = None
     draw_limit_text = None
 
-    try:
+    with suppress(Exception):
         point_text = page.locator(POINT_VALUE_SELECTOR).inner_text()
-    except Exception:
-        pass
 
-    try:
+    with suppress(Exception):
         draw_limit_text = page.locator(DRAW_LIMIT_SELECTOR).inner_text()
-    except Exception:
-        pass
 
     with sentry_sdk.isolation_scope():
         sentry_sdk.set_tag("draw.issue", "missing_result_dialog")
@@ -341,15 +364,13 @@ def _extract_redemption_code(
                 )
 
                 # Try alternative method: text_content (doesn't wait for visibility)
-                try:
+                with suppress(Exception):
                     redeem_code = code_element.text_content(timeout=1000)
                     if redeem_code and len(redeem_code.strip()) > 0:
                         logger.info(
                             f"Draw {draw_number}: Extracted code via text_content: {redeem_code}"
                         )
                         return redeem_code.strip()
-                except Exception:
-                    pass
 
                 # Try next selector if available
                 if selector_idx < len(selectors_to_try) - 1:
@@ -486,7 +507,14 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
         # Verify button is visible
         if not draw_button.is_visible(timeout=3000):
             logger.error(f"Draw {draw_number}: Draw button not visible")
-            _safe_track(page, DRAW_BUTTON_SELECTOR, "visibility_check", False, error_message=f"Draw {draw_number}: not visible")
+            _safe_track(
+                page,
+                DRAW_BUTTON_SELECTOR,
+                "visibility_check",
+                False,
+                error_message=f"Draw {draw_number}: not visible",
+                locator=draw_button,
+            )
             return False
 
         # Note: is_enabled() check removed - the button appears enabled even when

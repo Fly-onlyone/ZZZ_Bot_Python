@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from bson.binary import Binary
 
@@ -22,8 +22,10 @@ def save_screenshot_bytes(
     filename: str,
     payload: bytes,
     metadata: dict[str, Any] | None = None,
+    *,
+    content_type: str = "image/png",
 ) -> str:
-    """Save screenshot bytes to MongoDB and return the stored asset id."""
+    """Save binary bytes to MongoDB and return the stored asset id."""
     safe_name = Path(filename).name
     if not safe_name:
         raise ValueError("filename must not be empty")
@@ -34,7 +36,7 @@ def save_screenshot_bytes(
             "_id": _asset_id(safe_name),
             "category": SCREENSHOT_CATEGORY,
             "source_path": safe_name,
-            "content_type": "image/png",
+            "content_type": content_type,
             "size_bytes": len(payload),
             "payload": Binary(payload),
             "metadata": metadata or {},
@@ -46,33 +48,54 @@ def save_screenshot_bytes(
     return _asset_id(safe_name)
 
 
-def save_page_screenshot(page, filename: str, full_page: bool = False) -> str:
+def save_page_screenshot(
+    page,
+    filename: str,
+    full_page: bool = False,
+    metadata: dict[str, Any] | None = None,
+) -> str:
     """Capture a Playwright page screenshot to MongoDB."""
     payload = page.screenshot(full_page=full_page)
     return save_screenshot_bytes(
         filename,
         payload,
-        metadata={"full_page": full_page},
+        metadata={**(metadata or {}), "full_page": full_page},
     )
 
 
-def save_locator_screenshot(locator, filename: str) -> str:
+def save_locator_screenshot(
+    locator,
+    filename: str,
+    metadata: dict[str, Any] | None = None,
+) -> str:
     """Capture a Playwright locator screenshot to MongoDB."""
     payload = locator.screenshot()
-    return save_screenshot_bytes(filename, payload)
+    return save_screenshot_bytes(filename, payload, metadata=metadata)
 
 
 def get_screenshot_bytes(filename: str) -> bytes | None:
     """Load screenshot bytes from MongoDB by filename."""
+    asset = get_screenshot_asset(filename)
+    if asset is None:
+        return None
+    return asset["payload"]
+
+
+def get_screenshot_asset(filename: str) -> Optional[dict[str, Any]]:
+    """Load binary asset payload and metadata from MongoDB by filename."""
     safe_name = Path(filename).name
     if not safe_name:
         return None
 
     doc = get_db().binary_assets.find_one(
         {"_id": _asset_id(safe_name)},
-        {"payload": 1},
+        {"payload": 1, "content_type": 1, "metadata": 1, "source_path": 1},
     )
     if not doc or "payload" not in doc:
         return None
-    return bytes(doc["payload"])
-
+    return {
+        "payload": bytes(doc["payload"]),
+        "content_type": doc.get("content_type") or "application/octet-stream",
+        "metadata": doc.get("metadata") or {},
+        "source_path": doc.get("source_path") or safe_name,
+    }

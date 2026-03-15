@@ -749,6 +749,7 @@ def configure_sentry_runtime(
                         ),
                         PyMongoIntegration(),
                     ],
+                    auto_enabling_integrations=False,
                     traces_sample_rate=traces_sample_rate,
                     enable_logs=enable_sentry_logs,
                     send_default_pii=False,

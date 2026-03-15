@@ -34,12 +34,13 @@ export const STALE_TIMES = {
   "backup/summary": 1000 * 60 * 2, // 2 minutes (backup page metadata)
   "backup/config": 1000 * 60 * 60, // 1 hour (backup export path, rarely changes)
   "locator-tracker": 1000 * 60 * 2, // 2 minutes (locator tracker data)
+  "locator-tracker/failures": 1000 * 60 * 2, // 2 minutes (locator tracker failures)
 };
 
 /**
  * Default stale time for routes not specified above
  */
-export const DEFAULT_STALE_TIME = 1000 * 60 * 1; // 1 minute
+export const DEFAULT_STALE_TIME = 1000 * 60; // 1 minute
 
 // ============================================================================
 // LAYOUT CONSTANTS
