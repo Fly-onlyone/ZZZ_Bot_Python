@@ -31,7 +31,7 @@ Key module: `ImageProcessor.py` with `RetryHelper.py` for element polling.
 
 - **Image Recognition vs. Selectors:** Web UI selectors break frequently due to dynamic content and updates. Use OpenCV template matching with reference images (`cv2.matchTemplate`, <5% difference threshold).
 - **Session Management:** Persistent Playwright browser context stored in `authentication data/`. First-time setup via manual login UI. Avoids repeated authentication.
-- **Hunt Mode Three-Phase Execution:** Phase 1: exchange all items (collect codes) → Phase 2: bulk redeem codes → Phase 3: cleanup hunt list. Reduces session time, ensures cleanup even on partial failure.
+- **Hunt Mode Three-Phase Execution:** See Pattern 5 in code-guide.md. Reduces session time, ensures cleanup even on partial failure.
 
 ## Module Dependencies
 

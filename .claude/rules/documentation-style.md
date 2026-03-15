@@ -8,87 +8,6 @@
 4. **Use examples** - Show, don't just tell
 5. **Write for future you** - You won't remember in 6 months
 
-## Python Documentation
-
-### Functions/Methods
-
-```python
-def function_name(param: str, optional: int = 10) -> bool:
-    """
-    Brief description of what it does.
-
-    Args:
-        param: Description of parameter
-        optional: Description with default behavior
-
-    Returns:
-        Description of return value
-
-    Raises:
-        ValueError: When this error occurs
-
-    Example:
-        result = function_name("value")
-    """
-```
-
-### Classes
-
-```python
-class ClassName:
-    """
-    Brief description of the class purpose.
-
-    Handles [responsibility]. Used by [consumers].
-
-    Attributes:
-        attr_name: Description of attribute
-
-    Example:
-        instance = ClassName()
-        instance.method()
-    """
-```
-
-### Complex Logic
-
-```python
-# WHY: Explain business rule or non-obvious decision
-# Example: Skip validation for admin users per security policy
-```
-
-## React/JavaScript Documentation
-
-### Components
-
-```jsx
-/**
- * Brief description of component purpose.
- *
- * @param {Object} props - Component props
- * @param {string} props.title - Title to display
- * @param {function} props.onSubmit - Callback when form submits
- * @returns {JSX.Element} Rendered component
- *
- * @example
- * <ComponentName title="Hello" onSubmit={handleSubmit} />
- */
-```
-
-### Custom Hooks
-
-```jsx
-/**
- * Brief description of what the hook does.
- *
- * @param {Object} initialState - Initial state configuration
- * @returns {Object} { state, handlers }
- *
- * @example
- * const { data, updateData } = useCustomHook(initialData);
- */
-```
-
 ## Skip Documentation For
 
 - Getters/setters with obvious purpose
@@ -137,6 +56,6 @@ diff = compare_images(screenshot, reference)
 
 ```python
 # resource_path() handles dev vs exe mode automatically
-# outside=True: User data that persists across updates
-path = resource_path("output/data.json", outside=True)
+# outside_path=True: User data that persists across updates
+path = resource_path("output/data.json", outside_path=True)
 ```

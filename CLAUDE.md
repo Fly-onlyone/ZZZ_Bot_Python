@@ -57,10 +57,10 @@ HoYoLab event website including check-ins, shopping, redemptions, and prize draw
 Critical for both development and packaged exe:
 
 ```python
-def resource_path(relative_path, outside=False):
+def resource_path(relative_path, outside_path=False):
     # Handles paths differently in dev vs exe mode
-    # outside=True for output/, screenshot/ (persist across updates)
-    # outside=False for bundled resources
+    # outside_path=True for output/, screenshot/ (persist across updates)
+    # outside_path=False for bundled resources
     pass
 ```
 
@@ -116,6 +116,8 @@ uv run --group dev pytest backend/test/
   "theme": "nebula"
 }
 ```
+
+> Additional advanced settings (hunt polling, window state, task toggles) are managed via the Settings page.
 
 ### `output/account.json`
 
