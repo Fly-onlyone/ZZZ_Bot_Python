@@ -9,7 +9,11 @@ from typing import Optional
 from playwright.sync_api import Locator, Page
 
 import repositories.MongoRepository as MongoRepository
-from utils.screenshot_store import save_page_screenshot, save_screenshot_bytes
+from utils.screenshot_store import (
+    save_locator_screenshot,
+    save_page_screenshot,
+    save_screenshot_bytes,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,16 +46,18 @@ def track_locator(
     success: bool,
     *,
     error_message: Optional[str] = None,
+    locator: Optional[Locator] = None,
 ) -> None:
     """Record a locator interaction with optional screenshot capture.
 
     Args:
-        page: Playwright Page instance (used for screenshots)
+        page: Playwright Page instance (used for full-page screenshots)
         selector: CSS selector string
         handler: Handler or module name
         action: Interaction type (visibility_check, click, wait_for, count, inner_text)
         success: Whether the interaction succeeded
         error_message: Optional error detail on failure
+        locator: Optional Locator for element-level screenshot capture
     """
     sel_hash = _selector_hash(selector)
     doc_id = f"locator:{sel_hash}"
@@ -74,6 +80,9 @@ def track_locator(
 
     # Determine whether to capture a screenshot
     screenshot_asset_id = existing.get("screenshot_asset_id") if existing else None
+    locator_screenshot_asset_id = (
+        existing.get("locator_screenshot_asset_id") if existing else None
+    )
     dom_snapshot_asset_id = existing.get("dom_snapshot_asset_id") if existing else None
     should_capture = False
 
@@ -87,13 +96,24 @@ def track_locator(
             should_capture = True
 
     if should_capture:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         try:
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"locator_{sel_hash}_{ts}.png"
             screenshot_asset_id = save_page_screenshot(page, filename)
             _screenshot_cache[sel_hash] = time.time()
         except Exception as exc:
-            logger.debug("Locator tracker screenshot failed: %s", exc)
+            logger.debug("Locator tracker page screenshot failed: %s", exc)
+
+        # Capture element-level screenshot when locator is provided and visible
+        if locator is not None:
+            try:
+                if locator.count() > 0 and locator.first.is_visible(timeout=500):
+                    el_filename = f"locator_el_{sel_hash}_{ts}.png"
+                    locator_screenshot_asset_id = save_locator_screenshot(
+                        locator.first, el_filename
+                    )
+            except Exception as exc:
+                logger.debug("Locator tracker element screenshot failed: %s", exc)
 
         if not success:
             try:
@@ -116,6 +136,7 @@ def track_locator(
         "success_count": success_count,
         "failure_count": failure_count,
         "screenshot_asset_id": screenshot_asset_id,
+        "locator_screenshot_asset_id": locator_screenshot_asset_id,
         "dom_snapshot_asset_id": dom_snapshot_asset_id if not success else None,
         "first_seen": first_seen,
         "last_seen": now,

@@ -11,15 +11,27 @@ from playwright.sync_api import Locator, TimeoutError as PlaywrightTimeoutError
 logger = logging.getLogger(__name__)
 
 
-def _safe_track(locator: Locator, action: str, success: bool, *, error_message: str | None = None) -> None:
+def _safe_track(
+    locator: Locator, action: str, success: bool, *, error_message: str | None = None
+) -> None:
     """Track a locator interaction without breaking existing flows."""
     try:
         from .LocatorTracker import track_locator, _extract_selector
+
         selector = _extract_selector(locator)
         page = locator.page
-        track_locator(page, selector, "RetryHelper", action, success, error_message=error_message)
+        track_locator(
+            page,
+            selector,
+            "RetryHelper",
+            action,
+            success,
+            error_message=error_message,
+            locator=locator,
+        )
     except Exception:
         pass
+
 
 # Constants
 DEFAULT_MAX_RETRIES = 10
@@ -75,7 +87,9 @@ def retry_until_screen_appears(
 
     # Diagnostic logging when max retries reached
     logger.error(f"Max retries ({max_retries}) reached. Target screen did not appear.")
-    _safe_track(screen, "wait_for", False, error_message=f"Max retries ({max_retries}) reached")
+    _safe_track(
+        screen, "wait_for", False, error_message=f"Max retries ({max_retries}) reached"
+    )
 
     try:
         # Log diagnostic information
@@ -151,7 +165,12 @@ def retry_until_non_zero_count(
             locator.page.wait_for_timeout(delay_ms)
 
     logger.warning(f"Max retries ({max_retries}) reached. Count is still 0.")
-    _safe_track(locator, "count", False, error_message=f"Count still 0 after {max_retries} retries")
+    _safe_track(
+        locator,
+        "count",
+        False,
+        error_message=f"Count still 0 after {max_retries} retries",
+    )
     return 0
 
 
@@ -183,7 +202,12 @@ def wait_for_element(
         logger.warning(
             f"{element_desc} did not reach state '{state}' within {timeout}ms"
         )
-        _safe_track(locator, "wait_for", False, error_message=f"Timeout waiting for state '{state}' ({timeout}ms)")
+        _safe_track(
+            locator,
+            "wait_for",
+            False,
+            error_message=f"Timeout waiting for state '{state}' ({timeout}ms)",
+        )
         return False
     except Exception as e:
         logger.error(f"Error waiting for {element_desc}: {e}")
