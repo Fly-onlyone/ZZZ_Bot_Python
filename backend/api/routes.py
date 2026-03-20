@@ -267,6 +267,17 @@ def get_locator_tracker_failures(
     return get_failure_events(limit=limit, summary_id=summary_id)
 
 
+@router.get("/locator-tracker/child-scan/{summary_id:path}")
+def get_locator_child_scan(summary_id: str):
+    """Return child scan data for a specific locator summary entry."""
+    from repositories.connection import get_db
+
+    entry = get_db().locator_tracker.find_one({"_id": summary_id}, {"child_scan": 1})
+    if not entry:
+        return JSONResponse({"message": "Summary not found"}, status_code=404)
+    return {"child_scan": entry.get("child_scan", [])}
+
+
 @router.post("/locator-tracker/clear")
 def clear_locator_tracker():
     """Clear all locator tracking entries."""
