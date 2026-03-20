@@ -15,7 +15,7 @@ import numpy as np
 import requests
 from playwright.sync_api import Locator, Page
 
-from core.GlobalVar import CONFIG
+from core.GlobalVar import CONFIG, resource_path
 from core.constants import (
     IMAGE_MATCH_THRESHOLD,
     IMAGE_BINARY_THRESHOLD,
@@ -249,19 +249,110 @@ def find_correct_avatar(page: Page) -> Optional[Locator]:
     return None
 
 
+def _dismiss_guide_overlay(page: Page) -> None:
+    """Dismiss HoYoLab tutorial/guide overlays that block UI interaction.
+
+    Strategy: click the draw button first (the guide highlights it, so
+    clicking advances/dismisses the guide naturally). Fall back to JS
+    removal of the SVG hollow-mask overlay if the guide persists.
+    """
+    from .Selectors import DRAW_BUTTON
+
+    # Click the overlay element directly to advance/dismiss the guide
+    overlay_selector = "rect[mask*='hollow-mask']"
+    for attempt in range(5):
+        if not _has_guide_overlay(page):
+            if attempt > 0:
+                logger.info("Guide overlay dismissed after %d click(s)", attempt)
+            return
+        try:
+            page.locator(overlay_selector).first.click(force=True, timeout=1000)
+            logger.info("Guide overlay click %d on overlay element", attempt + 1)
+            page.wait_for_timeout(500)
+        except Exception as exc:
+            logger.debug("Guide overlay click %d failed: %s", attempt + 1, exc)
+            break
+
+    # Fallback: remove overlay via JS if clicks didn't dismiss it
+    if _has_guide_overlay(page):
+        removed = page.evaluate(
+            """() => {
+            let count = 0;
+            document.querySelectorAll('rect[mask*="hollow-mask"]').forEach(rect => {
+                const container = rect.closest('div');
+                if (container && container.parentElement) {
+                    container.parentElement.removeChild(container);
+                    count++;
+                }
+            });
+            return count;
+        }"""
+        )
+        if removed:
+            logger.info("Dismissed %d guide overlay(s) via JS removal", removed)
+            page.wait_for_timeout(300)
+
+
+def _has_guide_overlay(page: Page) -> bool:
+    """Check if a HoYoLab guide overlay with hollow mask is present."""
+    return page.evaluate(
+        "() => document.querySelectorAll('rect[mask*=\"hollow-mask\"]').length > 0"
+    )
+
+
 def find_correct_lottery_logo(page: Page):
+    from .tracking import safe_track
+
+    _dismiss_guide_overlay(page)
     zzz_icon_img = cv2.imread(CONFIG["ZZZ_ICON"])
+    best_diff = 100.0
+    best_img = None
+    logo_selector = "div.lotteryLogo-269XTi"
+    switch_selector = ".lotterySwitch-LdUVnT"
+
     for i in range(4):
-        lottery_logo_locator = page.locator("div.lotteryLogo-269XTi")
+        lottery_logo_locator = page.locator(logo_selector)
         lottery_logo_img = fetch_image_from_locator(page, lottery_logo_locator)
         diff = compare_images(lottery_logo_img, zzz_icon_img)
-        print(f"Difference from ZZZ Avatar: {diff}%")
-        if diff < 5:
-            print("This is ZZZ avatar")
+        logger.info("Lottery logo %d: %.2f%% difference from ZZZ icon", i + 1, diff)
+        if diff < IMAGE_MATCH_THRESHOLD:
+            logger.info("ZZZ lottery logo matched at position %d", i + 1)
+            safe_track(
+                page,
+                logo_selector,
+                "DrawHandler",
+                "image_match",
+                True,
+                locator=lottery_logo_locator,
+            )
             return True
-        else:
-            print("This is NOT ZZZ avatar")
-            page.locator(".lotterySwitch-LdUVnT").click()
+        if diff < best_diff:
+            best_diff = diff
+            best_img = lottery_logo_img
+        page.locator(switch_selector).click(force=True)
+        page.wait_for_timeout(500)
+
+    # Track the failure while still on the draw screen
+    safe_track(
+        page,
+        logo_selector,
+        "DrawHandler",
+        "image_match",
+        False,
+        error_message=f"Best diff: {best_diff:.2f}%",
+        locator=page.locator(logo_selector),
+    )
+
+    # Save diagnostics for reference update
+    if best_img is not None:
+        logo_path = resource_path(
+            "screenshot/lottery_logo_mismatch.png", outside_path=True
+        )
+        cv2.imwrite(logo_path, best_img)
+    logger.error(
+        "ZZZ lottery logo not found (best diff: %.2f%%).",
+        best_diff,
+    )
     return False
 
 
@@ -280,6 +371,7 @@ def detect_reward(page: Page, img_locator: Locator):
         "Unknown reward" otherwise
     """
     import sentry_sdk
+
     with sentry_sdk.start_span(op="cv.template_match", name="detect_reward"):
         # Fetch the image from the locator
         target_img = fetch_image_from_locator(page, img_locator)
@@ -332,6 +424,7 @@ class ImageProcessor:
 
     def detect_button_state(self):
         import sentry_sdk
+
         with sentry_sdk.start_span(op="cv.template_match", name="detect_button_state"):
             tick_image = cv2.imread(CONFIG["SAMPLE_FOLDER"] + "/Finished.png")
             arrow_image = cv2.imread(CONFIG["SAMPLE_FOLDER"] + "/Unfinished.png")
@@ -347,7 +440,11 @@ class ImageProcessor:
             logger.debug("Difference with Unfinished (arrow) image: %s%%", arrow_diff)
             logger.debug("Difference with Reward image: %s%%", reward_diff)
 
-            diffs = {"Finished": tick_diff, "Unfinished": arrow_diff, "Reward": reward_diff}
+            diffs = {
+                "Finished": tick_diff,
+                "Unfinished": arrow_diff,
+                "Reward": reward_diff,
+            }
 
             closest_state = min(diffs, key=diffs.get)
 
