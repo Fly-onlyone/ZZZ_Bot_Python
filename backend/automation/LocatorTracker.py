@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import logging
 import time
 from contextlib import suppress
@@ -10,12 +11,13 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
+from PIL import Image
+
 from playwright.sync_api import Locator, Page
 
 import repositories.MongoRepository as MongoRepository
 from utils.screenshot_store import (
     save_locator_screenshot,
-    save_page_screenshot,
     save_screenshot_bytes,
 )
 
@@ -59,6 +61,155 @@ def _should_capture(summary_id: str, success: bool) -> bool:
     return time.time() - last_capture >= _SCREENSHOT_THROTTLE_SECONDS
 
 
+_CHILD_SCAN_JS = """
+(() => {
+    const MIN_AREA = %d;
+    const MAX_CHILDREN = %d;
+    const dpr = window.devicePixelRatio || 1;
+    const scrollX = window.scrollX || 0;
+    const scrollY = window.scrollY || 0;
+
+    let largest = null;
+    let largestArea = 0;
+    for (const el of document.body.querySelectorAll('*')) {
+        const rect = el.getBoundingClientRect();
+        const area = rect.width * rect.height;
+        if (area > largestArea && rect.width > 0 && rect.height > 0) {
+            largestArea = area;
+            largest = el;
+        }
+    }
+    if (!largest) return { wrapper: null, children: [] };
+
+    const candidates = [];
+    for (const el of largest.querySelectorAll('*')) {
+        if (el.offsetWidth === 0 && el.offsetHeight === 0) continue;
+        const style = getComputedStyle(el);
+        if (style.visibility === 'hidden' || style.display === 'none'
+            || parseFloat(style.opacity) === 0) continue;
+        const rect = el.getBoundingClientRect();
+        const area = rect.width * rect.height;
+        if (area < MIN_AREA) continue;
+
+        candidates.push({
+            tag: el.tagName.toLowerCase(),
+            class_name: (typeof el.className === 'string'
+                         ? el.className : '').slice(0, 100),
+            text: (el.textContent || '').trim().slice(0, 50),
+            bbox: {
+                x: Math.round((rect.left + scrollX) * dpr),
+                y: Math.round((rect.top + scrollY) * dpr),
+                width: Math.round(rect.width * dpr),
+                height: Math.round(rect.height * dpr),
+            },
+            area: area,
+        });
+    }
+
+    candidates.sort((a, b) => b.area - a.area);
+
+    const kept = [];
+    for (const c of candidates) {
+        if (kept.length >= MAX_CHILDREN) break;
+        let isDup = false;
+        for (const k of kept) {
+            const ix1 = Math.max(c.bbox.x, k.bbox.x);
+            const iy1 = Math.max(c.bbox.y, k.bbox.y);
+            const ix2 = Math.min(c.bbox.x + c.bbox.width, k.bbox.x + k.bbox.width);
+            const iy2 = Math.min(c.bbox.y + c.bbox.height, k.bbox.y + k.bbox.height);
+            if (ix1 < ix2 && iy1 < iy2) {
+                const inter = (ix2 - ix1) * (iy2 - iy1);
+                const cA = c.bbox.width * c.bbox.height;
+                const kA = k.bbox.width * k.bbox.height;
+                if (inter > 0.9 * cA && inter > 0.9 * kA) {
+                    isDup = true;
+                    break;
+                }
+            }
+        }
+        if (!isDup) kept.push(c);
+    }
+
+    return {
+        wrapper: {
+            tag: largest.tagName.toLowerCase(),
+            class_name: (typeof largest.className === 'string'
+                         ? largest.className : '').slice(0, 100),
+        },
+        children: kept.map(({area, ...rest}) => rest),
+    };
+})()
+"""
+
+_CHILD_SCAN_MAX_ELEMENTS = 40
+_CHILD_SCAN_MIN_AREA = 400  # 20x20 px
+
+
+def _scan_child_elements(
+    page: Page,
+    page_png_bytes: bytes,
+    selector_hash: str,
+    summary_id: str,
+    handler: str,
+    action: str,
+    timestamp: str,
+) -> list[dict]:
+    """Scan visible children inside the page wrapper, crop each from the full-page screenshot."""
+    scan_result = page.evaluate(
+        _CHILD_SCAN_JS % (_CHILD_SCAN_MIN_AREA, _CHILD_SCAN_MAX_ELEMENTS)
+    )
+    if not scan_result or not scan_result.get("children"):
+        return []
+
+    image = Image.open(io.BytesIO(page_png_bytes))
+    img_w, img_h = image.size
+    children: list[dict] = []
+
+    for idx, child in enumerate(scan_result["children"]):
+        bbox = child["bbox"]
+        left = max(0, bbox["x"])
+        top = max(0, bbox["y"])
+        right = min(img_w, bbox["x"] + bbox["width"])
+        bottom = min(img_h, bbox["y"] + bbox["height"])
+        if right <= left or bottom <= top:
+            continue
+
+        cropped = image.crop((left, top, right, bottom))
+        buf = io.BytesIO()
+        cropped.save(buf, format="PNG")
+
+        asset_id = save_screenshot_bytes(
+            f"locator_child_{selector_hash}_{timestamp}_{idx}.png",
+            buf.getvalue(),
+            metadata={
+                **_asset_metadata(
+                    kind="child_scan",
+                    handler=handler,
+                    action=action,
+                    selector_hash=selector_hash,
+                    summary_id=summary_id,
+                ),
+                "tag": child["tag"],
+                "class_name": child["class_name"],
+                "text": child["text"],
+                "bbox": bbox,
+                "index": idx,
+            },
+        )
+        children.append(
+            {
+                "asset_id": asset_id,
+                "tag": child["tag"],
+                "class_name": child["class_name"],
+                "text": child["text"],
+                "bbox": bbox,
+            }
+        )
+
+    logger.debug("Child scan captured %d elements for %s", len(children), summary_id)
+    return children
+
+
 def _capture_artifacts(
     page: Page,
     selector_hash: str,
@@ -71,6 +222,8 @@ def _capture_artifacts(
     page_asset_id = None
     locator_asset_id = None
     dom_snapshot_asset_id = None
+    child_scan: list[dict] = []
+    page_png_bytes: bytes | None = None
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     page_metadata = _asset_metadata(
@@ -81,11 +234,11 @@ def _capture_artifacts(
         summary_id=summary_id,
     )
     try:
-        page_asset_id = save_page_screenshot(
-            page,
+        page_png_bytes = page.screenshot(full_page=True)
+        page_asset_id = save_screenshot_bytes(
             f"locator_{selector_hash}_{timestamp}.png",
-            full_page=True,
-            metadata=page_metadata,
+            page_png_bytes,
+            metadata={**page_metadata, "full_page": True},
         )
         _screenshot_cache[summary_id] = time.time()
     except Exception as exc:
@@ -125,10 +278,25 @@ def _capture_artifacts(
         except Exception as exc:
             logger.debug("Locator tracker DOM snapshot failed: %s", exc)
 
+    if page_png_bytes is not None:
+        try:
+            child_scan = _scan_child_elements(
+                page,
+                page_png_bytes,
+                selector_hash,
+                summary_id,
+                handler,
+                action,
+                timestamp,
+            )
+        except Exception as exc:
+            logger.debug("Locator tracker child scan failed: %s", exc)
+
     return {
         "page_asset_id": page_asset_id,
         "locator_asset_id": locator_asset_id,
         "dom_snapshot_asset_id": dom_snapshot_asset_id,
+        "child_scan": child_scan,
     }
 
 
@@ -168,6 +336,7 @@ def track_locator(
     current_page_asset_id = None
     current_locator_asset_id = None
     current_dom_snapshot_asset_id = None
+    current_child_scan: list[dict] = []
 
     if _should_capture(summary_id, success):
         artifacts = _capture_artifacts(
@@ -182,6 +351,7 @@ def track_locator(
         current_page_asset_id = artifacts["page_asset_id"]
         current_locator_asset_id = artifacts["locator_asset_id"]
         current_dom_snapshot_asset_id = artifacts["dom_snapshot_asset_id"]
+        current_child_scan = artifacts.get("child_scan", [])
         page_asset_id = current_page_asset_id or page_asset_id
         locator_asset_id = current_locator_asset_id or locator_asset_id
         dom_snapshot_asset_id = (
@@ -202,6 +372,7 @@ def track_locator(
         "page_asset_id": page_asset_id,
         "locator_asset_id": locator_asset_id,
         "dom_snapshot_asset_id": dom_snapshot_asset_id if not success else None,
+        "child_scan": current_child_scan,
         "first_seen": first_seen,
         "last_seen": now,
     }
@@ -222,6 +393,7 @@ def track_locator(
             "page_asset_id": current_page_asset_id,
             "locator_asset_id": current_locator_asset_id,
             "dom_snapshot_asset_id": current_dom_snapshot_asset_id,
+            "child_scan": current_child_scan,
         }
         with suppress(Exception):
             MongoRepository.save_locator_failure_event(failure_entry)
