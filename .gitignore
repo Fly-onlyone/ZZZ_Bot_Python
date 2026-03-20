@@ -16,6 +16,7 @@ nul
 # Claude Code local files
 CLAUDE.local.md
 .claude/*.local.md
+.claude/*.local.json
 .mcp.json
 
 # Environment variables
