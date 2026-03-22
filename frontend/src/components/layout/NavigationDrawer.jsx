@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from "react";
+import React, { memo, useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -19,6 +19,7 @@ import { COMMON_COLORS } from "../../theme/colors";
 import { TRANSITIONS } from "../../theme/styles";
 import { useThemeContext } from "../../theme/ThemeContext";
 import { DRAWER_WIDTH } from "../../config";
+import { DataLoader } from "../../services";
 
 /**
  * Navigation tabs configuration
@@ -30,6 +31,14 @@ const tabs = [
   { label: "Settings", icon: <SettingsIcon />, path: "/settings" },
   { label: "Tools", icon: <BuildIcon />, path: "/tools" },
 ];
+
+const PREFETCH_ROUTES_BY_PATH = {
+  "/": ["check-run-status", "overview/hunt", "overview/mission"],
+  "/shopping": ["shopping"],
+  "/account": ["account"],
+  "/settings": ["settings"],
+  "/tools": ["backup/summary"],
+};
 
 /**
  * Animation variants for list items
@@ -71,6 +80,7 @@ const NavigationDrawer = memo(function NavigationDrawer({
   const navigate = useNavigate();
   const location = useLocation();
   const { themeColors } = useThemeContext();
+  const { prefetchRoutes } = DataLoader();
 
   const isActive = (path) => location.pathname === path;
 
@@ -80,6 +90,18 @@ const NavigationDrawer = memo(function NavigationDrawer({
       onClose();
     }
   };
+
+  const handlePrefetch = useCallback(
+    (path) => {
+      const routes = PREFETCH_ROUTES_BY_PATH[path];
+      if (!routes) {
+        return;
+      }
+
+      void prefetchRoutes(routes);
+    },
+    [prefetchRoutes]
+  );
 
   // Memoize style functions to prevent recreating objects on every render
   const getListItemStyles = useMemo(
@@ -147,62 +169,67 @@ const NavigationDrawer = memo(function NavigationDrawer({
     [location.pathname]
   );
 
+  /** @type {React.ReactNode[]} */
+  const navItems = tabs.map((tab, index) => (
+    <motion.div
+      key={tab.label}
+      custom={index}
+      variants={listItemVariants}
+      initial="hidden"
+      animate="visible"
+      whileHover="hover"
+      whileTap="tap"
+    >
+      <ListItemButton
+        onClick={() => handleNavClick(tab.path)}
+        onMouseEnter={() => handlePrefetch(tab.path)}
+        onFocus={() => handlePrefetch(tab.path)}
+        aria-label={`Navigate to ${tab.label}`}
+        aria-current={isActive(tab.path) ? "page" : undefined}
+        sx={getListItemStyles(tab.path)}
+      >
+        <ListItemIcon sx={getIconStyles(tab.path)}>
+          <motion.div
+            style={{ display: "flex" }}
+            whileHover={{
+              rotate: [0, -12, 12, -6, 0],
+              scale: [1, 1.2, 1.15, 1.2, 1.1],
+              transition: { duration: 0.5 },
+            }}
+            animate={
+              isActive(tab.path)
+                ? {
+                    scale: [1, 1.15, 1.1],
+                    filter: [
+                      `drop-shadow(0 0 3px ${themeColors.glow}40)`,
+                      `drop-shadow(0 0 8px ${themeColors.glow}70)`,
+                      `drop-shadow(0 0 5px ${themeColors.glow}50)`,
+                    ],
+                    transition: {
+                      duration: 2,
+                      repeat: Infinity,
+                      repeatType: "reverse",
+                    },
+                  }
+                : { scale: 1, filter: "none" }
+            }
+          >
+            {tab.icon}
+          </motion.div>
+        </ListItemIcon>
+        <ListItemText
+          primary={tab.label}
+          sx={getTextStyles(tab.path)}
+          className="overflow-hidden text-ellipsis whitespace-nowrap"
+        />
+      </ListItemButton>
+    </motion.div>
+  ));
+
   const drawerContent = (
     <Box className="overflow-y-auto overflow-x-hidden">
       <List sx={{ px: 1 }} role="navigation" aria-label="Main navigation">
-        {tabs.map((tab, index) => (
-          <motion.div
-            key={tab.label}
-            custom={index}
-            variants={listItemVariants}
-            initial="hidden"
-            animate="visible"
-            whileHover="hover"
-            whileTap="tap"
-          >
-            <ListItemButton
-              onClick={() => handleNavClick(tab.path)}
-              aria-label={`Navigate to ${tab.label}`}
-              aria-current={isActive(tab.path) ? "page" : undefined}
-              sx={getListItemStyles(tab.path)}
-            >
-              <ListItemIcon sx={getIconStyles(tab.path)}>
-                <motion.div
-                  style={{ display: "flex" }}
-                  whileHover={{
-                    rotate: [0, -12, 12, -6, 0],
-                    scale: [1, 1.2, 1.15, 1.2, 1.1],
-                    transition: { duration: 0.5 },
-                  }}
-                  animate={
-                    isActive(tab.path)
-                      ? {
-                          scale: [1, 1.15, 1.1],
-                          filter: [
-                            `drop-shadow(0 0 3px ${themeColors.glow}40)`,
-                            `drop-shadow(0 0 8px ${themeColors.glow}70)`,
-                            `drop-shadow(0 0 5px ${themeColors.glow}50)`,
-                          ],
-                          transition: {
-                            duration: 2,
-                            repeat: Infinity,
-                            repeatType: "reverse",
-                          },
-                        }
-                      : { scale: 1, filter: "none" }
-                  }
-                >
-                  {tab.icon}
-                </motion.div>
-              </ListItemIcon>
-              <ListItemText
-                primary={tab.label}
-                sx={getTextStyles(tab.path)}
-                className="overflow-hidden text-ellipsis whitespace-nowrap"
-              />
-            </ListItemButton>
-          </motion.div>
-        ))}
+        {navItems}
       </List>
     </Box>
   );

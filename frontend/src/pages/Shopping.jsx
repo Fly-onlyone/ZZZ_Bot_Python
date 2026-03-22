@@ -13,11 +13,16 @@ import {
 } from "../components";
 import { useShoppingState } from "../hooks";
 import { logError, logInfo, logWarn } from "../services/sentryLogger.js";
-import Redeem from "./Redeem";
-import Hunt from "../content/Hunt";
 import { useThemeContext } from "../theme/ThemeContext";
 import { COMMON_COLORS } from "../theme/colors";
 import { getAuroraTabsStyles, auroraPanelVariants } from "../theme/tabStyles";
+
+const LazyRedeem = React.lazy(() => import("./Redeem.jsx"));
+const LazyHunt = React.lazy(() => import("../content/Hunt.jsx"));
+
+function TabFallback() {
+  return <ShoppingSkeleton />;
+}
 
 function ShoppingItems() {
   const [alert, setAlert] = useState({
@@ -46,7 +51,7 @@ function ShoppingItems() {
 
     logInfo("Shopping page data ready", {
       itemCount: Object.keys(shopping["Item's list"] || {}).length,
-      purchasedCount: (shopping.Purchased || []).length,
+      purchasedCount: (shopping["Purchased"] || []).length,
       selectedCount: selectedRows.length,
       point: shopping.Point ?? 0,
     });
@@ -62,43 +67,33 @@ function ShoppingItems() {
     });
   }, [error]);
 
-  if (!shopping) {
-    return <ShoppingSkeleton />;
-  }
-  if (error) {
-    return <Typography>Error loading data: {error.message}</Typography>;
-  }
+  const itemList = shopping?.["Item's list"] ?? {};
+  const purchasedItems = shopping?.["Purchased"] ?? [];
+  const hasItems = Object.keys(itemList).length > 0;
+  const durationStart = shopping?.["Duration"]?.Start ?? "—";
+  const durationEnd = shopping?.["Duration"]?.End ?? "—";
 
-  if (
-    !shopping["Item's list"] ||
-    Object.keys(shopping["Item's list"]).length === 0
-  ) {
-    return (
-      <EmptyState
-        icon={<ShoppingCartIcon />}
-        title="No Items Available"
-        subtitle="The shop item list is empty. Run the bot to gather shopping data first."
-      />
-    );
-  }
-
-  // Convert shopping data into rows and add purchased items
+  // Keep hook order stable while data is loading or unavailable.
   const rows = useMemo(() => {
+    if (!shopping) {
+      return [];
+    }
+
     const priorityMap = new Map(
       selectedRows.map((row) => [row.Name, row.Priority])
     );
     return [
-      ...(shopping.Purchased || []).map((itemName) => ({
+      ...purchasedItems.map((itemName) => ({
         id: itemName,
         Name: itemName,
-        Price: shopping["Item's list"][itemName]?.Price || "N/A",
-        Inventory: shopping["Item's list"][itemName]?.Inventory || "N/A",
+        Price: itemList[itemName]?.Price || "N/A",
+        Inventory: itemList[itemName]?.Inventory || "N/A",
         Available: "Purchased",
         Priority: priorityMap.get(itemName) || null,
         isPurchased: true,
       })),
-      ...Object.entries(shopping["Item's list"])
-        .filter(([, item]) => !(shopping.Purchased || []).includes(item.Name))
+      ...Object.entries(itemList)
+        .filter(([, item]) => !purchasedItems.includes(item.Name))
         .map(([, item]) => ({
           id: item.Name,
           ...item,
@@ -106,66 +101,72 @@ function ShoppingItems() {
           isPurchased: false,
         })),
     ];
-  }, [shopping, selectedRows]);
+  }, [itemList, purchasedItems, selectedRows, shopping]);
 
   const huntItemsSet = useMemo(() => new Set(huntItems), [huntItems]);
+  const selectedNamesSet = useMemo(
+    () => new Set(selectedRows.map((row) => row.Name)),
+    [selectedRows]
+  );
+  const rowSelectionModel = useMemo(
+    () => selectedRows.map((row) => row.Name),
+    [selectedRows]
+  );
+  const columns = useMemo(
+    () => [
+      { field: "Name", headerName: "Name", flex: 2 },
+      {
+        field: "Price",
+        headerName: "Price",
+        flex: 1,
+        type: "number",
+      },
+      { field: "Inventory", headerName: "Inventory", flex: 1, type: "number" },
+      {
+        field: "Available",
+        headerName: "Available",
+        flex: 1,
+      },
+      {
+        field: "Priority",
+        headerName: "Priority",
+        flex: 0.8,
+        type: "number",
+        editable: true,
+        renderCell: (params) =>
+          selectedNamesSet.has(params.row.Name) ? params.value : "—",
+      },
+      {
+        field: "Hunt",
+        headerName: "Hunt",
+        flex: 0.6,
+        sortable: false,
+        filterable: false,
+        renderCell: (params) => {
+          if (!huntItemsSet.has(params.row.Name)) {
+            return null;
+          }
 
-  const columns = [
-    { field: "Name", headerName: "Name", flex: 2 },
-    {
-      field: "Price",
-      headerName: "Price",
-      flex: 1,
-      type: "number",
-    },
-    { field: "Inventory", headerName: "Inventory", flex: 1, type: "number" },
-    {
-      field: "Available",
-      headerName: "Available",
-      flex: 1,
-    },
-    {
-      field: "Priority",
-      headerName: "Priority",
-      flex: 0.8,
-      type: "number",
-      editable: true,
-      renderCell: (params) => {
-        const isSelected = selectedRows.some(
-          (row) => row.Name === params.row.Name
-        );
-        return isSelected ? params.value : "—";
+          return (
+            <TrackChangesIcon
+              sx={{
+                color: COMMON_COLORS.warning.main,
+                fontSize: 20,
+                filter: `drop-shadow(0 0 4px ${COMMON_COLORS.warning.main}60)`,
+              }}
+            />
+          );
+        },
       },
-    },
-    {
-      field: "Hunt",
-      headerName: "Hunt",
-      flex: 0.6,
-      sortable: false,
-      filterable: false,
-      renderCell: (params) => {
-        const isHunt = huntItemsSet.has(params.row.Name);
-        if (!isHunt) return null;
-        return (
-          <TrackChangesIcon
-            sx={{
-              color: COMMON_COLORS.warning.main,
-              fontSize: 20,
-              filter: `drop-shadow(0 0 4px ${COMMON_COLORS.warning.main}60)`,
-            }}
-          />
-        );
-      },
-    },
-  ];
+    ],
+    [huntItemsSet, selectedNamesSet]
+  );
 
   const processRowUpdate = React.useCallback(
     (newRow, oldRow) => {
       try {
         if (newRow.Priority !== oldRow.Priority && newRow.Priority != null) {
-          const isSelected = selectedRows.some(
-            (row) => row.Name === newRow.Name
-          );
+          const isSelected = selectedNamesSet.has(newRow.Name);
           if (isSelected) {
             handlePriorityEdit(newRow.Name, newRow.Priority);
           }
@@ -175,16 +176,43 @@ function ShoppingItems() {
       }
       return newRow;
     },
-    [selectedRows, handlePriorityEdit]
+    [handlePriorityEdit, selectedNamesSet]
   );
 
   const isCellEditable = React.useCallback(
     (params) => {
       if (params.field !== "Priority") return false;
-      return selectedRows.some((row) => row.Name === params.row.Name);
+      return selectedNamesSet.has(params.row.Name);
     },
-    [selectedRows]
+    [selectedNamesSet]
   );
+  const getRowClassName = React.useCallback(
+    (params) => {
+      const classes = [];
+      if (params.row.isPurchased) classes.push("purchased-row");
+      if (huntItemsSet.has(params.row.Name)) classes.push("hunt-row");
+      return classes.join(" ");
+    },
+    [huntItemsSet]
+  );
+
+  if (!shopping) {
+    return <ShoppingSkeleton />;
+  }
+  if (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return <Typography>Error loading data: {errorMessage}</Typography>;
+  }
+
+  if (!hasItems) {
+    return (
+      <EmptyState
+        icon={<ShoppingCartIcon />}
+        title="No Items Available"
+        subtitle="The shop item list is empty. Run the bot to gather shopping data first."
+      />
+    );
+  }
 
   const handleSave = () => {
     const payload = {
@@ -235,7 +263,7 @@ function ShoppingItems() {
       >
         <Typography variant="h6">Point: {shopping.Point}</Typography>
         <Typography variant="h6">
-          Duration: {shopping.Duration.Start} - {shopping.Duration.End}
+          Duration: {durationStart} - {durationEnd}
         </Typography>
       </Grid2>
 
@@ -255,19 +283,16 @@ function ShoppingItems() {
           checkboxSelection
           disableRowSelectionOnClick
           getRowId={(row) => row.Name}
-          rowSelectionModel={selectedRows.map((row) => row.Name)}
+          rowSelectionModel={rowSelectionModel}
           onRowSelectionModelChange={handleRowSelectionChange}
           processRowUpdate={processRowUpdate}
           onProcessRowUpdateError={(error) =>
             logError("DataGrid row update failed", error)
           }
           isCellEditable={isCellEditable}
-          getRowClassName={(params) => {
-            const classes = [];
-            if (params.row.isPurchased) classes.push("purchased-row");
-            if (huntItemsSet.has(params.row.Name)) classes.push("hunt-row");
-            return classes.join(" ");
-          }}
+          getRowClassName={getRowClassName}
+          rowBufferPx={60}
+          columnBufferPx={60}
           sx={{
             "& .purchased-row": {
               background: `${COMMON_COLORS.success.main}14`,
@@ -331,9 +356,11 @@ export default function Shopping() {
           animate="animate"
           exit="exit"
         >
-          {activeTab === 0 && <ShoppingItems />}
-          {activeTab === 1 && <Redeem />}
-          {activeTab === 2 && <Hunt />}
+          <React.Suspense fallback={<TabFallback />}>
+            {activeTab === 0 && <ShoppingItems />}
+            {activeTab === 1 && <LazyRedeem />}
+            {activeTab === 2 && <LazyHunt />}
+          </React.Suspense>
         </Box>
       </AnimatePresence>
     </Box>

@@ -3,7 +3,7 @@ import DoneIcon from "@mui/icons-material/Done";
 import CloseIcon from "@mui/icons-material/Close";
 import { DataGrid } from "@mui/x-data-grid";
 import { Button } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RedeemIcon from "@mui/icons-material/Redeem";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { EmptyState, RedeemSkeleton, SaveButton } from "../components";
@@ -107,40 +107,43 @@ export default function Redeem() {
     );
   }
 
-  const columns = [
-    { field: "id", headerName: "ID", flex: 0.5 },
-    { field: "item_name", headerName: "Item Name", flex: 1 },
-    { field: "code", headerName: "Code", flex: 1 },
-    { field: "day", headerName: "Day", flex: 0.8 },
-    {
-      field: "state",
-      headerName: "State",
-      flex: 0.5,
-      renderCell: (params) => (
-        <div
-          style={{ display: "flex", alignItems: "center", marginTop: "13px" }}
-        >
-          {params.value ? <DoneIcon /> : <CloseIcon />}
-        </div>
-      ),
-    },
-    {
-      field: "action",
-      headerName: "Action",
-      flex: 0.8,
-      renderCell: (params) =>
-        !params.row.state ? (
-          <Button
-            variant="contained"
-            startIcon={<CheckCircleIcon />}
-            onClick={() => handleSwitchState(params.row.id)}
-            sx={{ fontWeight: 600 }}
+  const columns = useMemo(
+    () => [
+      { field: "id", headerName: "ID", flex: 0.5 },
+      { field: "item_name", headerName: "Item Name", flex: 1 },
+      { field: "code", headerName: "Code", flex: 1 },
+      { field: "day", headerName: "Day", flex: 0.8 },
+      {
+        field: "state",
+        headerName: "State",
+        flex: 0.5,
+        renderCell: (params) => (
+          <div
+            style={{ display: "flex", alignItems: "center", marginTop: "13px" }}
           >
-            DONE
-          </Button>
-        ) : null,
-    },
-  ];
+            {params.value ? <DoneIcon /> : <CloseIcon />}
+          </div>
+        ),
+      },
+      {
+        field: "action",
+        headerName: "Action",
+        flex: 0.8,
+        renderCell: (params) =>
+          !params.row.state ? (
+            <Button
+              variant="contained"
+              startIcon={<CheckCircleIcon />}
+              onClick={() => handleSwitchState(params.row.id)}
+              sx={{ fontWeight: 600 }}
+            >
+              DONE
+            </Button>
+          ) : null,
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ height: 420, minWidth: 320, width: "100%" }}>
@@ -148,6 +151,8 @@ export default function Redeem() {
         rows={rows}
         columns={columns}
         hideFooterSelectedRowCount
+        rowBufferPx={60}
+        columnBufferPx={60}
         sx={{ height: "100%", width: "100%" }}
       />
       <div className="flex justify-center">

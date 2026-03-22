@@ -15,7 +15,6 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import ArticleIcon from "@mui/icons-material/Article";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -40,33 +39,7 @@ const LEVEL_COLORS = {
   CRITICAL: "#fca5a5",
 };
 
-const PAGE_SIZE = 100;
-
-// ============================================================================
-// Animation variants (mirrors Mission.jsx pattern)
-// ============================================================================
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.02, when: "beforeChildren" },
-  },
-};
-
-const tableRowVariants = {
-  hidden: { opacity: 0, x: -20 },
-  visible: (index) => ({
-    opacity: 1,
-    x: 0,
-    transition: {
-      delay: index * 0.02,
-      type: "spring",
-      stiffness: 100,
-      damping: 15,
-    },
-  }),
-};
+const DEFAULT_PAGE_SIZE = 50;
 
 // ============================================================================
 // Data fetcher
@@ -78,8 +51,8 @@ async function fetchLogs({ date, levels, search, page }) {
   if (levels.length > 0 && levels.length < LEVELS.length)
     params.set("level", levels.join(","));
   if (search) params.set("search", search);
-  params.set("limit", String(PAGE_SIZE));
-  params.set("offset", String((page - 1) * PAGE_SIZE));
+  params.set("limit", String(DEFAULT_PAGE_SIZE));
+  params.set("offset", String((page - 1) * DEFAULT_PAGE_SIZE));
 
   const res = await fetch(`${BACKEND_URL}/logs?${params}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -131,22 +104,24 @@ export default function Logs() {
       }),
     refetchInterval: autoRefresh ? 5000 : false,
     staleTime: 0,
+    gcTime: 1000 * 60,
   });
 
   const files = data?.files ?? [];
   const entries = data?.entries ?? [];
   const total = data?.total ?? 0;
-  const pageCount = Math.ceil(total / PAGE_SIZE);
+  const pageCount = Math.ceil(total / DEFAULT_PAGE_SIZE);
 
   // Per-level counts for the stats row (computed from current page entries)
-  const levelCounts = useMemo(
-    () =>
-      LEVELS.reduce((acc, lvl) => {
-        acc[lvl] = entries.filter((e) => e.level === lvl).length;
-        return acc;
-      }, {}),
-    [entries]
-  );
+  const levelCounts = useMemo(() => {
+    const counts = Object.fromEntries(LEVELS.map((level) => [level, 0]));
+    for (const entry of entries) {
+      if (counts[entry.level] !== undefined) {
+        counts[entry.level] += 1;
+      }
+    }
+    return counts;
+  }, [entries]);
 
   if (isLoading && !data) {
     return <LogsSkeleton />;
@@ -156,6 +131,76 @@ export default function Logs() {
     setSelectedLevels((prev) =>
       prev.includes(lvl) ? prev.filter((l) => l !== lvl) : [...prev, lvl]
     );
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  /** @type {React.ReactNode[]} */
+  const fileOptions = files
+    .filter((f) => f !== "app.log")
+    .map((f) => (
+      <MenuItem key={f} value={f.replace("app.log.", "")}>
+        {f}
+      </MenuItem>
+    ));
+  /** @type {React.ReactNode[]} */
+  const levelFilterChips = LEVELS.map((lvl) => {
+    const active = selectedLevels.includes(lvl);
+    return (
+      <Chip
+        key={lvl}
+        label={lvl}
+        size="small"
+        onClick={() => toggleLevel(lvl)}
+        sx={{
+          backgroundColor: active ? `${LEVEL_COLORS[lvl]}33` : "transparent",
+          color: active ? LEVEL_COLORS[lvl] : COMMON_COLORS.text.muted,
+          border: `1px solid ${
+            active ? LEVEL_COLORS[lvl] : COMMON_COLORS.text.muted
+          }66`,
+          fontWeight: 600,
+          fontSize: "0.7rem",
+          cursor: "pointer",
+          transition: "all 0.2s",
+          "&:hover": {
+            backgroundColor: `${LEVEL_COLORS[lvl]}22`,
+            border: `1px solid ${LEVEL_COLORS[lvl]}`,
+          },
+        }}
+      />
+    );
+  });
+  /** @type {React.ReactNode[]} */
+  const levelSummaryChips = LEVELS.map((lvl) => (
+    <Chip
+      key={lvl}
+      label={`${lvl}: ${levelCounts[lvl]}`}
+      size="small"
+      sx={{
+        backgroundColor: `${LEVEL_COLORS[lvl]}1A`,
+        color: LEVEL_COLORS[lvl],
+        border: `1px solid ${LEVEL_COLORS[lvl]}33`,
+        fontFamily: "monospace",
+        fontSize: "0.7rem",
+      }}
+    />
+  ));
+  /** @type {React.ReactNode[]} */
+  const headerCells = ["Timestamp", "Level", "Logger", "Message"].map((col) => (
+    <Box
+      key={col}
+      component="th"
+      sx={{
+        px: 2,
+        py: 1.5,
+        textAlign: "left",
+        fontWeight: 600,
+        fontSize: "0.75rem",
+        color: COMMON_COLORS.text.secondary,
+        borderBottom: `1px solid ${themeColors.alpha.divider}`,
+        textShadow: `0 0 15px ${themeColors.glow}20`,
+      }}
+    >
+      {col}
+    </Box>
+  ));
 
   return (
     <Box
@@ -200,48 +245,13 @@ export default function Logs() {
               sx={{ fontSize: "0.875rem" }}
             >
               <MenuItem value="">Current (app.log)</MenuItem>
-              {files
-                .filter((f) => f !== "app.log")
-                .map((f) => (
-                  <MenuItem key={f} value={f.replace("app.log.", "")}>
-                    {f}
-                  </MenuItem>
-                ))}
+              {fileOptions}
             </Select>
           </FormControl>
 
           {/* Level toggle chips */}
           <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-            {LEVELS.map((lvl) => {
-              const active = selectedLevels.includes(lvl);
-              return (
-                <Chip
-                  key={lvl}
-                  label={lvl}
-                  size="small"
-                  onClick={() => toggleLevel(lvl)}
-                  sx={{
-                    backgroundColor: active
-                      ? `${LEVEL_COLORS[lvl]}33`
-                      : "transparent",
-                    color: active
-                      ? LEVEL_COLORS[lvl]
-                      : COMMON_COLORS.text.muted,
-                    border: `1px solid ${
-                      active ? LEVEL_COLORS[lvl] : COMMON_COLORS.text.muted
-                    }66`,
-                    fontWeight: 600,
-                    fontSize: "0.7rem",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                    "&:hover": {
-                      backgroundColor: `${LEVEL_COLORS[lvl]}22`,
-                      border: `1px solid ${LEVEL_COLORS[lvl]}`,
-                    },
-                  }}
-                />
-              );
-            })}
+            {levelFilterChips}
           </Box>
 
           {/* Search input */}
@@ -313,20 +323,7 @@ export default function Logs() {
             alignItems: "center",
           }}
         >
-          {LEVELS.map((lvl) => (
-            <Chip
-              key={lvl}
-              label={`${lvl}: ${levelCounts[lvl]}`}
-              size="small"
-              sx={{
-                backgroundColor: `${LEVEL_COLORS[lvl]}1A`,
-                color: LEVEL_COLORS[lvl],
-                border: `1px solid ${LEVEL_COLORS[lvl]}33`,
-                fontFamily: "monospace",
-                fontSize: "0.7rem",
-              }}
-            />
-          ))}
+          {levelSummaryChips}
           <Typography
             variant="caption"
             sx={{ color: COMMON_COLORS.text.muted, ml: 1 }}
@@ -338,7 +335,7 @@ export default function Logs() {
         {/* Error banner */}
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
-            Failed to fetch logs: {error.message}
+            Failed to fetch logs: {errorMessage}
           </Alert>
         )}
 
@@ -369,35 +366,11 @@ export default function Logs() {
                 zIndex: 1,
               }}
             >
-              <Box component="tr">
-                {["Timestamp", "Level", "Logger", "Message"].map((col) => (
-                  <Box
-                    key={col}
-                    component="th"
-                    sx={{
-                      px: 2,
-                      py: 1.5,
-                      textAlign: "left",
-                      fontWeight: 600,
-                      fontSize: "0.75rem",
-                      color: COMMON_COLORS.text.secondary,
-                      borderBottom: `1px solid ${themeColors.alpha.divider}`,
-                      textShadow: `0 0 15px ${themeColors.glow}20`,
-                    }}
-                  >
-                    {col}
-                  </Box>
-                ))}
-              </Box>
+              <Box component="tr">{headerCells}</Box>
             </Box>
 
             {/* Table body */}
-            <Box
-              component={motion.tbody}
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-            >
+            <Box component="tbody">
               {isLoading ? (
                 <Box component="tr">
                   <Box
@@ -433,10 +406,8 @@ export default function Logs() {
               ) : (
                 entries.map((entry, index) => (
                   <Box
-                    component={motion.tr}
+                    component="tr"
                     key={index}
-                    custom={index}
-                    variants={tableRowVariants}
                     sx={{
                       borderBottom:
                         index !== entries.length - 1

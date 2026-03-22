@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import {
   BrowserRouter,
   Navigate,
@@ -19,13 +19,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { AppHeader, NavigationDrawer } from "../components";
 import AuroraBackground from "../components/common/AuroraBackground";
-import {
-  AccountPage,
-  Overview,
-  SettingsPage,
-  Shopping,
-  ToolsPage,
-} from "../pages";
+import Overview from "../pages/Overview.jsx";
 import { DataLoader } from "../services";
 import { useThemeContext } from "../theme/ThemeContext";
 import { ZoomProvider, useZoom } from "../hooks/useZoom.jsx";
@@ -34,6 +28,10 @@ import * as Sentry from "@sentry/react";
 import { logInfo, logWarn } from "../services/sentryLogger.js";
 
 const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes);
+const LazyShoppingPage = React.lazy(() => import("../pages/Shopping.jsx"));
+const LazyAccountPage = React.lazy(() => import("../pages/AccountPage.jsx"));
+const LazySettingsPage = React.lazy(() => import("../pages/SettingsPage.jsx"));
+const LazyToolsPage = React.lazy(() => import("../pages/ToolsPage.jsx"));
 
 // Route order determines slide direction for page transitions
 const ROUTE_ORDER = ["/", "/shopping", "/account", "/settings", "/tools"];
@@ -138,6 +136,41 @@ function StartupStatus({ isLoading, error }) {
   );
 }
 
+function RouteFallback() {
+  const { themeColors } = useThemeContext();
+
+  return (
+    <Box
+      sx={{
+        minHeight: "50vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 2,
+      }}
+    >
+      <CircularProgress
+        size={28}
+        sx={{
+          filter: `drop-shadow(0 0 8px ${themeColors.glow}60)`,
+        }}
+      />
+      <Typography variant="body2" color="text.secondary">
+        Loading page...
+      </Typography>
+    </Box>
+  );
+}
+
+function DeferredRoute({ children, direction, fillHeight = false }) {
+  return (
+    <RouteTransition direction={direction} fillHeight={fillHeight}>
+      <Suspense fallback={<RouteFallback />}>{children}</Suspense>
+    </RouteTransition>
+  );
+}
+
 /**
  * Animated wrapper for route transitions
  */
@@ -165,33 +198,33 @@ function AnimatedRoutes() {
         <Route
           path="/shopping"
           element={
-            <RouteTransition direction={direction}>
-              <Shopping />
-            </RouteTransition>
+            <DeferredRoute direction={direction}>
+              <LazyShoppingPage />
+            </DeferredRoute>
           }
         />
         <Route
           path="/account"
           element={
-            <RouteTransition direction={direction}>
-              <AccountPage />
-            </RouteTransition>
+            <DeferredRoute direction={direction}>
+              <LazyAccountPage />
+            </DeferredRoute>
           }
         />
         <Route
           path="/settings"
           element={
-            <RouteTransition direction={direction}>
-              <SettingsPage />
-            </RouteTransition>
+            <DeferredRoute direction={direction}>
+              <LazySettingsPage />
+            </DeferredRoute>
           }
         />
         <Route
           path="/tools"
           element={
-            <RouteTransition direction={direction} fillHeight>
-              <ToolsPage />
-            </RouteTransition>
+            <DeferredRoute direction={direction} fillHeight>
+              <LazyToolsPage />
+            </DeferredRoute>
           }
         />
         <Route path="*" element={<Navigate to="/settings" />} />
@@ -206,8 +239,7 @@ function AnimatedRoutes() {
 // Manages routing and data prefetching.
 //
 function PermanentDrawerContent() {
-  const { prefetchAllRoutes, useBackendHealth } = DataLoader();
-  const { themeColors } = useThemeContext();
+  const { useBackendHealth } = DataLoader();
   const { zoomLevel } = useZoom();
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
@@ -250,14 +282,6 @@ function PermanentDrawerContent() {
     });
   }, [backendHealthError, isBackendHealthFetching, isBackendHealthLoading]);
 
-  useEffect(() => {
-    if (!isBackendReady) {
-      return;
-    }
-
-    void prefetchAllRoutes();
-  }, [isBackendReady, prefetchAllRoutes]);
-
   return (
     <>
       <AuroraBackground />
@@ -274,48 +298,48 @@ function PermanentDrawerContent() {
         }}
       >
         <CssBaseline />
-      <AppHeader
-        isMobile={isMobile}
-        onMenuClick={() => setMobileDrawerOpen(true)}
-      />
-      <NavigationDrawer
-        isMobile={isMobile}
-        open={mobileDrawerOpen}
-        onClose={() => setMobileDrawerOpen(false)}
-      />
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          minWidth: 0,
-          minHeight: 0,
-          display: "flex",
-          flexDirection: "column",
-          p: { xs: 2, sm: 3, md: 4, lg: 6 },
-          overflowY: "auto",
-          overflowX: "hidden",
-        }}
-      >
-        <Toolbar />
+        <AppHeader
+          isMobile={isMobile}
+          onMenuClick={() => setMobileDrawerOpen(true)}
+        />
+        <NavigationDrawer
+          isMobile={isMobile}
+          open={mobileDrawerOpen}
+          onClose={() => setMobileDrawerOpen(false)}
+        />
         <Box
+          component="main"
           sx={{
-            flex: 1,
+            flexGrow: 1,
+            minWidth: 0,
             minHeight: 0,
             display: "flex",
             flexDirection: "column",
+            p: { xs: 2, sm: 3, md: 4, lg: 6 },
+            overflowY: "auto",
+            overflowX: "hidden",
           }}
         >
-          {isBackendReady ? (
-            <AnimatedRoutes />
-          ) : (
-            <StartupStatus
-              isLoading={isBackendHealthLoading || isBackendHealthFetching}
-              error={backendHealthError}
-            />
-          )}
+          <Toolbar />
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {isBackendReady ? (
+              <AnimatedRoutes />
+            ) : (
+              <StartupStatus
+                isLoading={isBackendHealthLoading || isBackendHealthFetching}
+                error={backendHealthError}
+              />
+            )}
+          </Box>
         </Box>
       </Box>
-    </Box>
     </>
   );
 }

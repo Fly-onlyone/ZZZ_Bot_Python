@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import Mission from "../content/Mission";
-import { CompactRunningStatus } from "../content/RunningStatus";
+import CompactRunningStatus from "../content/CompactRunningStatus";
 import { IconReportAnalytics } from "@tabler/icons-react";
 import { SectionCard } from "../components";
 
