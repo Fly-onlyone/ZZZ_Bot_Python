@@ -48,6 +48,7 @@ export default function ShoppingSkeleton() {
             borderRadius: "12px",
             background: themeColors.gradients.backgroundSubtle,
             border: `1px solid ${themeColors.alpha.cardBorder}`,
+            backdropFilter: "blur(8px)",
           }}
         >
           {[1, 2, 3].map((i) => (

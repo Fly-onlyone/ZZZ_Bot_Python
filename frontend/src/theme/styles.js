@@ -8,6 +8,15 @@ export const TRANSITIONS = {
   cubic: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
 };
 
+// Luminous glow effects — pass theme glow color
+export const GLOW = {
+  subtle: (color) => `0 0 20px ${color}15, 0 4px 30px ${color}10`,
+  medium: (color) => `0 0 25px ${color}25, 0 4px 35px ${color}15`,
+  strong: (color) => `0 0 35px ${color}35, 0 8px 50px ${color}20`,
+  border: (color) => `0 0 12px ${color}30`,
+  text: (color) => `0 0 15px ${color}30`,
+};
+
 // Button styles
 export const buttonStyles = {
   primary: {

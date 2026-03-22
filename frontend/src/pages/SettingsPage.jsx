@@ -10,55 +10,11 @@ import { SettingsSkeleton, ValueAdapter } from "../components";
 import { BACKEND_URL } from "../config";
 import { DataLoader } from "../services";
 import { useThemeContext } from "../theme/ThemeContext";
-import { COMMON_COLORS } from "../theme/colors";
-
-const settingsPanelVariants = {
-  initial: (direction) => ({
-    opacity: 0,
-    x: direction * 20,
-    scale: 0.995,
-  }),
-  animate: {
-    opacity: 1,
-    x: 0,
-    scale: 1,
-    transition: {
-      type: "spring",
-      stiffness: 140,
-      damping: 22,
-      mass: 0.9,
-    },
-  },
-  exit: (direction) => ({
-    opacity: 0,
-    x: direction * -20,
-    scale: 0.995,
-    transition: {
-      duration: 0.18,
-      ease: "easeInOut",
-    },
-  }),
-};
-
-const reducedMotionPanelVariants = {
-  initial: {
-    opacity: 0,
-  },
-  animate: {
-    opacity: 1,
-    transition: {
-      duration: 0.12,
-      ease: "easeOut",
-    },
-  },
-  exit: {
-    opacity: 0,
-    transition: {
-      duration: 0.08,
-      ease: "easeInOut",
-    },
-  },
-};
+import {
+  getAuroraTabsStyles,
+  auroraPanelVariants,
+  reducedMotionPanelVariants,
+} from "../theme/tabStyles";
 
 const settingsTypeConfig = {
   run_task: {
@@ -248,7 +204,7 @@ export default function SettingsPage() {
   const isAffectedTab = activeTab === 1 || activeTab === 2;
   const panelVariants = prefersReducedMotion
     ? reducedMotionPanelVariants
-    : settingsPanelVariants;
+    : auroraPanelVariants;
 
   const handleTabChange = (_, newValue) => {
     setTabDirection(newValue >= activeTab ? 1 : -1);
@@ -272,39 +228,7 @@ export default function SettingsPage() {
         value={activeTab}
         onChange={handleTabChange}
         centered
-        sx={{
-          mb: 3,
-          minHeight: 48,
-          "& .MuiTabs-indicator": {
-            display: "none",
-          },
-          "& .MuiTab-root": {
-            minHeight: 48,
-            minWidth: "auto",
-            px: 2.5,
-            color: COMMON_COLORS.text.muted,
-            fontWeight: 600,
-            textTransform: "none",
-            position: "relative",
-            "&::after": {
-              content: '""',
-              position: "absolute",
-              left: 12,
-              right: 12,
-              bottom: 0,
-              height: 3,
-              borderRadius: "999px",
-              backgroundColor: "transparent",
-              transition: "background-color 0.2s ease",
-            },
-            "&.Mui-selected": {
-              color: themeColors.primary.light,
-            },
-            "&.Mui-selected::after": {
-              backgroundColor: themeColors.primary.main,
-            },
-          },
-        }}
+        sx={getAuroraTabsStyles(themeColors)}
       >
         {tabItems}
       </Tabs>

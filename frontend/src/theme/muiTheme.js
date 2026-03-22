@@ -114,8 +114,9 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
       styleOverrides: {
         paper: {
           background: prefersDarkMode
-            ? themeColors.gradients.background
+            ? "rgba(15, 23, 42, 0.75)"
             : "#ffffff",
+          backdropFilter: "blur(20px)",
           borderRadius: "0 24px 24px 0",
           border: "none",
           borderRight: `1px solid ${themeColors.alpha.divider}`,
@@ -128,8 +129,8 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
     MuiAppBar: {
       styleOverrides: {
         root: {
-          background: themeColors.gradients.header, // Use theme gradient
-          backdropFilter: "blur(12px)",
+          background: "rgba(15, 23, 42, 0.6)",
+          backdropFilter: "blur(16px)",
           boxShadow: "none",
           borderBottom: `1px solid ${themeColors.alpha.divider}`,
           transition: TRANSITIONS.cubic,
@@ -155,6 +156,7 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
           boxShadow: `0 4px 12px ${themeColors.alpha.hover}`,
           "&:hover": {
             background: themeColors.gradients.primaryLight,
+            boxShadow: `0 4px 20px ${themeColors.glow}40, 0 0 30px ${themeColors.glow}15`,
           },
         },
       },
@@ -167,9 +169,9 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
           transition: TRANSITIONS.cubic,
           "&.MuiMenu-paper": {
             background: prefersDarkMode
-              ? "rgba(30, 41, 59, 0.9)"
+              ? "rgba(30, 41, 59, 0.8)"
               : "rgba(255, 255, 255, 0.9)",
-            backdropFilter: "blur(12px)",
+            backdropFilter: "blur(16px)",
             border: `1px solid ${themeColors.alpha.divider}`,
             borderRadius: "16px",
             boxShadow: `0 8px 32px ${themeColors.alpha.cardBorder}`,
@@ -184,7 +186,7 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
           border: `1px solid ${themeColors.alpha.cardBorder}`,
           borderRadius: "16px",
           background: themeColors.alpha.card,
-          backdropFilter: "blur(12px)",
+          backdropFilter: "blur(8px)",
           color: COMMON_COLORS.text.primary,
           "& .MuiDataGrid-cell": {
             borderBottom: `1px solid ${themeColors.alpha.divider}`,

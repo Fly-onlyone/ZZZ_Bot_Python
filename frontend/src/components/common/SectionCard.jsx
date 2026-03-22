@@ -3,6 +3,7 @@ import { Box, Paper, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import { useThemeContext } from "../../theme/ThemeContext";
 import { COMMON_COLORS } from "../../theme/colors";
+import { GLOW } from "../../theme/styles";
 
 const iconVariants = {
   hidden: { scale: 0, rotate: -180 },
@@ -44,7 +45,7 @@ const IconBadge = memo(({ icon, gradient, themeColors }) => (
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        boxShadow: `0 4px 14px ${themeColors.alpha.hover}`,
+        boxShadow: GLOW.subtle(themeColors.glow),
         border: `1px solid ${themeColors.alpha.divider}`,
       }}
     >
@@ -95,11 +96,11 @@ export default function SectionCard({
         background: cardBg,
         border: `1px solid ${borderColor}`,
         overflow: "hidden",
-        backdropFilter: "blur(10px)",
+        backdropFilter: "blur(16px)",
         cursor: "default",
         position: "relative",
         "&:hover": {
-          boxShadow: `0 12px 40px ${themeColors.alpha.hover}`,
+          boxShadow: GLOW.medium(themeColors.glow),
           border: `1px solid ${themeColors.primary.main}60`,
         },
         ...sx,
@@ -126,7 +127,7 @@ export default function SectionCard({
             fontWeight: 700,
             color: COMMON_COLORS.text.primary,
             fontFamily: '"Outfit", sans-serif',
-            textShadow: `0 0 20px ${themeColors.primary.main}20`,
+            textShadow: GLOW.text(themeColors.glow),
           }}
         >
           {title}

@@ -49,7 +49,7 @@ export default function EmptyState({
         background: themeColors.gradients.backgroundSubtle,
         border: `1px solid ${themeColors.alpha.cardBorder}`,
         overflow: "hidden",
-        backdropFilter: "blur(10px)",
+        backdropFilter: "blur(12px)",
         py: 6,
         px: 4,
         display: "flex",
@@ -75,6 +75,7 @@ export default function EmptyState({
             boxShadow: `0 4px 14px ${themeColors.alpha.hover}`,
             border: `1px solid ${themeColors.alpha.divider}`,
             color: COMMON_COLORS.text.primary,
+            filter: `drop-shadow(0 0 8px ${themeColors.glow}40)`,
             "& .MuiSvgIcon-root": { fontSize: 28 },
           }}
         >

@@ -33,6 +33,7 @@ function SectionCardShell({ children }) {
         borderRadius: "16px",
         background: themeColors.gradients.backgroundSubtle,
         border: `1px solid ${themeColors.alpha.cardBorder}`,
+        backdropFilter: "blur(8px)",
         overflow: "hidden",
       }}
     >

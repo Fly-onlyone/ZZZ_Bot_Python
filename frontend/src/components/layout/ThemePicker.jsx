@@ -14,6 +14,7 @@ import { THEME_COLORS } from "../../theme/themes";
 import { useThemeContext } from "../../theme/ThemeContext";
 import { DataLoader } from "../../services";
 import { COMMON_COLORS } from "../../theme/colors";
+import { GLOW } from "../../theme/styles";
 
 const THEMES = [
   { value: "nebula", label: "Nebula" },
@@ -95,6 +96,10 @@ export default function ThemePicker() {
                     value === themeName
                       ? COMMON_COLORS.text.primary
                       : "transparent",
+                  boxShadow:
+                    value === themeName
+                      ? GLOW.border(THEME_COLORS[value].primary.main)
+                      : "none",
                 }}
               />
             </ListItemIcon>

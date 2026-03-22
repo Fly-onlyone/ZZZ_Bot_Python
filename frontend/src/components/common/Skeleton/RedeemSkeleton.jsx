@@ -30,6 +30,7 @@ export default function RedeemSkeleton() {
           borderRadius: "12px",
           overflow: "hidden",
           border: `1px solid ${themeColors.alpha.divider}`,
+          backdropFilter: "blur(8px)",
         }}
       >
         {/* Header row */}

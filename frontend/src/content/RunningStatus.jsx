@@ -153,6 +153,10 @@ export function CompactRunningStatus() {
     flexDirection: "column",
     alignItems: "center",
     gap: 1,
+    transition: "all 0.3s ease-in-out",
+    "&:hover": {
+      boxShadow: `0 0 20px ${themeColors.glow}20`,
+    },
   };
 
   return (
@@ -171,7 +175,7 @@ export function CompactRunningStatus() {
         background: themeColors.gradients.backgroundSubtle,
         border: `1px solid ${themeColors.alpha.cardBorder}`,
         overflow: "hidden",
-        backdropFilter: "blur(10px)",
+        backdropFilter: "blur(12px)",
         cursor: "default",
         mb: 3,
         p: 3,
@@ -179,7 +183,7 @@ export function CompactRunningStatus() {
         alignItems: "center",
         gap: 3,
         "&:hover": {
-          boxShadow: `0 12px 40px ${themeColors.alpha.hover}`,
+          boxShadow: `0 0 25px ${themeColors.glow}20, 0 8px 30px ${themeColors.glow}10`,
           border: `1px solid ${themeColors.primary.main}60`,
         },
       }}
@@ -192,7 +196,7 @@ export function CompactRunningStatus() {
         animate="visible"
         whileHover={{ scale: 1.1, rotate: 5 }}
         transition={{ type: "spring", stiffness: 400, damping: 17 }}
-        style={{ width: 110, height: 110, flexShrink: 0 }}
+        style={{ width: 110, height: 110, flexShrink: 0, filter: `drop-shadow(0 0 10px ${themeColors.glow}50)` }}
       />
 
       <Box
