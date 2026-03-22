@@ -5,6 +5,13 @@ import { logInfo, logWarn } from "../services/sentryLogger.js";
 
 const MIN_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
+const TASK_REFRESH_QUERY_KEYS = [
+  ["shopping"],
+  ["redeem"],
+  ["overview/mission"],
+  ["overview/hunt"],
+  ["check-run-status"],
+];
 
 /**
  * SSE hook that listens for backend task-completed events
@@ -37,10 +44,27 @@ export default function useTaskEvents({ enabled = false } = {}) {
         logInfo("SSE connection established");
       };
 
-      es.addEventListener("task-completed", () => {
-        logInfo("SSE task-completed received, invalidating queries");
-        queryClient.invalidateQueries();
-      });
+      es.addEventListener(
+        "task-completed",
+        /** @param {MessageEvent<string>} messageEvent */ (messageEvent) => {
+          let payload;
+          try {
+            const eventData =
+              typeof messageEvent.data === "string" ? messageEvent.data : "{}";
+            payload = JSON.parse(eventData);
+          } catch {
+            payload = {};
+          }
+
+          logInfo("SSE task-completed received, invalidating related queries", {
+            source: payload.source || "unknown",
+          });
+
+          for (const queryKey of TASK_REFRESH_QUERY_KEYS) {
+            void queryClient.invalidateQueries({ queryKey });
+          }
+        }
+      );
 
       es.onerror = () => {
         es.close();

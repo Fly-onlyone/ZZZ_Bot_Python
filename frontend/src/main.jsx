@@ -39,10 +39,6 @@ if (SENTRY_DSN && !window[SENTRY_INIT_KEY]) {
       }),
       Sentry.captureConsoleIntegration({ levels: ["log", "warn", "error"] }),
       Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
-      Sentry.replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
-      }),
       Sentry.httpClientIntegration(),
     ],
     tracesSampleRate: parseFloat(
@@ -50,9 +46,6 @@ if (SENTRY_DSN && !window[SENTRY_INIT_KEY]) {
     ),
     tracePropagationTargets: ["localhost", "127.0.0.1"],
     sendDefaultPii: false,
-    replaysSessionSampleRate:
-      import.meta.env.MODE === "development" ? 1.0 : 0.1,
-    replaysOnErrorSampleRate: 1.0,
   });
 }
 
@@ -75,7 +68,14 @@ function ThemedApp() {
   );
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      gcTime: 1000 * 60 * 2,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function App() {
   React.useEffect(() => {

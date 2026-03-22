@@ -12,6 +12,7 @@ import {
   IconButton,
   InputLabel,
   MenuItem,
+  Pagination,
   Paper,
   Select,
   Switch,
@@ -25,9 +26,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { AnimatePresence, motion } from "framer-motion";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
-import ImageIcon from "@mui/icons-material/Image";
 import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import DescriptionIcon from "@mui/icons-material/Description";
 import GridViewIcon from "@mui/icons-material/GridView";
@@ -37,23 +36,6 @@ import { BACKEND_URL } from "../config";
 import { useThemeContext } from "../theme/ThemeContext";
 import { COMMON_COLORS } from "../theme/colors";
 import { EmptyState } from "../components";
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.04, when: "beforeChildren" },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, x: -15 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: { type: "spring", stiffness: 120, damping: 18 },
-  },
-};
 
 function relativeTime(dateStr) {
   if (!dateStr) return "-";
@@ -77,6 +59,9 @@ function truncateText(value, maxLen = 36) {
 
 const HEADER_CELL_SX = { color: COMMON_COLORS.text.muted, fontWeight: 700 };
 const DETAIL_COL_SPAN = 7;
+const LOCATOR_PAGE_SIZE = 25;
+const FAILURE_HISTORY_LIMIT = 50;
+const CHILD_SCAN_PREVIEW_COUNT = 24;
 
 function assetUrl(assetId) {
   if (!assetId) return null;
@@ -91,8 +76,9 @@ function assetUrl(assetId) {
 function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
   const { themeColors } = useThemeContext();
   const isExpanded = true;
+  const [showAllChildren, setShowAllChildren] = useState(false);
 
-  const failureRoute = `locator-tracker/failures?limit=500&summary_id=${encodeURIComponent(
+  const failureRoute = `locator-tracker/failures?limit=${FAILURE_HISTORY_LIMIT}&summary_id=${encodeURIComponent(
     entry.id
   )}`;
   const { data: failures } = useRouteData(failureRoute, {
@@ -110,6 +96,9 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
 
   const failureRows = Array.isArray(failures) ? failures : [];
   const childScan = childScanData?.child_scan || [];
+  const visibleChildScan = showAllChildren
+    ? childScan
+    : childScan.slice(0, CHILD_SCAN_PREVIEW_COUNT);
 
   return (
     <Box
@@ -146,6 +135,8 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
                   <img
                     src={assetUrl(entry.page_asset_id)}
                     alt="Page"
+                    loading="lazy"
+                    decoding="async"
                     style={{
                       width: 80,
                       height: 60,
@@ -165,6 +156,8 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
                   <img
                     src={assetUrl(entry.locator_asset_id)}
                     alt="Element"
+                    loading="lazy"
+                    decoding="async"
                     style={{
                       width: 80,
                       height: 60,
@@ -294,7 +287,7 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
               overflowY: "auto",
             }}
           >
-            {childScan.map((child, idx) => (
+            {visibleChildScan.map((child, idx) => (
               <Tooltip
                 key={child.asset_id || idx}
                 title={`<${child.tag}> ${
@@ -316,6 +309,8 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
                   <img
                     src={assetUrl(child.asset_id)}
                     alt={`${child.tag} element`}
+                    loading="lazy"
+                    decoding="async"
                     style={{
                       width: "100%",
                       height: 60,
@@ -327,6 +322,17 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
               </Tooltip>
             ))}
           </Box>
+          {childScan.length > CHILD_SCAN_PREVIEW_COUNT && (
+            <Button
+              size="small"
+              sx={{ mt: 1, alignSelf: "flex-start" }}
+              onClick={() => setShowAllChildren((value) => !value)}
+            >
+              {showAllChildren
+                ? "Show fewer elements"
+                : `Show all ${childScan.length} elements`}
+            </Button>
+          )}
         </Box>
       )}
 
@@ -357,7 +363,14 @@ export default function LocatorTracker() {
   const [sortDir, setSortDir] = useState("desc");
   const [expandedId, setExpandedId] = useState("");
   const [screenshotDialog, setScreenshotDialog] = useState("");
-  const { data: entries, error, isLoading } = useRouteData("locator-tracker");
+  const [page, setPage] = useState(1);
+  const {
+    data: entries,
+    error,
+    isLoading,
+  } = useRouteData("locator-tracker", {
+    gcTime: 1000 * 60,
+  });
   const clearMutation = useActionData("locator-tracker/clear");
 
   const entryRows = Array.isArray(entries) ? entries : [];
@@ -386,6 +399,11 @@ export default function LocatorTracker() {
     });
     return result;
   }, [entryRows, failuresOnly, handlerFilter, sortDir, sortField]);
+  const pageCount = Math.ceil(filteredEntries.length / LOCATOR_PAGE_SIZE);
+  const visibleEntries = useMemo(() => {
+    const startIndex = (page - 1) * LOCATOR_PAGE_SIZE;
+    return filteredEntries.slice(startIndex, startIndex + LOCATOR_PAGE_SIZE);
+  }, [filteredEntries, page]);
 
   const handlerOptions = useMemo(
     () =>
@@ -415,6 +433,20 @@ export default function LocatorTracker() {
       setSortDir("desc");
     }
   };
+
+  React.useEffect(() => {
+    setPage(1);
+    setExpandedId("");
+  }, [failuresOnly, handlerFilter, sortDir, sortField]);
+
+  React.useEffect(() => {
+    if (
+      expandedId &&
+      !visibleEntries.some((entry) => entry.id === expandedId)
+    ) {
+      setExpandedId("");
+    }
+  }, [expandedId, visibleEntries]);
 
   if (error) {
     return (
@@ -528,152 +560,153 @@ export default function LocatorTracker() {
                 </TableCell>
               </TableRow>
             </TableHead>
-            <TableBody
-              component={motion.tbody}
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-            >
-              <AnimatePresence>
-                {filteredEntries.map((entry) => {
-                  const isOpen = expandedId === entry.id;
-                  return (
-                    <React.Fragment key={entry.id}>
-                      <TableRow
-                        component={motion.tr}
-                        variants={itemVariants}
-                        onClick={() =>
-                          setExpandedId((cur) =>
-                            cur === entry.id ? "" : entry.id
-                          )
-                        }
-                        sx={{
-                          cursor: "pointer",
-                          backgroundColor: isOpen
-                            ? `${themeColors.primary.main}15`
-                            : "transparent",
-                          "&:hover": {
-                            backgroundColor: `${themeColors.primary.main}10`,
-                          },
-                        }}
-                      >
-                        <TableCell padding="checkbox">
-                          <ExpandMoreIcon
-                            sx={{
-                              fontSize: 18,
-                              color: COMMON_COLORS.text.muted,
-                              transition: "transform 0.2s",
-                              transform: isOpen
-                                ? "rotate(180deg)"
-                                : "rotate(0deg)",
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Tooltip title={entry.selector} arrow>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                fontFamily: "monospace",
-                                fontSize: "0.75rem",
-                                maxWidth: 220,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {truncateText(entry.selector)}
-                            </Typography>
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {entry.handler}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
+            <TableBody>
+              {visibleEntries.map((entry) => {
+                const isOpen = expandedId === entry.id;
+                return (
+                  <React.Fragment key={entry.id}>
+                    <TableRow
+                      onClick={() =>
+                        setExpandedId((cur) =>
+                          cur === entry.id ? "" : entry.id
+                        )
+                      }
+                      sx={{
+                        cursor: "pointer",
+                        backgroundColor: isOpen
+                          ? `${themeColors.primary.main}15`
+                          : "transparent",
+                        "&:hover": {
+                          backgroundColor: `${themeColors.primary.main}10`,
+                        },
+                      }}
+                    >
+                      <TableCell padding="checkbox">
+                        <ExpandMoreIcon
+                          sx={{
+                            fontSize: 18,
+                            color: COMMON_COLORS.text.muted,
+                            transition: "transform 0.2s",
+                            transform: isOpen
+                              ? "rotate(180deg)"
+                              : "rotate(0deg)",
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip title={entry.selector} arrow>
                           <Typography
                             variant="body2"
                             sx={{
                               fontFamily: "monospace",
                               fontSize: "0.75rem",
+                              maxWidth: 220,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
                             }}
                           >
-                            {entry.action}
+                            {truncateText(entry.selector)}
                           </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={entry.last_success ? "OK" : "FAIL"}
-                            size="small"
-                            sx={{
-                              backgroundColor: entry.last_success
-                                ? "rgba(76, 175, 80, 0.15)"
-                                : "rgba(244, 67, 54, 0.15)",
-                              color: entry.last_success ? "#66bb6a" : "#ef5350",
-                              fontWeight: 700,
-                              fontSize: "0.7rem",
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {entry.hit_count}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Tooltip title={entry.last_error || "-"} arrow>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                maxWidth: 220,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {truncateText(entry.last_error || "-", 48)}
-                            </Typography>
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell>
-                          <Tooltip title={entry.last_seen || "-"} arrow>
-                            <Typography
-                              variant="body2"
-                              sx={{ fontSize: "0.75rem" }}
-                            >
-                              {relativeTime(entry.last_seen)}
-                            </Typography>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-
-                      {/* Expandable detail row */}
-                      <TableRow>
-                        <TableCell
-                          colSpan={DETAIL_COL_SPAN + 1}
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{entry.handler}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography
+                          variant="body2"
                           sx={{
-                            p: 0,
-                            borderBottom: isOpen ? undefined : "none",
+                            fontFamily: "monospace",
+                            fontSize: "0.75rem",
                           }}
                         >
-                          <Collapse in={isOpen} timeout="auto" unmountOnExit>
-                            <DetailPanel
-                              entry={entry}
-                              useRouteData={useRouteData}
-                              onOpenScreenshot={openScreenshot}
-                              onOpenDom={openDom}
-                            />
-                          </Collapse>
-                        </TableCell>
-                      </TableRow>
-                    </React.Fragment>
-                  );
-                })}
-              </AnimatePresence>
+                          {entry.action}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={entry.last_success ? "OK" : "FAIL"}
+                          size="small"
+                          sx={{
+                            backgroundColor: entry.last_success
+                              ? "rgba(76, 175, 80, 0.15)"
+                              : "rgba(244, 67, 54, 0.15)",
+                            color: entry.last_success ? "#66bb6a" : "#ef5350",
+                            fontWeight: 700,
+                            fontSize: "0.7rem",
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {entry.hit_count}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip title={entry.last_error || "-"} arrow>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              maxWidth: 220,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {truncateText(entry.last_error || "-", 48)}
+                          </Typography>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip title={entry.last_seen || "-"} arrow>
+                          <Typography
+                            variant="body2"
+                            sx={{ fontSize: "0.75rem" }}
+                          >
+                            {relativeTime(entry.last_seen)}
+                          </Typography>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Expandable detail row */}
+                    <TableRow>
+                      <TableCell
+                        colSpan={DETAIL_COL_SPAN + 1}
+                        sx={{
+                          p: 0,
+                          borderBottom: isOpen ? undefined : "none",
+                        }}
+                      >
+                        <Collapse in={isOpen} timeout="auto" unmountOnExit>
+                          <DetailPanel
+                            entry={entry}
+                            useRouteData={useRouteData}
+                            onOpenScreenshot={openScreenshot}
+                            onOpenDom={openDom}
+                          />
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
+      )}
+
+      {pageCount > 1 && (
+        <Box sx={{ display: "flex", justifyContent: "center" }}>
+          <Pagination
+            count={pageCount}
+            page={page}
+            onChange={(_, value) => setPage(value)}
+            color="primary"
+            size="small"
+          />
+        </Box>
       )}
 
       <Dialog
@@ -686,6 +719,8 @@ export default function LocatorTracker() {
             <img
               src={screenshotDialog}
               alt="Full screenshot"
+              loading="lazy"
+              decoding="async"
               style={{ maxWidth: "100%", maxHeight: "80vh" }}
             />
           ) : null}

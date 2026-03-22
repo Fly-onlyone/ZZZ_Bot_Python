@@ -81,18 +81,6 @@ export const DataLoader = () => {
     }
   }, []);
 
-  const fetchAllRoutes = useCallback(async () => {
-    const data = await fetchJson(
-      `${BACKEND_URL}/routes`,
-      "Failed to fetch routes"
-    );
-    const routes = Array.isArray(data?.routes) ? data.routes : [];
-    logInfo("Frontend route list loaded", {
-      routeCount: routes.length,
-    });
-    return routes;
-  }, [fetchJson]);
-
   const fetchRouteData = useCallback(
     async (route) => {
       const data = await fetchJson(
@@ -107,40 +95,38 @@ export const DataLoader = () => {
     [fetchJson]
   );
 
-  const prefetchAllRoutes = useCallback(async () => {
-    let routes = [];
+  const prefetchRoutes = useCallback(
+    async (routes) => {
+      if (!Array.isArray(routes) || routes.length === 0) {
+        return;
+      }
 
-    try {
-      routes = await fetchAllRoutes();
-    } catch (error) {
-      logWarn("Frontend route prefetch skipped", {
-        error: error instanceof Error ? error.message : String(error),
+      const uniqueRoutes = [...new Set(routes.filter(Boolean))];
+
+      await Promise.all(
+        uniqueRoutes.map((route) =>
+          queryClient
+            .prefetchQuery({
+              queryKey: [route],
+              queryFn: () => fetchRouteData(route),
+              staleTime: STALE_TIMES[route] || DEFAULT_STALE_TIME,
+              retry: API_RETRY_COUNT,
+            })
+            .catch((error) => {
+              logWarn("Frontend route prefetch failed", {
+                route,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            })
+        )
+      );
+
+      logInfo("Frontend route prefetch completed", {
+        routeCount: uniqueRoutes.length,
       });
-      return;
-    }
-
-    await Promise.all(
-      routes.map((route) =>
-        queryClient
-          .prefetchQuery({
-            queryKey: [route],
-            queryFn: () => fetchRouteData(route),
-            staleTime: STALE_TIMES[route] || DEFAULT_STALE_TIME,
-            retry: API_RETRY_COUNT,
-          })
-          .catch((error) => {
-            logWarn("Frontend route prefetch failed", {
-              route,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          })
-      )
-    );
-
-    logInfo("Frontend route prefetch completed", {
-      routeCount: routes.length,
-    });
-  }, [fetchAllRoutes, fetchRouteData, queryClient]);
+    },
+    [fetchRouteData, queryClient]
+  );
 
   const useRouteData = (route, queryOptions = {}) => {
     return useQuery({
@@ -271,7 +257,7 @@ export const DataLoader = () => {
   };
 
   return {
-    prefetchAllRoutes,
+    prefetchRoutes,
     useRouteData,
     useSaveData,
     useActionData,
