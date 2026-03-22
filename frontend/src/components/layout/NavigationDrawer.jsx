@@ -89,13 +89,13 @@ const NavigationDrawer = memo(function NavigationDrawer({
       position: "relative",
       overflow: "hidden",
       background: isActive(path)
-        ? themeColors.gradients.backgroundSubtle
+        ? `linear-gradient(90deg, ${themeColors.glow}25, ${themeColors.alpha.card})`
         : "transparent",
       borderLeft: isActive(path)
-        ? `3px solid ${themeColors.secondary.main}`
+        ? `3px solid ${themeColors.primary.main}`
         : "3px solid transparent",
       boxShadow: isActive(path)
-        ? `inset 3px 0 12px ${themeColors.glow}20`
+        ? `inset 4px 0 15px ${themeColors.glow}35, 0 0 12px ${themeColors.glow}15`
         : "none",
       transition: TRANSITIONS.cubic,
       "&:hover": {
@@ -125,7 +125,7 @@ const NavigationDrawer = memo(function NavigationDrawer({
   const getIconStyles = useMemo(
     () => (path) => ({
       color: isActive(path)
-        ? themeColors.secondary.light
+        ? themeColors.primary.light
         : COMMON_COLORS.text.muted,
       minWidth: "40px",
       transition: TRANSITIONS.default,
@@ -148,7 +148,7 @@ const NavigationDrawer = memo(function NavigationDrawer({
   );
 
   const drawerContent = (
-    <Box className="overflow-auto">
+    <Box className="overflow-y-auto overflow-x-hidden">
       <List sx={{ px: 1 }} role="navigation" aria-label="Main navigation">
         {tabs.map((tab, index) => (
           <motion.div
@@ -167,7 +167,33 @@ const NavigationDrawer = memo(function NavigationDrawer({
               sx={getListItemStyles(tab.path)}
             >
               <ListItemIcon sx={getIconStyles(tab.path)}>
-                {tab.icon}
+                <motion.div
+                  style={{ display: "flex" }}
+                  whileHover={{
+                    rotate: [0, -12, 12, -6, 0],
+                    scale: [1, 1.2, 1.15, 1.2, 1.1],
+                    transition: { duration: 0.5 },
+                  }}
+                  animate={
+                    isActive(tab.path)
+                      ? {
+                          scale: [1, 1.15, 1.1],
+                          filter: [
+                            `drop-shadow(0 0 3px ${themeColors.glow}40)`,
+                            `drop-shadow(0 0 8px ${themeColors.glow}70)`,
+                            `drop-shadow(0 0 5px ${themeColors.glow}50)`,
+                          ],
+                          transition: {
+                            duration: 2,
+                            repeat: Infinity,
+                            repeatType: "reverse",
+                          },
+                        }
+                      : { scale: 1, filter: "none" }
+                  }
+                >
+                  {tab.icon}
+                </motion.div>
               </ListItemIcon>
               <ListItemText
                 primary={tab.label}

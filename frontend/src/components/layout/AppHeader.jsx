@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   AppBar,
   Box,
@@ -10,6 +10,8 @@ import {
   Typography,
 } from "@mui/material";
 import zIndex from "@mui/material/styles/zIndex";
+import { keyframes } from "@mui/system";
+import { motion } from "framer-motion";
 import MenuIcon from "@mui/icons-material/Menu";
 import { COMMON_COLORS } from "../../theme/colors";
 import { GLOW, TRANSITIONS } from "../../theme/styles";
@@ -73,10 +75,18 @@ function ZoomChip({ zoomPercent, onRestore }) {
  * Shows hamburger menu on mobile.
  */
 export default function AppHeader({ isMobile = false, onMenuClick }) {
-  const { themeColors } = useThemeContext();
+  const { themeColors, prefersReducedMotion } = useThemeContext();
   const { zoomLevel, resetZoom } = useZoom();
   const Qingyi02 = "/Qingyi02.ico";
   const zoomPercent = Math.round(zoomLevel * 100);
+
+  const iconGlow = useMemo(
+    () => keyframes`
+      0%, 100% { box-shadow: ${GLOW.subtle(themeColors.glow)}; }
+      50% { box-shadow: ${GLOW.strong(themeColors.glow)}; }
+    `,
+    [themeColors.glow]
+  );
 
   return (
     <AppBar position="fixed" sx={{ zIndex: zIndex.drawer + 1 }}>
@@ -95,6 +105,13 @@ export default function AppHeader({ isMobile = false, onMenuClick }) {
             </IconButton>
           )}
           <Box
+            component={motion.div}
+            whileHover={{
+              scale: 1.15,
+              rotate: [0, -5, 5, -3, 0],
+              transition: { duration: 0.4, ease: "easeOut" },
+            }}
+            whileTap={{ scale: 0.95 }}
             sx={{
               width: 48,
               height: 48,
@@ -105,15 +122,23 @@ export default function AppHeader({ isMobile = false, onMenuClick }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: GLOW.subtle(themeColors.glow),
-              transition: TRANSITIONS.default,
+              cursor: "pointer",
+              animation: prefersReducedMotion
+                ? "none"
+                : `${iconGlow} 3s ease-in-out infinite`,
               "&:hover": {
-                transform: "scale(1.05)",
-                boxShadow: GLOW.medium(themeColors.glow),
+                border: `1px solid ${themeColors.glow}60`,
               },
             }}
           >
-            <img src={Qingyi02} alt="ZZZ Bot Icon" className="h-10 w-10" />
+            <motion.img
+              src={Qingyi02}
+              alt="ZZZ Bot Icon"
+              className="h-10 w-10"
+              whileHover={{
+                filter: `drop-shadow(0 0 12px ${themeColors.glow}80)`,
+              }}
+            />
           </Box>
         </div>
 

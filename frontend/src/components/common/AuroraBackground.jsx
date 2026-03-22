@@ -18,20 +18,20 @@ const AuroraBackground = memo(function AuroraBackground() {
         {`
           @keyframes auroraShift1 {
             0%, 100% { transform: translate(0%, 0%) scale(1); }
-            25% { transform: translate(5%, -8%) scale(1.1); }
+            25% { transform: translate(5%, -8%) scale(1.15); }
             50% { transform: translate(-3%, 5%) scale(0.95); }
-            75% { transform: translate(8%, 3%) scale(1.05); }
+            75% { transform: translate(8%, 3%) scale(1.1); }
           }
           @keyframes auroraShift2 {
             0%, 100% { transform: translate(0%, 0%) scale(1.05); }
-            25% { transform: translate(-6%, 4%) scale(0.95); }
-            50% { transform: translate(4%, -6%) scale(1.1); }
+            25% { transform: translate(-8%, 6%) scale(0.9); }
+            50% { transform: translate(6%, -8%) scale(1.15); }
             75% { transform: translate(-5%, -3%) scale(1); }
           }
           @keyframes auroraShift3 {
             0%, 100% { transform: translate(0%, 0%) scale(0.95); }
-            33% { transform: translate(7%, 5%) scale(1.05); }
-            66% { transform: translate(-4%, -7%) scale(1); }
+            33% { transform: translate(10%, 7%) scale(1.1); }
+            66% { transform: translate(-6%, -9%) scale(1); }
           }
         `}
       </style>
@@ -46,20 +46,20 @@ const AuroraBackground = memo(function AuroraBackground() {
           zIndex: 0,
           pointerEvents: "none",
           overflow: "hidden",
-          background: `linear-gradient(180deg, ${aurora[0]}15 0%, #0f172a 50%, ${aurora[2]}10 100%)`,
+          background: `linear-gradient(180deg, ${aurora[0]}60 0%, #0c1222 40%, #0f172a 60%, ${aurora[2]}50 100%)`,
         }}
       >
-        {/* Aurora blob 1 — top left */}
+        {/* Aurora blob 1 — top left, large & bright */}
         <div
           style={{
             position: "absolute",
-            top: "-20%",
-            left: "-10%",
-            width: "70%",
-            height: "60%",
+            top: "-15%",
+            left: "-5%",
+            width: "75%",
+            height: "65%",
             borderRadius: "50%",
-            background: `radial-gradient(ellipse at center, ${aurora[0]}18 0%, transparent 70%)`,
-            filter: "blur(60px)",
+            background: `radial-gradient(ellipse at center, ${aurora[0]}80 0%, ${aurora[0]}35 40%, transparent 70%)`,
+            filter: "blur(40px)",
             animation: prefersReducedMotion
               ? "none"
               : "auroraShift1 12s ease-in-out infinite",
@@ -70,13 +70,13 @@ const AuroraBackground = memo(function AuroraBackground() {
         <div
           style={{
             position: "absolute",
-            top: "20%",
-            right: "-15%",
-            width: "60%",
-            height: "55%",
+            top: "15%",
+            right: "-10%",
+            width: "65%",
+            height: "60%",
             borderRadius: "50%",
-            background: `radial-gradient(ellipse at center, ${aurora[1]}15 0%, transparent 70%)`,
-            filter: "blur(80px)",
+            background: `radial-gradient(ellipse at center, ${aurora[1]}70 0%, ${aurora[1]}2A 40%, transparent 70%)`,
+            filter: "blur(45px)",
             animation: prefersReducedMotion
               ? "none"
               : "auroraShift2 15s ease-in-out infinite",
@@ -87,30 +87,30 @@ const AuroraBackground = memo(function AuroraBackground() {
         <div
           style={{
             position: "absolute",
-            bottom: "-15%",
-            left: "20%",
-            width: "65%",
-            height: "50%",
+            bottom: "-10%",
+            left: "15%",
+            width: "70%",
+            height: "55%",
             borderRadius: "50%",
-            background: `radial-gradient(ellipse at center, ${aurora[2]}12 0%, transparent 70%)`,
-            filter: "blur(70px)",
+            background: `radial-gradient(ellipse at center, ${aurora[2]}65 0%, ${aurora[2]}25 40%, transparent 70%)`,
+            filter: "blur(40px)",
             animation: prefersReducedMotion
               ? "none"
               : "auroraShift3 18s ease-in-out infinite",
             willChange: "transform",
           }}
         />
-        {/* Aurora blob 4 — accent top right (subtle) */}
+        {/* Aurora blob 4 — accent top right */}
         <div
           style={{
             position: "absolute",
-            top: "10%",
-            right: "10%",
-            width: "40%",
-            height: "35%",
+            top: "5%",
+            right: "5%",
+            width: "45%",
+            height: "40%",
             borderRadius: "50%",
-            background: `radial-gradient(ellipse at center, ${aurora[3] || aurora[0]}0D 0%, transparent 70%)`,
-            filter: "blur(90px)",
+            background: `radial-gradient(ellipse at center, ${aurora[3] || aurora[0]}50 0%, transparent 65%)`,
+            filter: "blur(50px)",
             animation: prefersReducedMotion
               ? "none"
               : "auroraShift1 20s ease-in-out infinite reverse",

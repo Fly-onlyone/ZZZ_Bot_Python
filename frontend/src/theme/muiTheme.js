@@ -8,7 +8,7 @@
 import { createTheme } from "@mui/material";
 import { createThemePalette } from "./themes";
 import { COMMON_COLORS } from "./colors";
-import { TRANSITIONS } from "./styles";
+import { GLOW, TRANSITIONS } from "./styles";
 
 /**
  * Create component style overrides
@@ -17,16 +17,35 @@ import { TRANSITIONS } from "./styles";
  * @returns {object} MUI component overrides
  */
 function createComponentOverrides(prefersDarkMode, themeColors) {
+  const outlinedInputStyles = {
+    transition: TRANSITIONS.cubic,
+    "& .MuiOutlinedInput-notchedOutline": {
+      borderColor: themeColors.alpha.cardBorder,
+      borderWidth: 1,
+      transition: TRANSITIONS.cubic,
+    },
+    "&:hover .MuiOutlinedInput-notchedOutline": {
+      borderColor: themeColors.primary.main,
+      boxShadow: `0 0 18px ${themeColors.glow}35`,
+    },
+    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+      borderColor: themeColors.primary.main,
+      borderWidth: 2,
+      boxShadow: `0 0 25px ${themeColors.glow}45, 0 0 8px ${themeColors.glow}25`,
+    },
+  };
+
   return {
     MuiCssBaseline: {
       styleOverrides: {
         body: {
+          overflowX: "hidden",
           scrollbarColor: prefersDarkMode
             ? "#334155 #0f172a"
             : "#cbd5e1 #f1f5f9",
           "&::-webkit-scrollbar, & *::-webkit-scrollbar": {
             width: "8px",
-            height: "8px",
+            height: "0px",
           },
           "&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb": {
             borderRadius: 8,
@@ -37,45 +56,13 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
     },
     MuiOutlinedInput: {
       styleOverrides: {
-        root: {
-          transition: TRANSITIONS.cubic,
-          "& .MuiOutlinedInput-notchedOutline": {
-            borderColor: themeColors.alpha.cardBorder,
-            borderWidth: 1,
-            transition: TRANSITIONS.cubic,
-          },
-          "&:hover .MuiOutlinedInput-notchedOutline": {
-            borderColor: themeColors.primary.main,
-            boxShadow: `0 0 12px ${themeColors.alpha.hover}`,
-          },
-          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-            borderColor: themeColors.primary.main,
-            borderWidth: 2,
-            boxShadow: `0 0 16px ${themeColors.alpha.hover}`,
-          },
-        },
+        root: outlinedInputStyles,
       },
     },
 
     MuiSelect: {
       styleOverrides: {
-        root: {
-          transition: TRANSITIONS.cubic,
-          "& .MuiOutlinedInput-notchedOutline": {
-            borderColor: themeColors.alpha.cardBorder,
-            borderWidth: 1,
-            transition: TRANSITIONS.cubic,
-          },
-          "&:hover .MuiOutlinedInput-notchedOutline": {
-            borderColor: themeColors.primary.main,
-            boxShadow: `0 0 12px ${themeColors.alpha.hover}`,
-          },
-          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-            borderColor: themeColors.primary.main,
-            borderWidth: 2,
-            boxShadow: `0 0 16px ${themeColors.alpha.hover}`,
-          },
-        },
+        root: outlinedInputStyles,
       },
     },
 
@@ -114,14 +101,27 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
       styleOverrides: {
         paper: {
           background: prefersDarkMode
-            ? "rgba(15, 23, 42, 0.75)"
+            ? `linear-gradient(180deg, ${themeColors.glow}30 0%, rgba(15, 23, 42, 0.15) 40%, ${themeColors.glow}20 100%)`
             : "#ffffff",
-          backdropFilter: "blur(20px)",
+          backdropFilter: "blur(24px)",
+          overflowX: "hidden",
           borderRadius: "0 24px 24px 0",
           border: "none",
-          borderRight: `1px solid ${themeColors.alpha.divider}`,
-          boxShadow: `4px 0 24px ${themeColors.alpha.hover}`,
+          borderRight: `1px solid ${themeColors.glow}30`,
+          boxShadow: `8px 0 50px ${themeColors.glow}25, 3px 0 20px ${themeColors.glow}18`,
           transition: TRANSITIONS.cubic,
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            top: "5%",
+            right: -1,
+            bottom: "5%",
+            width: "2px",
+            background: `linear-gradient(180deg, transparent, ${themeColors.glow}70, ${themeColors.primary.light}50, ${themeColors.glow}70, transparent)`,
+            borderRadius: "2px",
+            filter: "blur(1px)",
+            pointerEvents: "none",
+          },
         },
       },
     },
@@ -129,11 +129,23 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
     MuiAppBar: {
       styleOverrides: {
         root: {
-          background: "rgba(15, 23, 42, 0.6)",
-          backdropFilter: "blur(16px)",
-          boxShadow: "none",
-          borderBottom: `1px solid ${themeColors.alpha.divider}`,
+          background: "rgba(15, 23, 42, 0.2)",
+          backdropFilter: "blur(20px)",
+          boxShadow: `0 4px 40px ${themeColors.glow}18, 0 1px 3px rgba(0,0,0,0.3)`,
+          borderBottom: `1px solid ${themeColors.glow}30`,
           transition: TRANSITIONS.cubic,
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            bottom: -1,
+            left: "5%",
+            right: "5%",
+            height: "2px",
+            background: `linear-gradient(90deg, transparent, ${themeColors.glow}70, ${themeColors.primary.light}50, ${themeColors.glow}70, transparent)`,
+            borderRadius: "2px",
+            filter: `blur(1px)`,
+            pointerEvents: "none",
+          },
         },
       },
     },
@@ -153,10 +165,10 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
         },
         contained: {
           background: themeColors.gradients.primary,
-          boxShadow: `0 4px 12px ${themeColors.alpha.hover}`,
+          boxShadow: GLOW.subtle(themeColors.glow),
           "&:hover": {
             background: themeColors.gradients.primaryLight,
-            boxShadow: `0 4px 20px ${themeColors.glow}40, 0 0 30px ${themeColors.glow}15`,
+            boxShadow: GLOW.medium(themeColors.glow),
           },
         },
       },

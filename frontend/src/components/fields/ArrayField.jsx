@@ -4,6 +4,7 @@ import { Button } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
 import dayjs from "dayjs";
 import { COMMON_COLORS } from "../../theme/colors";
+import { GLOW } from "../../theme/styles";
 import { useThemeContext } from "../../theme/ThemeContext";
 
 /**
@@ -32,29 +33,24 @@ export default function ArrayField({ value = [], onChange }) {
 
   // Animation variants
   const itemVariants = {
-    hidden: { opacity: 0, x: -20, scale: 0.95 },
+    hidden: { opacity: 0, y: -10, scale: 0.97 },
     visible: {
       opacity: 1,
-      x: 0,
+      y: 0,
       scale: 1,
       transition: {
-        duration: 0.3,
-        ease: [0.4, 0, 0.2, 1],
+        type: "spring",
+        stiffness: 200,
+        damping: 20,
       },
     },
     exit: {
       opacity: 0,
-      x: 20,
       scale: 0.95,
       transition: {
-        duration: 0.2,
+        duration: 0.15,
       },
     },
-  };
-
-  const buttonVariants = {
-    hover: { scale: 1.05 },
-    tap: { scale: 0.95 },
   };
 
   return (
@@ -79,20 +75,19 @@ export default function ArrayField({ value = [], onChange }) {
               value={time ? dayjs(time, "HH:mm") : null}
               onChange={(newValue) => handleTimeChange(index, newValue)}
             />
-            <motion.div
-              variants={buttonVariants}
-              whileHover="hover"
-              whileTap="tap"
-            >
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
                 variant="contained"
                 onClick={() => handleRemove(index)}
                 sx={{
-                  background: COMMON_COLORS.error.main,
+                  background: `linear-gradient(135deg, ${COMMON_COLORS.error.main}CC 0%, ${COMMON_COLORS.error.dark}CC 100%)`,
                   color: "#ffffff",
                   fontWeight: 600,
+                  boxShadow: GLOW.subtle("#EF4444"),
                   "&:hover": {
-                    background: COMMON_COLORS.error.dark,
+                    background: `linear-gradient(135deg, ${COMMON_COLORS.error.main} 0%, ${COMMON_COLORS.error.dark} 100%)`,
+                    boxShadow: GLOW.medium("#EF4444"),
+                    transform: "translateY(-2px)",
                   },
                 }}
               >
@@ -102,16 +97,23 @@ export default function ArrayField({ value = [], onChange }) {
           </motion.div>
         ))}
       </AnimatePresence>
-      <motion.div variants={buttonVariants} whileHover="hover" whileTap="tap">
+      <motion.div
+        whileHover={{ y: -2 }}
+        whileTap={{ y: 0, scale: 0.97 }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      >
         <Button
           variant="contained"
           onClick={handleAdd}
           sx={{
-            background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+            background: `linear-gradient(135deg, ${COMMON_COLORS.success.main}CC 0%, ${COMMON_COLORS.success.dark}CC 100%)`,
             color: "#ffffff",
             fontWeight: 600,
+            boxShadow: GLOW.subtle("#22C55E"),
             "&:hover": {
-              background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+              background: `linear-gradient(135deg, ${COMMON_COLORS.success.main} 0%, ${COMMON_COLORS.success.dark} 100%)`,
+              boxShadow: GLOW.medium("#22C55E"),
+              transform: "translateY(-2px)",
             },
           }}
         >

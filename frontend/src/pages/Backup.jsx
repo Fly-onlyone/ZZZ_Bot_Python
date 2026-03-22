@@ -28,6 +28,8 @@ import { BackupSkeleton, SectionCard } from "../components";
 import { BACKEND_URL } from "../config";
 import { DataLoader } from "../services";
 import { logError, logInfo } from "../services/sentryLogger.js";
+import { GLOW } from "../theme/styles";
+import { COMMON_COLORS } from "../theme/colors";
 
 /**
  * @typedef {{
@@ -366,10 +368,20 @@ function RestoreSection({ showAlert }) {
 
           <Button
             variant="contained"
-            color="warning"
             disabled={importing || selected.length === 0}
             onClick={handleRestore}
             startIcon={<IconDatabaseImport size={18} />}
+            sx={{
+              background: `linear-gradient(135deg, ${COMMON_COLORS.warning.main} 0%, ${COMMON_COLORS.warning.dark} 100%)`,
+              color: "#0f172a",
+              fontWeight: 600,
+              boxShadow: GLOW.subtle("#FBBF24"),
+              "&:hover": {
+                background: `linear-gradient(135deg, ${COMMON_COLORS.warning.light}CC 0%, ${COMMON_COLORS.warning.main}CC 100%)`,
+                boxShadow: GLOW.medium("#FBBF24"),
+                transform: "translateY(-2px)",
+              },
+            }}
           >
             {importing
               ? "Restoring..."

@@ -5,6 +5,7 @@ import { DataGrid } from "@mui/x-data-grid";
 import { Button } from "@mui/material";
 import { useEffect, useState } from "react";
 import RedeemIcon from "@mui/icons-material/Redeem";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { EmptyState, RedeemSkeleton, SaveButton } from "../components";
 import { logInfo, logWarn } from "../services/sentryLogger.js";
 
@@ -131,8 +132,9 @@ export default function Redeem() {
         !params.row.state ? (
           <Button
             variant="contained"
-            color="primary"
+            startIcon={<CheckCircleIcon />}
             onClick={() => handleSwitchState(params.row.id)}
+            sx={{ fontWeight: 600 }}
           >
             DONE
           </Button>
