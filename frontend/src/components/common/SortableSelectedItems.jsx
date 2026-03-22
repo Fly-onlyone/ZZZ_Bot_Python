@@ -79,21 +79,10 @@ function SortableItem({ item, index, huntItems, onHuntToggle }) {
 
       <Typography
         sx={{
-          flex: 1,
-          color: COMMON_COLORS.text.tertiary,
-          fontWeight: 500,
-          fontSize: "0.875rem",
-        }}
-      >
-        {item.Name}
-      </Typography>
-
-      <Typography
-        sx={{
           color: themeColors.primary.light,
           fontWeight: 700,
           fontSize: "0.75rem",
-          minWidth: 28,
+          minWidth: 24,
           textAlign: "center",
           background: `${themeColors.primary.main}1A`,
           borderRadius: "6px",
@@ -101,7 +90,18 @@ function SortableItem({ item, index, huntItems, onHuntToggle }) {
           py: 0.25,
         }}
       >
-        #{index + 1}
+        {index + 1}
+      </Typography>
+
+      <Typography
+        sx={{
+          flex: 1,
+          color: COMMON_COLORS.text.tertiary,
+          fontWeight: 500,
+          fontSize: "0.875rem",
+        }}
+      >
+        {item.Name}
       </Typography>
 
       <Checkbox

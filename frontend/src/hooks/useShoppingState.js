@@ -91,6 +91,31 @@ export function useShoppingState(shopping) {
     });
   };
 
+  /**
+   * Handle inline priority edit from DataGrid
+   * Moves item to the new priority position and reassigns sequential priorities
+   */
+  const handlePriorityEdit = (itemName, newPriority) => {
+    setSelectedRows((prev) => {
+      const currentIndex = prev.findIndex((row) => row.Name === itemName);
+      if (currentIndex === -1) return prev;
+
+      const clampedPriority = Math.max(
+        1,
+        Math.min(newPriority, prev.length)
+      );
+      const targetIndex = clampedPriority - DEFAULT_PRIORITY_OFFSET;
+
+      if (currentIndex === targetIndex) return prev;
+
+      const reordered = arrayMove(prev, currentIndex, targetIndex);
+      return reordered.map((row, index) => ({
+        ...row,
+        Priority: index + DEFAULT_PRIORITY_OFFSET,
+      }));
+    });
+  };
+
   return {
     selectedRows,
     huntItems,
@@ -99,5 +124,6 @@ export function useShoppingState(shopping) {
     handleHuntToggle,
     handleRowSelectionChange,
     handleDragEnd,
+    handlePriorityEdit,
   };
 }

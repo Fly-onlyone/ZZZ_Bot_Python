@@ -178,11 +178,20 @@ export default function ValueAdapter({
     <Button
       key={action.key}
       variant="outlined"
-      color="warning"
       onClick={() => {
         void handleExtraAction(action);
       }}
       disabled={Boolean(actionLoading[action.key])}
+      sx={{
+        borderColor: `${COMMON_COLORS.warning.main}80`,
+        color: COMMON_COLORS.warning.light,
+        backdropFilter: "blur(8px)",
+        "&:hover": {
+          borderColor: COMMON_COLORS.warning.main,
+          background: `${COMMON_COLORS.warning.main}15`,
+          boxShadow: `0 0 25px ${COMMON_COLORS.warning.main}30`,
+        },
+      }}
     >
       {actionLoading[action.key] ? "Running..." : action.label}
     </Button>

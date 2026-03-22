@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { Box, Grid2, Tab, Tabs, Typography } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import { DataLoader } from "../services";
 import {
   EmptyState,
@@ -11,10 +12,11 @@ import {
   SortableSelectedItems,
 } from "../components";
 import { useShoppingState } from "../hooks";
-import { logInfo, logWarn } from "../services/sentryLogger.js";
+import { logError, logInfo, logWarn } from "../services/sentryLogger.js";
 import Redeem from "./Redeem";
 import Hunt from "../content/Hunt";
 import { useThemeContext } from "../theme/ThemeContext";
+import { COMMON_COLORS } from "../theme/colors";
 import { getAuroraTabsStyles, auroraPanelVariants } from "../theme/tabStyles";
 
 function ShoppingItems() {
@@ -34,6 +36,7 @@ function ShoppingItems() {
     handleHuntToggle,
     handleRowSelectionChange,
     handleDragEnd,
+    handlePriorityEdit,
   } = useShoppingState(shopping);
 
   useEffect(() => {
@@ -80,27 +83,32 @@ function ShoppingItems() {
   }
 
   // Convert shopping data into rows and add purchased items
-  const rows = [
-    ...(shopping.Purchased || []).map((itemName) => ({
-      id: itemName,
-      Name: itemName,
-      Price: shopping["Item's list"][itemName]?.Price || "N/A",
-      Inventory: shopping["Item's list"][itemName]?.Inventory || "N/A",
-      Available: "Purchased",
-      Priority:
-        selectedRows.find((row) => row.Name === itemName)?.Priority || null,
-      isPurchased: true,
-    })),
-    ...Object.entries(shopping["Item's list"])
-      .filter(([, item]) => !(shopping.Purchased || []).includes(item.Name))
-      .map(([, item]) => ({
-        id: item.Name,
-        ...item,
-        Priority:
-          selectedRows.find((row) => row.Name === item.Name)?.Priority || null,
-        isPurchased: false,
+  const rows = useMemo(() => {
+    const priorityMap = new Map(
+      selectedRows.map((row) => [row.Name, row.Priority])
+    );
+    return [
+      ...(shopping.Purchased || []).map((itemName) => ({
+        id: itemName,
+        Name: itemName,
+        Price: shopping["Item's list"][itemName]?.Price || "N/A",
+        Inventory: shopping["Item's list"][itemName]?.Inventory || "N/A",
+        Available: "Purchased",
+        Priority: priorityMap.get(itemName) || null,
+        isPurchased: true,
       })),
-  ];
+      ...Object.entries(shopping["Item's list"])
+        .filter(([, item]) => !(shopping.Purchased || []).includes(item.Name))
+        .map(([, item]) => ({
+          id: item.Name,
+          ...item,
+          Priority: priorityMap.get(item.Name) || null,
+          isPurchased: false,
+        })),
+    ];
+  }, [shopping, selectedRows]);
+
+  const huntItemsSet = useMemo(() => new Set(huntItems), [huntItems]);
 
   const columns = [
     { field: "Name", headerName: "Name", flex: 2 },
@@ -119,16 +127,64 @@ function ShoppingItems() {
     {
       field: "Priority",
       headerName: "Priority",
-      flex: 1,
+      flex: 0.8,
       type: "number",
+      editable: true,
       renderCell: (params) => {
         const isSelected = selectedRows.some(
           (row) => row.Name === params.row.Name
         );
-        return isSelected ? params.value : "N/A";
+        return isSelected ? params.value : "—";
+      },
+    },
+    {
+      field: "Hunt",
+      headerName: "Hunt",
+      flex: 0.6,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const isHunt = huntItemsSet.has(params.row.Name);
+        if (!isHunt) return null;
+        return (
+          <TrackChangesIcon
+            sx={{
+              color: COMMON_COLORS.warning.main,
+              fontSize: 20,
+              filter: `drop-shadow(0 0 4px ${COMMON_COLORS.warning.main}60)`,
+            }}
+          />
+        );
       },
     },
   ];
+
+  const processRowUpdate = React.useCallback(
+    (newRow, oldRow) => {
+      try {
+        if (newRow.Priority !== oldRow.Priority && newRow.Priority != null) {
+          const isSelected = selectedRows.some(
+            (row) => row.Name === newRow.Name
+          );
+          if (isSelected) {
+            handlePriorityEdit(newRow.Name, newRow.Priority);
+          }
+        }
+      } catch (e) {
+        logError("Priority edit failed", e);
+      }
+      return newRow;
+    },
+    [selectedRows, handlePriorityEdit]
+  );
+
+  const isCellEditable = React.useCallback(
+    (params) => {
+      if (params.field !== "Priority") return false;
+      return selectedRows.some((row) => row.Name === params.row.Name);
+    },
+    [selectedRows]
+  );
 
   const handleSave = () => {
     const payload = {
@@ -201,20 +257,35 @@ function ShoppingItems() {
           getRowId={(row) => row.Name}
           rowSelectionModel={selectedRows.map((row) => row.Name)}
           onRowSelectionModelChange={handleRowSelectionChange}
-          getRowClassName={(params) =>
-            params.row.isPurchased ? "purchased-row" : ""
+          processRowUpdate={processRowUpdate}
+          onProcessRowUpdateError={(error) =>
+            logError("DataGrid row update failed", error)
           }
+          isCellEditable={isCellEditable}
+          getRowClassName={(params) => {
+            const classes = [];
+            if (params.row.isPurchased) classes.push("purchased-row");
+            if (huntItemsSet.has(params.row.Name)) classes.push("hunt-row");
+            return classes.join(" ");
+          }}
           sx={{
             "& .purchased-row": {
-              background:
-                "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)",
+              background: `${COMMON_COLORS.success.main}14`,
               "&:hover": {
-                background:
-                  "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)",
+                background: `${COMMON_COLORS.success.main}20`,
               },
             },
             "& .purchased-row .MuiDataGrid-cell": {
-              color: "#10b981",
+              color: COMMON_COLORS.success.main,
+              fontWeight: 500,
+            },
+            "& .hunt-row": {
+              background: `${COMMON_COLORS.warning.main}12`,
+              "&:hover": {
+                background: `${COMMON_COLORS.warning.main}20`,
+              },
+            },
+            "& .hunt-row .MuiDataGrid-cell": {
               fontWeight: 500,
             },
           }}

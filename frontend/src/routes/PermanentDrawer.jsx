@@ -267,7 +267,7 @@ function PermanentDrawerContent() {
           width: "100%",
           height: scaledViewportHeight,
           overflow: "hidden",
-          background: "rgba(15, 23, 42, 0.65)",
+          background: "transparent",
           position: "relative",
           zIndex: 1,
           zoom: zoomLevel,

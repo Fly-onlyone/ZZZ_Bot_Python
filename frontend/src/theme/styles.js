@@ -10,43 +10,11 @@ export const TRANSITIONS = {
 
 // Luminous glow effects — pass theme glow color
 export const GLOW = {
-  subtle: (color) => `0 0 20px ${color}15, 0 4px 30px ${color}10`,
-  medium: (color) => `0 0 25px ${color}25, 0 4px 35px ${color}15`,
-  strong: (color) => `0 0 35px ${color}35, 0 8px 50px ${color}20`,
-  border: (color) => `0 0 12px ${color}30`,
-  text: (color) => `0 0 15px ${color}30`,
-};
-
-// Button styles
-export const buttonStyles = {
-  primary: {
-    background: GRADIENTS.primary,
-    color: "#ffffff",
-    fontWeight: 600,
-    borderRadius: "8px",
-    transition: TRANSITIONS.default,
-    "&:hover": {
-      background: GRADIENTS.primaryLight,
-      transform: "translateY(-2px)",
-      boxShadow: "0 6px 20px rgba(139, 92, 246, 0.4)",
-    },
-  },
-  success: {
-    background: GRADIENTS.success,
-    color: "#ffffff",
-    fontWeight: 600,
-    "&:hover": {
-      background: GRADIENTS.successDark,
-    },
-  },
-  error: {
-    background: COLORS.error.main,
-    color: "#ffffff",
-    fontWeight: 600,
-    "&:hover": {
-      background: COLORS.error.dark,
-    },
-  },
+  subtle: (color) => `0 0 25px ${color}30, 0 4px 35px ${color}20`,
+  medium: (color) => `0 0 35px ${color}45, 0 4px 45px ${color}30`,
+  strong: (color) => `0 0 50px ${color}55, 0 8px 60px ${color}35`,
+  border: (color) => `0 0 18px ${color}50`,
+  text: (color) => `0 0 20px ${color}50`,
 };
 
 // Icon button styles
