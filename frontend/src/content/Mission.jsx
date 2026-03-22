@@ -104,6 +104,7 @@ export default function Mission() {
             background: themeColors.gradients.backgroundSubtle,
             border: `1px solid ${themeColors.alpha.cardBorder}`,
             textAlign: "center",
+            backdropFilter: "blur(8px)",
           }}
         >
           <Typography
@@ -145,6 +146,7 @@ export default function Mission() {
             flexDirection: "column",
             alignItems: "center",
             gap: 1,
+            backdropFilter: "blur(8px)",
           }}
         >
           {check_in === "Login Success" ? (
@@ -190,7 +192,7 @@ export default function Mission() {
                 borderRadius: "12px",
                 overflow: "hidden",
                 border: `1px solid ${COMMON_COLORS.success.main}33`,
-                boxShadow: `0 4px 20px ${COMMON_COLORS.success.main}26`,
+                boxShadow: `0 0 25px ${COMMON_COLORS.success.main}20`,
               }}
             >
               <img
@@ -210,7 +212,7 @@ export default function Mission() {
         sx={{
           mb: 2,
           fontWeight: 600,
-          color: COMMON_COLORS.text.tertiary,
+          color: COMMON_COLORS.text.secondary,
         }}
       >
         Mission Status
@@ -245,6 +247,7 @@ export default function Mission() {
                   fontWeight: 600,
                   color: COMMON_COLORS.text.secondary,
                   borderBottom: `1px solid ${themeColors.alpha.divider}`,
+                  textShadow: `0 0 15px ${themeColors.glow}20`,
                 }}
               >
                 Mission
@@ -258,6 +261,7 @@ export default function Mission() {
                   fontWeight: 600,
                   color: COMMON_COLORS.text.secondary,
                   borderBottom: `1px solid ${themeColors.alpha.divider}`,
+                  textShadow: `0 0 15px ${themeColors.glow}20`,
                 }}
               >
                 Status
@@ -284,6 +288,7 @@ export default function Mission() {
                       mission.state === "Finished"
                         ? `${COMMON_COLORS.success.main}26`
                         : `${COMMON_COLORS.error.main}26`,
+                    boxShadow: `inset 3px 0 10px ${themeColors.glow}15`,
                   },
                   borderBottom:
                     index !== missions.length - 1

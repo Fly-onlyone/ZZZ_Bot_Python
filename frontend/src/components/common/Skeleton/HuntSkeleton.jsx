@@ -34,6 +34,7 @@ export default function HuntSkeleton() {
             borderRadius: "12px",
             background: themeColors.gradients.backgroundSubtle,
             border: `1px solid ${themeColors.alpha.cardBorder}`,
+            backdropFilter: "blur(8px)",
             textAlign: "center",
             display: "flex",
             flexDirection: "column",
@@ -53,6 +54,7 @@ export default function HuntSkeleton() {
             borderRadius: "12px",
             background: themeColors.gradients.backgroundSubtle,
             border: `1px solid ${themeColors.alpha.cardBorder}`,
+            backdropFilter: "blur(8px)",
             textAlign: "center",
           }}
         >
@@ -76,6 +78,7 @@ export default function HuntSkeleton() {
           borderRadius: "12px",
           background: themeColors.gradients.backgroundSubtle,
           border: `1px solid ${themeColors.alpha.divider}`,
+          backdropFilter: "blur(8px)",
           display: "flex",
           alignItems: "center",
           gap: 2,

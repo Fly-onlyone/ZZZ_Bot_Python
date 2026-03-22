@@ -12,7 +12,7 @@ import {
 import zIndex from "@mui/material/styles/zIndex";
 import MenuIcon from "@mui/icons-material/Menu";
 import { COMMON_COLORS } from "../../theme/colors";
-import { TRANSITIONS } from "../../theme/styles";
+import { GLOW, TRANSITIONS } from "../../theme/styles";
 import { useThemeContext } from "../../theme/ThemeContext";
 import { useZoom } from "../../hooks/useZoom.jsx";
 import ThemePicker from "./ThemePicker";
@@ -105,10 +105,11 @@ export default function AppHeader({ isMobile = false, onMenuClick }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              boxShadow: GLOW.subtle(themeColors.glow),
               transition: TRANSITIONS.default,
               "&:hover": {
                 transform: "scale(1.05)",
-                boxShadow: `0 4px 20px ${themeColors.alpha.hover}`,
+                boxShadow: GLOW.medium(themeColors.glow),
               },
             }}
           >
@@ -125,6 +126,7 @@ export default function AppHeader({ isMobile = false, onMenuClick }) {
             fontWeight: 700,
             color: COMMON_COLORS.text.primary,
             letterSpacing: "0.5px",
+            textShadow: GLOW.text(themeColors.glow),
           }}
         >
           ZZZ Bot

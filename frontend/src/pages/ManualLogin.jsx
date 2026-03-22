@@ -11,6 +11,8 @@ import StopIcon from "@mui/icons-material/Stop";
 import * as Sentry from "@sentry/react";
 import { BACKEND_URL } from "../config";
 import { logError, logInfo, logWarn } from "../services/sentryLogger.js";
+import { useThemeContext } from "../theme/ThemeContext";
+import { GLOW } from "../theme/styles";
 
 export default function ManualLogin() {
   const MINO_URL =
@@ -22,6 +24,7 @@ export default function ManualLogin() {
   const [url, setUrl] = useState(MINO_URL); // Default to MINO_URL
   const [playState, setPlayState] = useState(false);
   const spanFinishRef = useRef(null);
+  const { themeColors } = useThemeContext();
 
   const handleIconClick = (e) => {
     e.preventDefault();
@@ -123,7 +126,17 @@ export default function ManualLogin() {
           <MenuItem value={CHECK_IN_URL}>CHECK_IN_URL</MenuItem>
         </Select>
       </FormControl>
-      <IconButton onClick={handleIconClick}>
+      <IconButton
+        onClick={handleIconClick}
+        sx={{
+          transition: "all 0.3s ease-in-out",
+          "&:hover": {
+            boxShadow: playState
+              ? GLOW.subtle("#ef4444")
+              : GLOW.subtle(themeColors.glow),
+          },
+        }}
+      >
         {playState ? <StopIcon /> : <PlayArrowIcon />}
       </IconButton>
     </div>

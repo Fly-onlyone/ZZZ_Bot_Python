@@ -4,6 +4,7 @@ import { keyframes } from "@mui/system";
 import { motion } from "framer-motion";
 import SaveIcon from "@mui/icons-material/Save";
 import { useThemeContext } from "../../theme/ThemeContext";
+import { GLOW } from "../../theme/styles";
 
 const SaveButton = ({ onSave, alert, setAlert, loading = false }) => {
   const { themeColors, prefersReducedMotion } = useThemeContext();
@@ -13,16 +14,16 @@ const SaveButton = ({ onSave, alert, setAlert, loading = false }) => {
     () => keyframes`
     0%, 100% {
       box-shadow:
-        0 0 4px ${themeColors.primary.main}60,
-        0 0 8px ${themeColors.primary.main}40;
+        0 0 4px ${themeColors.glow}60,
+        0 0 8px ${themeColors.glow}40;
     }
     50% {
       box-shadow:
-        0 0 6px ${themeColors.primary.main}80,
-        0 0 10px ${themeColors.primary.main}60;
+        0 0 6px ${themeColors.glow}80,
+        0 0 10px ${themeColors.glow}60;
     }
   `,
-    [themeColors.primary.main]
+    [themeColors.glow]
   );
 
   const handleCloseAlert = () => {
@@ -71,11 +72,7 @@ const SaveButton = ({ onSave, alert, setAlert, loading = false }) => {
       color: "#ffffff",
       border: `1px solid ${themeColors.primary.main}`,
       textShadow: `0 0 6px ${themeColors.primary.light}`,
-      boxShadow: `
-        0 0 6px ${themeColors.primary.main}80,
-        0 0 12px ${themeColors.primary.main}60,
-        0 0 20px ${themeColors.primary.main}30
-      `,
+      boxShadow: GLOW.medium(themeColors.glow),
       transform: "translateY(-2px)",
       animation: "none",
     },

@@ -18,6 +18,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 
 import { AppHeader, NavigationDrawer } from "../components";
+import AuroraBackground from "../components/common/AuroraBackground";
 import {
   AccountPage,
   Overview,
@@ -106,6 +107,7 @@ function RouteTransition({ children, direction, fillHeight = false }) {
 }
 
 function StartupStatus({ isLoading, error }) {
+  const { themeColors } = useThemeContext();
   const message = isLoading ? "Starting backend..." : "Waiting for backend...";
   const detail = error
     ? "Connection failed during startup. Retrying automatically."
@@ -122,7 +124,12 @@ function StartupStatus({ isLoading, error }) {
         gap: 2,
       }}
     >
-      <CircularProgress size={32} />
+      <CircularProgress
+        size={32}
+        sx={{
+          filter: `drop-shadow(0 0 8px ${themeColors.glow}60)`,
+        }}
+      />
       <Typography variant="h6">{message}</Typography>
       <Typography variant="body2" color="text.secondary">
         {detail}
@@ -252,19 +259,21 @@ function PermanentDrawerContent() {
   }, [isBackendReady, prefetchAllRoutes]);
 
   return (
-    <Box
-      className="flex"
-      sx={{
-        width: "100%",
-        height: scaledViewportHeight,
-        overflow: "hidden",
-        background: themeColors.gradients.background,
-        backgroundAttachment: "fixed",
-        backgroundSize: "cover",
-        zoom: zoomLevel,
-      }}
-    >
-      <CssBaseline />
+    <>
+      <AuroraBackground />
+      <Box
+        className="flex"
+        sx={{
+          width: "100%",
+          height: scaledViewportHeight,
+          overflow: "hidden",
+          background: "rgba(15, 23, 42, 0.65)",
+          position: "relative",
+          zIndex: 1,
+          zoom: zoomLevel,
+        }}
+      >
+        <CssBaseline />
       <AppHeader
         isMobile={isMobile}
         onMenuClick={() => setMobileDrawerOpen(true)}
@@ -307,6 +316,7 @@ function PermanentDrawerContent() {
         </Box>
       </Box>
     </Box>
+    </>
   );
 }
 

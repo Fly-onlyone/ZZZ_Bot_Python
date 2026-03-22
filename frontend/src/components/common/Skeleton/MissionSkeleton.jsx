@@ -34,6 +34,7 @@ export default function MissionSkeleton() {
             borderRadius: "12px",
             background: themeColors.gradients.backgroundSubtle,
             border: `1px solid ${themeColors.alpha.cardBorder}`,
+            backdropFilter: "blur(8px)",
             textAlign: "center",
           }}
         >
@@ -54,6 +55,7 @@ export default function MissionSkeleton() {
             borderRadius: "12px",
             background: themeColors.gradients.backgroundSubtle,
             border: `1px solid ${themeColors.alpha.cardBorder}`,
+            backdropFilter: "blur(8px)",
             textAlign: "center",
             display: "flex",
             flexDirection: "column",

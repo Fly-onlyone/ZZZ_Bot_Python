@@ -112,7 +112,19 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
   const childScan = childScanData?.child_scan || [];
 
   return (
-    <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+    <Box
+      sx={{
+        p: 2,
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+        backdropFilter: "blur(8px)",
+        transition: "all 0.3s ease-in-out",
+        "&:hover": {
+          boxShadow: `0 0 12px ${themeColors.glow}30`,
+        },
+      }}
+    >
       {/* Screenshots */}
       {(entry.page_asset_id ||
         entry.locator_asset_id ||
@@ -482,7 +494,13 @@ export default function LocatorTracker() {
           }}
         >
           <Table size="small">
-            <TableHead>
+            <TableHead
+              sx={{
+                "& .MuiTableCell-head": {
+                  textShadow: `0 0 15px ${themeColors.glow}20`,
+                },
+              }}
+            >
               <TableRow>
                 <TableCell sx={HEADER_CELL_SX} padding="checkbox" />
                 <TableCell sx={HEADER_CELL_SX}>Selector</TableCell>

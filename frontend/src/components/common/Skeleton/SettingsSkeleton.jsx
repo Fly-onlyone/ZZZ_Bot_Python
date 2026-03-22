@@ -53,7 +53,7 @@ export default function SettingsSkeleton() {
       </Box>
 
       {/* Form fields */}
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 3, backdropFilter: "blur(8px)" }}>
         {[1, 2, 3, 4, 5].map((i) => (
           <Box
             key={i}

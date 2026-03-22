@@ -94,6 +94,9 @@ const NavigationDrawer = memo(function NavigationDrawer({
       borderLeft: isActive(path)
         ? `3px solid ${themeColors.secondary.main}`
         : "3px solid transparent",
+      boxShadow: isActive(path)
+        ? `inset 3px 0 12px ${themeColors.glow}20`
+        : "none",
       transition: TRANSITIONS.cubic,
       "&:hover": {
         background: isActive(path)
@@ -101,6 +104,7 @@ const NavigationDrawer = memo(function NavigationDrawer({
           : `linear-gradient(135deg, ${themeColors.alpha.card} 0%, ${themeColors.alpha.card} 100%)`,
         transform: "translateX(4px)",
         borderLeft: `3px solid ${themeColors.secondary.light}`,
+        boxShadow: `inset 2px 0 8px ${themeColors.glow}15`,
       },
       "&::before": {
         content: '""',

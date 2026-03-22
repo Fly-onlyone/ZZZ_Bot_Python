@@ -57,7 +57,7 @@ export default function ValueAdapter({
           className={`flex gap-4 text-lg font-medium capitalize ${
             isArrayField ? "mb-4" : "w-1/4"
           }`}
-          style={{ color: COMMON_COLORS.text.tertiary }}
+          style={{ color: COMMON_COLORS.text.secondary }}
         >
           {customIcons[fieldKey] && (
             <div
@@ -102,14 +102,20 @@ export default function ValueAdapter({
           {icon && (
             <div
               className="text-2xl"
-              style={{ color: themeColors.secondary.main }}
+              style={{
+                color: themeColors.secondary.main,
+                filter: `drop-shadow(0 0 6px ${themeColors.glow}40)`,
+              }}
             >
               {icon}
             </div>
           )}
           <h2
             className="text-2xl font-semibold capitalize"
-            style={{ color: COMMON_COLORS.text.secondary }}
+            style={{
+              color: COMMON_COLORS.text.secondary,
+              textShadow: `0 0 15px ${themeColors.glow}25`,
+            }}
           >
             {sectionKey.replace(/_/g, " ")}
           </h2>

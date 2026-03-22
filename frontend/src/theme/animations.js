@@ -175,3 +175,22 @@ export const buttonIconVariants = {
     transition: { duration: 0.5 },
   },
 };
+
+// ============================================================
+// Glow Pulse — luminous box-shadow oscillation
+// ============================================================
+
+export const glowPulseVariants = {
+  animate: {
+    boxShadow: [
+      "0 0 15px currentColor",
+      "0 0 30px currentColor",
+      "0 0 15px currentColor",
+    ],
+    transition: {
+      duration: 3,
+      repeat: Infinity,
+      ease: "easeInOut",
+    },
+  },
+};

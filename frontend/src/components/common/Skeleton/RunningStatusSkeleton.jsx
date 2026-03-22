@@ -32,6 +32,7 @@ export default function RunningStatusSkeleton() {
           alignItems: "center",
           justifyContent: "center",
           gap: 3,
+          backdropFilter: "blur(8px)",
         }}
       >
         <motion.div variants={itemVariants}>

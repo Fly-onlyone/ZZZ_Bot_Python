@@ -24,11 +24,13 @@ export const THEME_COLORS = {
         "linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(217, 70, 239, 0.1) 100%)", // Increased opacity
     },
     alpha: {
-      card: "rgba(139, 92, 246, 0.12)", // Increased
+      card: "rgba(139, 92, 246, 0.15)",
       cardBorder: "rgba(139, 92, 246, 0.4)",
       hover: "rgba(139, 92, 246, 0.2)",
       divider: "rgba(139, 92, 246, 0.3)",
     },
+    aurora: ["#7c3aed", "#d946ef", "#4f46e5", "#a78bfa"],
+    glow: "#8b5cf6",
   },
   venom: {
     // Previously Green
@@ -52,11 +54,13 @@ export const THEME_COLORS = {
         "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(132, 204, 22, 0.05) 100%)", // Reduced opacity
     },
     alpha: {
-      card: "rgba(16, 185, 129, 0.12)", // Increased
+      card: "rgba(16, 185, 129, 0.15)",
       cardBorder: "rgba(16, 185, 129, 0.4)",
       hover: "rgba(16, 185, 129, 0.2)",
       divider: "rgba(16, 185, 129, 0.3)",
     },
+    aurora: ["#059669", "#84cc16", "#10b981", "#34d399"],
+    glow: "#10b981",
   },
   glacier: {
     // Previously Blue
@@ -80,11 +84,13 @@ export const THEME_COLORS = {
         "linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%)", // Increased opacity
     },
     alpha: {
-      card: "rgba(14, 165, 233, 0.12)", // Increased
+      card: "rgba(14, 165, 233, 0.15)",
       cardBorder: "rgba(14, 165, 233, 0.4)",
       hover: "rgba(14, 165, 233, 0.2)",
       divider: "rgba(14, 165, 233, 0.3)",
     },
+    aurora: ["#0284c7", "#6366f1", "#0ea5e9", "#818cf8"],
+    glow: "#0ea5e9",
   },
   cyber: {
     primary: {
@@ -107,11 +113,13 @@ export const THEME_COLORS = {
         "linear-gradient(135deg, rgba(217, 70, 239, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%)", // Increased opacity
     },
     alpha: {
-      card: "rgba(217, 70, 239, 0.12)",
+      card: "rgba(217, 70, 239, 0.15)",
       cardBorder: "rgba(217, 70, 239, 0.4)",
       hover: "rgba(217, 70, 239, 0.2)",
       divider: "rgba(217, 70, 239, 0.3)",
     },
+    aurora: ["#d946ef", "#06b6d4", "#a21caf", "#67e8f9"],
+    glow: "#d946ef",
   },
 };
 

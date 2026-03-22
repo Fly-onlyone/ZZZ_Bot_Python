@@ -1,5 +1,6 @@
 import { Box, Button, Typography } from "@mui/material";
 import { IconAlertTriangle } from "@tabler/icons-react";
+import { GLOW } from "../../theme/styles";
 
 /**
  * Error boundary fallback UI for Sentry ErrorBoundary.
@@ -19,6 +20,7 @@ export default function ErrorFallback({ error, resetError }) {
       minHeight="100vh"
       p={4}
       textAlign="center"
+      sx={{ boxShadow: GLOW.medium("#ef4444") }}
     >
       <IconAlertTriangle color="error" size={48} />
       <Typography variant="h5">Something went wrong</Typography>

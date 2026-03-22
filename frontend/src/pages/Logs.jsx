@@ -382,6 +382,7 @@ export default function Logs() {
                       fontSize: "0.75rem",
                       color: COMMON_COLORS.text.secondary,
                       borderBottom: `1px solid ${themeColors.alpha.divider}`,
+                      textShadow: `0 0 15px ${themeColors.glow}20`,
                     }}
                   >
                     {col}
@@ -444,6 +445,7 @@ export default function Logs() {
                       transition: "background 0.15s ease",
                       "&:hover": {
                         background: `${LEVEL_COLORS[entry.level]}0D`,
+                        boxShadow: `inset 3px 0 10px ${themeColors.glow}15`,
                       },
                     }}
                   >

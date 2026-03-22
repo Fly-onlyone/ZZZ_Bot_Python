@@ -18,6 +18,7 @@ import { Box, Checkbox, Paper, Typography } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { useThemeContext } from "../../theme/ThemeContext";
 import { COMMON_COLORS } from "../../theme/colors";
+import { GLOW } from "../../theme/styles";
 
 function SortableItem({ item, index, huntItems, onHuntToggle }) {
   const { themeColors } = useThemeContext();
@@ -54,6 +55,7 @@ function SortableItem({ item, index, huntItems, onHuntToggle }) {
           ? themeColors.gradients.backgroundSubtle
           : "transparent",
         border: `1px solid ${isDragging ? themeColors.primary.main + "60" : themeColors.alpha.divider}`,
+        boxShadow: isDragging ? GLOW.strong(themeColors.glow) : "none",
         cursor: "default",
         "&:hover": {
           background: themeColors.alpha.card,

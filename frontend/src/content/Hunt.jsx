@@ -124,6 +124,7 @@ export default function Hunt() {
             flexDirection: "column",
             alignItems: "center",
             gap: 1,
+            backdropFilter: "blur(8px)",
           }}
         >
           <CheckCircleIcon
@@ -146,6 +147,7 @@ export default function Hunt() {
             background: `linear-gradient(135deg, ${COMMON_COLORS.warning.main}1A 0%, ${COMMON_COLORS.warning.dark}1A 100%)`,
             border: `1px solid ${COMMON_COLORS.warning.main}4D`,
             textAlign: "center",
+            backdropFilter: "blur(8px)",
           }}
         >
           <Typography
@@ -214,7 +216,7 @@ export default function Hunt() {
         sx={{
           mb: 2,
           fontWeight: 600,
-          color: COMMON_COLORS.text.tertiary,
+          color: COMMON_COLORS.text.secondary,
         }}
       >
         Items Being Hunted
@@ -249,6 +251,7 @@ export default function Hunt() {
                   fontWeight: 600,
                   color: COMMON_COLORS.text.secondary,
                   borderBottom: `1px solid ${themeColors.alpha.divider}`,
+                  textShadow: `0 0 15px ${themeColors.glow}20`,
                 }}
               >
                 #
@@ -262,6 +265,7 @@ export default function Hunt() {
                   fontWeight: 600,
                   color: COMMON_COLORS.text.secondary,
                   borderBottom: `1px solid ${themeColors.alpha.divider}`,
+                  textShadow: `0 0 15px ${themeColors.glow}20`,
                 }}
               >
                 Item Name
@@ -275,6 +279,7 @@ export default function Hunt() {
                   fontWeight: 600,
                   color: COMMON_COLORS.text.secondary,
                   borderBottom: `1px solid ${themeColors.alpha.divider}`,
+                  textShadow: `0 0 15px ${themeColors.glow}20`,
                 }}
               >
                 Scheduled Hunt Time
@@ -295,6 +300,7 @@ export default function Hunt() {
                   transition: "all 0.2s ease-in-out",
                   "&:hover": {
                     background: themeColors.alpha.hover,
+                    boxShadow: `inset 3px 0 10px ${themeColors.glow}15`,
                   },
                   borderBottom:
                     index !== hunt_items.length - 1
