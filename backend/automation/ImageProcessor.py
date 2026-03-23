@@ -151,7 +151,21 @@ def fetch_image_from_locator(page: Page, locator_selector: Locator):
                 image_url = computed[start:end]
 
     if not image_url:
-        raise ValueError(f"Image URL not found for locator: {locator_selector}")
+        try:
+            screenshot_bytes = locator_selector.screenshot()
+            arr = np.frombuffer(screenshot_bytes, np.uint8)
+            img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            if img is None:
+                raise ValueError("Failed to decode locator screenshot.")
+            logger.debug(
+                "Fell back to locator screenshot for image extraction: %s",
+                locator_selector,
+            )
+            return img
+        except Exception as screenshot_error:
+            raise ValueError(
+                f"Image URL not found for locator: {locator_selector}"
+            ) from screenshot_error
 
     # 4. Decode data-URIs
     if image_url.startswith("data:image/"):
@@ -241,7 +255,7 @@ def find_correct_avatar(page: Page) -> Optional[Locator]:
                 break
 
     if transient_failures:
-        logger.error(
+        logger.warning(
             "ZZZ avatar lookup exhausted %s transient fetch/read errors",
             transient_failures,
         )
@@ -256,8 +270,6 @@ def _dismiss_guide_overlay(page: Page) -> None:
     clicking advances/dismisses the guide naturally). Fall back to JS
     removal of the SVG hollow-mask overlay if the guide persists.
     """
-    from .Selectors import DRAW_BUTTON
-
     # Click the overlay element directly to advance/dismiss the guide
     overlay_selector = "rect[mask*='hollow-mask']"
     for attempt in range(5):
@@ -307,12 +319,25 @@ def find_correct_lottery_logo(page: Page):
     zzz_icon_img = cv2.imread(CONFIG["ZZZ_ICON"])
     best_diff = 100.0
     best_img = None
+    last_error = None
     logo_selector = "div.lotteryLogo-269XTi"
     switch_selector = ".lotterySwitch-LdUVnT"
 
     for i in range(4):
         lottery_logo_locator = page.locator(logo_selector)
-        lottery_logo_img = fetch_image_from_locator(page, lottery_logo_locator)
+        try:
+            lottery_logo_img = fetch_image_from_locator(page, lottery_logo_locator)
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "Lottery logo %d could not be read on current view: %s",
+                i + 1,
+                exc,
+            )
+            page.locator(switch_selector).click(force=True)
+            page.wait_for_timeout(500)
+            continue
+
         diff = compare_images(lottery_logo_img, zzz_icon_img)
         logger.info("Lottery logo %d: %.2f%% difference from ZZZ icon", i + 1, diff)
         if diff < IMAGE_MATCH_THRESHOLD:
@@ -349,10 +374,17 @@ def find_correct_lottery_logo(page: Page):
             "screenshot/lottery_logo_mismatch.png", outside_path=True
         )
         cv2.imwrite(logo_path, best_img)
-    logger.error(
-        "ZZZ lottery logo not found (best diff: %.2f%%).",
-        best_diff,
-    )
+    if last_error is not None:
+        logger.warning(
+            "ZZZ lottery logo not found (best diff: %.2f%%, last_error=%s).",
+            best_diff,
+            last_error,
+        )
+    else:
+        logger.warning(
+            "ZZZ lottery logo not found (best diff: %.2f%%).",
+            best_diff,
+        )
     return False
 
 

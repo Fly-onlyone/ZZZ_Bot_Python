@@ -88,25 +88,7 @@ export default function Redeem() {
     });
   };
 
-  if (isLoading && redeemList.length === 0) {
-    return <RedeemSkeleton />;
-  }
-
-  if (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return <p className="text-red-500">{errorMessage}</p>;
-  }
-
-  if (redeemList.length === 0) {
-    return (
-      <EmptyState
-        icon={<RedeemIcon />}
-        title="No Redemption Codes"
-        subtitle="No codes available yet. Codes will appear here after shopping exchanges."
-      />
-    );
-  }
-
+  // Hooks must run before any conditional return to keep render order stable.
   const columns = useMemo(
     () => [
       { field: "id", headerName: "ID", flex: 0.5 },
@@ -144,6 +126,25 @@ export default function Redeem() {
     ],
     []
   );
+
+  if (isLoading && redeemList.length === 0) {
+    return <RedeemSkeleton />;
+  }
+
+  if (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return <p className="text-red-500">{errorMessage}</p>;
+  }
+
+  if (redeemList.length === 0) {
+    return (
+      <EmptyState
+        icon={<RedeemIcon />}
+        title="No Redemption Codes"
+        subtitle="No codes available yet. Codes will appear here after shopping exchanges."
+      />
+    );
+  }
 
   return (
     <div style={{ height: 420, minWidth: 320, width: "100%" }}>

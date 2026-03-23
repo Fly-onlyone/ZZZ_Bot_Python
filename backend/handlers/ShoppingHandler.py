@@ -229,7 +229,7 @@ def _record_avatar_selection_failure(page: Page, last_error: Exception | None) -
 
     details = ", ".join(f"{key}={value}" for key, value in diagnostics.items())
     last_error_message = str(last_error) if last_error else "None"
-    logger.error(
+    logger.warning(
         "Shopping avatar selection failure: %s, last_error=%s, screenshot_asset_id=%s",
         details,
         last_error_message,
