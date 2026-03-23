@@ -417,6 +417,36 @@ def test_find_correct_avatar_retries_transient_fetch_failures(monkeypatch):
     assert calls["count"] == 2
 
 
+def test_fetch_image_from_locator_uses_screenshot_fallback_when_url_missing(monkeypatch):
+    class FakePage:
+        url = "https://example.com/"
+
+    class FakeLocator:
+        def get_attribute(self, *_args, **_kwargs):
+            return None
+
+        def evaluate(self, *_args, **_kwargs):
+            return "none"
+
+        def locator(self, *_args, **_kwargs):
+            return _FakeLocator(count=0)
+
+        def screenshot(self):
+            return b"fake-png-bytes"
+
+    monkeypatch.setattr(
+        image_processor_module.cv2,
+        "imdecode",
+        lambda arr, _flag: object() if arr.tobytes() == b"fake-png-bytes" else None,
+    )
+
+    result = image_processor_module.fetch_image_from_locator(
+        cast(Any, FakePage()), cast(Any, FakeLocator())
+    )
+
+    assert result is not None
+
+
 def test_run_hunt_skips_mismatched_target_date_without_backend_import(caplog):
     caplog.set_level(logging.INFO)
     HuntModeHandler.set_hunt_target_date(datetime.now() + timedelta(days=1))
@@ -901,24 +931,74 @@ def test_playwright_task_manual_run_bypasses_automatic_gate(monkeypatch):
         lambda *_args, **_kwargs: ({}, {}),
     )
 
+    entered = {"value": False}
+
     class _StopManualRun(Exception):
         pass
 
     class _FakePlaywrightContext:
         def __enter__(self):
+            entered["value"] = True
             raise _StopManualRun()
 
         def __exit__(self, exc_type, exc, tb):
             return False
 
     monkeypatch.setattr(bot_module, "sync_playwright", lambda: _FakePlaywrightContext())
+    monkeypatch.setattr(
+        bot_module.NotificationModule,
+        "notify",
+        lambda **_kwargs: None,
+    )
 
-    try:
-        bot_module.playwright_task(manual_run=True)
-    except _StopManualRun:
-        pass
-    else:
-        raise AssertionError("Manual run should enter the Playwright context")
+    bot_module.playwright_task(manual_run=True)
+
+    assert entered["value"] is True
+
+
+def test_playwright_task_does_not_mark_failed_run_as_finished(monkeypatch):
+    monkeypatch.setattr(bot_module.settings, "run_task", True)
+    monkeypatch.setattr(
+        bot_module,
+        "prepare_mission_data",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+
+    notifications = []
+    last_run_calls = []
+    monkeypatch.setattr(
+        bot_module.NotificationModule,
+        "notify",
+        lambda **kwargs: notifications.append(kwargs),
+    )
+    monkeypatch.setattr(bot_module, "save_last_run", lambda: last_run_calls.append(True))
+
+    bot_module.playwright_task()
+
+    assert last_run_calls == []
+    assert notifications[-1]["message"] == "Task finished"
+
+
+def test_check_missed_runs_does_not_mark_failed_replay_as_finished(monkeypatch):
+    monkeypatch.setattr(bot_module.settings, "run_task", True)
+    monkeypatch.setattr(
+        bot_module.settings,
+        "schedule_times",
+        [(datetime.now() - timedelta(minutes=1)).strftime("%H:%M")],
+    )
+    monkeypatch.setattr(mongo_module, "get_last_run", lambda: None)
+
+    replay_calls = []
+    last_run_calls = []
+    monkeypatch.setattr(
+        bot_module, "playwright_task", lambda: replay_calls.append("attempted")
+    )
+    monkeypatch.setattr(bot_module, "save_last_run", lambda: last_run_calls.append(True))
+
+    bot_module.check_missed_runs()
+
+    assert replay_calls == ["attempted"]
+    assert last_run_calls == []
 
 
 def test_asyncio_exception_handler_ignores_known_windows_transport_reset(monkeypatch):

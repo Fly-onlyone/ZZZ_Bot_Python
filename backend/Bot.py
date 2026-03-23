@@ -48,6 +48,8 @@ LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 STDOUT_LOGGER_NAME = "zzz_bot.stdout"
 STDERR_LOGGER_NAME = "zzz_bot.stderr"
 
+_playwright_task_lock = threading.Lock()
+
 
 def _should_ignore_windows_transport_reset(
     exception: BaseException | None, context: dict[str, object]
@@ -294,154 +296,180 @@ def playwright_task(*, manual_run: bool = False):
         logger.info("Automatic automation is disabled, skipping scheduled run")
         return
 
-    previous_data, todays_data = prepare_mission_data(
-        CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
-    )
-    with sentry_sdk.start_transaction(op="automation.run", name="playwright-task"):
-        with sync_playwright() as p:
-            with sentry_sdk.start_span(op="browser.launch", name="Launch browser"):
-                try:
-                    browser = p.firefox.launch(headless=settings.hide_browser)
-                except PlaywrightError as firefox_error:
-                    firefox_message = str(firefox_error)
-                    logger.warning(f"Firefox launch failed: {firefox_message}")
+    if not _playwright_task_lock.acquire(blocking=False):
+        logger.warning("Playwright task already running, skipping duplicate trigger")
+        return
 
-                    if "Executable doesn't exist" not in firefox_message:
-                        raise
-
-                    logger.warning(
-                        "Firefox browser binary is missing. Trying Chromium fallback."
-                    )
+    try:
+        previous_data, todays_data = prepare_mission_data(
+            CONFIG["OUTPUT_FOLDER"], CONFIG["OUTPUT_FILE"]
+        )
+        with sentry_sdk.start_transaction(op="automation.run", name="playwright-task"):
+            with sync_playwright() as p:
+                with sentry_sdk.start_span(op="browser.launch", name="Launch browser"):
                     try:
-                        browser = p.chromium.launch(headless=settings.hide_browser)
-                        logger.info("Launched Chromium as fallback browser.")
-                    except PlaywrightError as chromium_error:
-                        logger.error(f"Chromium fallback failed: {chromium_error}")
+                        browser = p.firefox.launch(headless=settings.hide_browser)
+                    except PlaywrightError as firefox_error:
+                        firefox_message = str(firefox_error)
+                        logger.warning(f"Firefox launch failed: {firefox_message}")
+
+                        if "Executable doesn't exist" not in firefox_message:
+                            raise
+
+                        logger.warning(
+                            "Firefox browser binary is missing. Trying Chromium fallback."
+                        )
+                        try:
+                            browser = p.chromium.launch(headless=settings.hide_browser)
+                            logger.info("Launched Chromium as fallback browser.")
+                        except PlaywrightError as chromium_error:
+                            logger.error(f"Chromium fallback failed: {chromium_error}")
+                            NotificationModule.notify(
+                                title="ZZZ Bot",
+                                message=(
+                                    "Playwright browser binaries are missing. "
+                                    "Run 'playwright install' and try again."
+                                ),
+                                app_icon=CONFIG["SAD_ICON"],
+                            )
+                            return
+
+                with sentry_sdk.start_span(op="auth.storage_state", name="Load auth state"):
+                    context_options = build_context_options(CONFIG["STORAGE_PATH"])
+                    context = browser.new_context(**context_options)
+                    mino_page = context.new_page()
+
+                    mino_page.goto(
+                        "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
+                    )
+
+                    # Handle manual login only when neither MongoDB nor file has auth state.
+                    has_auth_state = load_storage_state(
+                        CONFIG["STORAGE_PATH"]
+                    ) is not None or os.path.exists(CONFIG["STORAGE_PATH"])
+                    if not has_auth_state:
                         NotificationModule.notify(
                             title="ZZZ Bot",
-                            message=(
-                                "Playwright browser binaries are missing. "
-                                "Run 'playwright install' and try again."
-                            ),
+                            message="Please log in manually",
                             app_icon=CONFIG["SAD_ICON"],
                         )
                         return
 
-            with sentry_sdk.start_span(op="auth.storage_state", name="Load auth state"):
-                context_options = build_context_options(CONFIG["STORAGE_PATH"])
-                context = browser.new_context(**context_options)
-                mino_page = context.new_page()
+                with sentry_sdk.start_span(op="automation.phase", name="mission_phase"):
+                    mission_completed = Mission.run(
+                        CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data
+                    )
+                    if mission_completed:
+                        _close_mission_panel_if_open(mino_page)
 
-                mino_page.goto(
-                    "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
+                schedule_mission_email_delivery(
+                    todays_data,
+                    exit_after_run=settings.exit_after_run,
+                    send_func=_send_mission_email,
                 )
 
-                # Handle manual login only when neither MongoDB nor file has auth state.
-                has_auth_state = load_storage_state(
-                    CONFIG["STORAGE_PATH"]
-                ) is not None or os.path.exists(CONFIG["STORAGE_PATH"])
-                if not has_auth_state:
-                    NotificationModule.notify(
-                        title="ZZZ Bot",
-                        message="Please log in manually",
-                        app_icon=CONFIG["SAD_ICON"],
-                    )
-                    return
+                # Phase 1: Execute shopping with existing data (before draw)
+                if settings.gather_shopping_data and settings.exchange_good:
+                    logger.info("=== PHASE 1: Shopping Execution (Before Draw) ===")
+                    with sentry_sdk.start_span(
+                        op="automation.phase", name="shopping_execute_phase"
+                    ):
+                        shopping_execution_success = (
+                            ShoppingHandler.execute_shopping_with_existing_data(mino_page)
+                        )
 
-            with sentry_sdk.start_span(op="automation.phase", name="mission_phase"):
-                mission_completed = Mission.run(
-                    CONFIG["OUTPUT_FILE"], mino_page, previous_data, todays_data
+                        # Always close shopping screen whether execution succeeded or failed
+                        # to prevent interference with subsequent tasks (draw, etc.)
+                        _close_shopping_screen_helper(mino_page)
+
+                        if not shopping_execution_success:
+                            logger.warning(
+                                "Shopping execution phase failed, continuing anyway"
+                            )
+
+                if settings.draw_item:
+                    with sentry_sdk.start_span(op="automation.phase", name="draw_phase"):
+                        draw_result = DrawHandler.run(mino_page)
+                        if not draw_result.get("cleanup_ok", True):
+                            logger.warning(
+                                "Draw phase left residual UI state before returning"
+                            )
+
+                        if not DrawHandler.close_draw_screen(mino_page):
+                            logger.warning(
+                                "Could not fully leave draw screen after draw phase"
+                            )
+                else:
+                    logger.info("Draw data cancelled due to setting.")
+
+                # Phase 2: Gather shopping data (after draw)
+                if settings.gather_shopping_data:
+                    logger.info("=== PHASE 2: Shopping Data Gathering (After Draw) ===")
+                    with sentry_sdk.start_span(
+                        op="automation.phase", name="shopping_gather_phase"
+                    ):
+                        gathering_success = ShoppingHandler.gather_shopping_data_only(
+                            mino_page
+                        )
+
+                        # Always close shopping screen whether gathering succeeded or failed
+                        # to ensure browser state is clean for future operations
+                        _close_shopping_screen_helper(mino_page)
+
+                        if gathering_success:
+                            # Reschedule hunt tasks after shopping data is updated
+                            schedule_hunt_tasks()
+                        else:
+                            logger.warning("Shopping data gathering phase failed")
+                else:
+                    logger.info("Gather data cancelled due to setting.")
+
+                save_last_run()
+
+                try:
+                    from core.event_bus import emit
+
+                    emit("task-completed", {"source": "playwright_task"})
+                except Exception:
+                    logger.debug("SSE emit after playwright_task skipped", exc_info=True)
+
+                NotificationModule.notify(
+                    title="ZZZ Bot",
+                    message="Task finished",
+                    app_icon=CONFIG["ICON_PATH"],
                 )
-                if mission_completed:
-                    _close_mission_panel_if_open(mino_page)
 
-            schedule_mission_email_delivery(
-                todays_data,
-                exit_after_run=settings.exit_after_run,
-                send_func=_send_mission_email,
-            )
-
-            # Phase 1: Execute shopping with existing data (before draw)
-            if settings.gather_shopping_data and settings.exchange_good:
-                logger.info("=== PHASE 1: Shopping Execution (Before Draw) ===")
                 with sentry_sdk.start_span(
-                    op="automation.phase", name="shopping_execute_phase"
+                    op="auth.storage_state", name="save_storage_state"
                 ):
-                    shopping_execution_success = (
-                        ShoppingHandler.execute_shopping_with_existing_data(mino_page)
-                    )
+                    save_context_storage_state(context, CONFIG["STORAGE_PATH"])
 
-                    # Always close shopping screen whether execution succeeded or failed
-                    # to prevent interference with subsequent tasks (draw, etc.)
-                    _close_shopping_screen_helper(mino_page)
+                if not is_exe:
+                    input("Press ENTER to exit...")
+                browser.close()
+                if settings.exit_after_run:
+                    logger.info("Exiting after run as per the setting.")
+                    sys.exit()
+    except Exception as exc:
+        logger.exception("Playwright task failed")
+        try:
+            from core.event_bus import emit
 
-                    if not shopping_execution_success:
-                        logger.warning(
-                            "Shopping execution phase failed, continuing anyway"
-                        )
-
-            if settings.draw_item:
-                with sentry_sdk.start_span(op="automation.phase", name="draw_phase"):
-                    draw_result = DrawHandler.run(mino_page)
-                    if not draw_result.get("cleanup_ok", True):
-                        logger.warning(
-                            "Draw phase left residual UI state before returning"
-                        )
-
-                    if not DrawHandler.close_draw_screen(mino_page):
-                        logger.warning(
-                            "Could not fully leave draw screen after draw phase"
-                        )
-            else:
-                logger.info("Draw data cancelled due to setting.")
-
-            # Phase 2: Gather shopping data (after draw)
-            if settings.gather_shopping_data:
-                logger.info("=== PHASE 2: Shopping Data Gathering (After Draw) ===")
-                with sentry_sdk.start_span(
-                    op="automation.phase", name="shopping_gather_phase"
-                ):
-                    gathering_success = ShoppingHandler.gather_shopping_data_only(
-                        mino_page
-                    )
-
-                    # Always close shopping screen whether gathering succeeded or failed
-                    # to ensure browser state is clean for future operations
-                    _close_shopping_screen_helper(mino_page)
-
-                    if gathering_success:
-                        # Reschedule hunt tasks after shopping data is updated
-                        schedule_hunt_tasks()
-                    else:
-                        logger.warning("Shopping data gathering phase failed")
-            else:
-                logger.info("Gather data cancelled due to setting.")
-
-            save_last_run()
-
-            try:
-                from core.event_bus import emit
-
-                emit("task-completed", {"source": "playwright_task"})
-            except Exception:
-                logger.debug("SSE emit after playwright_task skipped", exc_info=True)
-
-            NotificationModule.notify(
-                title="ZZZ Bot",
-                message="Task finished",
-                app_icon=CONFIG["ICON_PATH"],
+            emit(
+                "task-completed",
+                {"source": "playwright_task", "status": "failed", "error": str(exc)},
             )
-
-            with sentry_sdk.start_span(
-                op="auth.storage_state", name="save_storage_state"
-            ):
-                save_context_storage_state(context, CONFIG["STORAGE_PATH"])
-            if not is_exe:
-                input("Press ENTER to exit...")
-            browser.close()
-            if settings.exit_after_run:
-                logger.info("Exiting after run as per the setting.")
-                sys.exit()
+        except Exception:
+            logger.debug(
+                "SSE emit after failed playwright_task skipped", exc_info=True
+            )
+        NotificationModule.notify(
+            title="ZZZ Bot",
+            message="Task finished",
+            app_icon=CONFIG["SAD_ICON"],
+        )
+    finally:
+        _playwright_task_lock.release()
 
 
 def calculate_next_run() -> datetime:
@@ -510,7 +538,6 @@ def check_missed_runs():
             )
             if now > today_scheduled > last_run:
                 playwright_task()
-                save_last_run()
                 break
 
 
