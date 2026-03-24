@@ -23,6 +23,12 @@ const RELATED_QUERY_KEYS_BY_ROUTE = {
     ["overview/mission"],
     ["backup/summary"],
   ],
+  "maintenance/legacy-migration": [
+    ["account"],
+    ["shopping"],
+    ["settings"],
+    ["overview/hunt"],
+  ],
 };
 
 const getStartupRetryDelay = (attemptIndex) =>
@@ -95,6 +101,24 @@ export const DataLoader = () => {
     [fetchJson]
   );
 
+  const prefetchRouteData = useCallback(
+    async (route) => {
+      const data = await fetchJson(
+        `${BACKEND_URL}/${route}`,
+        `Failed to prefetch data for ${route}`,
+        {
+          requestFailureSeverity: "warn",
+          requestFailureMessage: "Frontend route prefetch request failed",
+        }
+      );
+      logInfo("Frontend route data prefetched", {
+        route,
+      });
+      return data;
+    },
+    [fetchJson]
+  );
+
   const prefetchRoutes = useCallback(
     async (routes) => {
       if (!Array.isArray(routes) || routes.length === 0) {
@@ -103,29 +127,36 @@ export const DataLoader = () => {
 
       const uniqueRoutes = [...new Set(routes.filter(Boolean))];
 
-      await Promise.all(
+      const results = await Promise.allSettled(
         uniqueRoutes.map((route) =>
-          queryClient
-            .prefetchQuery({
-              queryKey: [route],
-              queryFn: () => fetchRouteData(route),
-              staleTime: STALE_TIMES[route] || DEFAULT_STALE_TIME,
-              retry: API_RETRY_COUNT,
-            })
-            .catch((error) => {
-              logWarn("Frontend route prefetch failed", {
-                route,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            })
+          queryClient.prefetchQuery({
+            queryKey: [route],
+            queryFn: () => prefetchRouteData(route),
+            staleTime: STALE_TIMES[route] || DEFAULT_STALE_TIME,
+            retry: API_RETRY_COUNT,
+          })
         )
       );
+
+      const failedRoutes = results
+        .map((result, index) =>
+          result.status === "rejected" ? uniqueRoutes[index] : null
+        )
+        .filter(Boolean);
+
+      if (failedRoutes.length > 0) {
+        logWarn("Frontend route prefetch completed with failures", {
+          routeCount: uniqueRoutes.length,
+          failedRoutes,
+        });
+        return;
+      }
 
       logInfo("Frontend route prefetch completed", {
         routeCount: uniqueRoutes.length,
       });
     },
-    [fetchRouteData, queryClient]
+    [prefetchRouteData, queryClient]
   );
 
   const useRouteData = (route, queryOptions = {}) => {

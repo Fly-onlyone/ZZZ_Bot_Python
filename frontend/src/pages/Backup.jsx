@@ -5,7 +5,9 @@ import {
   Button,
   Checkbox,
   Chip,
+  CircularProgress,
   FormControlLabel,
+  InputBase,
   Snackbar,
   Stack,
   Table,
@@ -18,18 +20,24 @@ import {
 } from "@mui/material";
 import { motion } from "framer-motion";
 import {
+  IconClock,
   IconDatabaseExport,
   IconDatabaseImport,
+  IconFile,
+  IconFolder,
   IconFolderOpen,
   IconInfoCircle,
+  IconTool,
+  IconTrash,
 } from "@tabler/icons-react";
 
 import { BackupSkeleton, SectionCard } from "../components";
 import { BACKEND_URL } from "../config";
 import { DataLoader } from "../services";
 import { logError, logInfo } from "../services/sentryLogger.js";
-import { GLOW } from "../theme/styles";
+import { GLOW, TRANSITIONS } from "../theme/styles";
 import { COMMON_COLORS } from "../theme/colors";
+import { useThemeContext } from "../theme/ThemeContext";
 
 /**
  * @typedef {{
@@ -122,6 +130,7 @@ function DataSummary({ summary }) {
 }
 
 function ExportSection({ showAlert }) {
+  const { themeColors } = useThemeContext();
   const { useRouteData, useActionData } = DataLoader();
   const { data: config } = useRouteData("backup/config");
   const saveConfigMutation = useActionData("backup/config");
@@ -146,9 +155,7 @@ function ExportSection({ showAlert }) {
         return;
       }
       setExportPath(result.path);
-      // Auto-save the picked path
-      await saveConfigMutation.mutateAsync({ export_path: result.path });
-      showAlert("success", "Export folder set.");
+      await savePath(result.path);
       logInfo("Backup export path selected", { path: result.path });
     } catch (error) {
       showAlert(
@@ -160,6 +167,8 @@ function ExportSection({ showAlert }) {
 
   const handleExport = async () => {
     try {
+      // Ensure typed path is saved before exporting
+      await savePath(undefined, { silent: true });
       const result = await exportMutation.mutateAsync({});
       logInfo("Backup exported successfully", { file: result?.file });
       showAlert("success", `Backup saved to ${result?.file}`);
@@ -172,7 +181,45 @@ function ExportSection({ showAlert }) {
     }
   };
 
+  const savePath = async (path, { silent = false } = {}) => {
+    const trimmed = (path ?? exportPath).trim();
+    if (!trimmed || trimmed === (config?.export_path ?? "")) {
+      return;
+    }
+    try {
+      await saveConfigMutation.mutateAsync({ export_path: trimmed });
+      if (!silent) {
+        showAlert("success", "Export folder set.");
+      }
+      logInfo("Backup export path saved", { path: trimmed });
+    } catch (error) {
+      showAlert(
+        "error",
+        error instanceof Error ? error.message : "Failed to save export path."
+      );
+    }
+  };
+
+  const handlePathKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.target.blur();
+    }
+  };
+
   const pathEmpty = !exportPath.trim();
+
+  const outlinedButtonSx = {
+    whiteSpace: "nowrap",
+    borderColor: `${themeColors.primary.main}80`,
+    color: themeColors.primary.light,
+    backdropFilter: "blur(8px)",
+    transition: TRANSITIONS.cubic,
+    "&:hover": {
+      borderColor: themeColors.primary.main,
+      background: `${themeColors.primary.main}15`,
+      boxShadow: `0 0 25px ${themeColors.primary.main}30`,
+    },
+  };
 
   return (
     <Box>
@@ -180,27 +227,60 @@ function ExportSection({ showAlert }) {
         Set the folder where backups will be saved, then export.
       </Typography>
 
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}>
         <Button
           variant="outlined"
           size="small"
           onClick={handleBrowse}
           startIcon={<IconFolderOpen size={16} />}
-          sx={{ whiteSpace: "nowrap" }}
+          sx={outlinedButtonSx}
         >
           Choose Folder
         </Button>
-        <Typography
-          variant="body2"
-          color={exportPath ? "text.primary" : "text.disabled"}
+        <Box
           sx={{
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            flex: 1,
+            minWidth: 0,
+            px: 2,
+            py: 0.5,
+            borderRadius: "10px",
+            background: themeColors.alpha.card,
+            border: `1px solid ${themeColors.alpha.cardBorder}`,
+            backdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            transition: TRANSITIONS.cubic,
+            "&:focus-within": {
+              borderColor: themeColors.primary.main,
+              boxShadow: `0 0 15px ${themeColors.primary.main}20`,
+            },
           }}
         >
-          {exportPath || "No folder selected"}
-        </Typography>
+          <IconFolder
+            size={16}
+            color={
+              exportPath ? themeColors.primary.light : COMMON_COLORS.text.muted
+            }
+            style={{ flexShrink: 0 }}
+          />
+          <InputBase
+            value={exportPath}
+            onChange={(e) => setExportPath(e.target.value)}
+            onBlur={() => savePath()}
+            onKeyDown={handlePathKeyDown}
+            placeholder="No folder selected"
+            fullWidth
+            sx={{
+              fontSize: "0.875rem",
+              color: "text.primary",
+              "& input::placeholder": {
+                color: COMMON_COLORS.text.muted,
+                opacity: 1,
+              },
+            }}
+          />
+        </Box>
       </Box>
 
       <Button
@@ -209,7 +289,25 @@ function ExportSection({ showAlert }) {
           pathEmpty || exportMutation.isPending || saveConfigMutation.isPending
         }
         onClick={handleExport}
-        startIcon={<IconDatabaseExport size={18} />}
+        startIcon={
+          exportMutation.isPending ? (
+            <CircularProgress size={18} color="inherit" />
+          ) : (
+            <IconDatabaseExport size={18} />
+          )
+        }
+        sx={{
+          background: themeColors.gradients.primary,
+          color: "#0f172a",
+          fontWeight: 600,
+          boxShadow: GLOW.subtle(themeColors.glow),
+          transition: TRANSITIONS.cubic,
+          "&:hover": {
+            background: themeColors.gradients.primaryLight,
+            boxShadow: GLOW.medium(themeColors.glow),
+            transform: "translateY(-2px)",
+          },
+        }}
       >
         {exportMutation.isPending ? "Exporting..." : "Export Backup"}
       </Button>
@@ -218,6 +316,7 @@ function ExportSection({ showAlert }) {
 }
 
 function RestoreSection({ showAlert }) {
+  const { themeColors } = useThemeContext();
   const fileInputRef = useRef(null);
   /** @type {[BackupPayload | null, React.Dispatch<React.SetStateAction<BackupPayload | null>>]} */
   const [backupData, setBackupData] = useState(null);
@@ -310,17 +409,30 @@ function RestoreSection({ showAlert }) {
     }
   };
 
+  const outlinedButtonSx = {
+    borderColor: `${themeColors.primary.main}80`,
+    color: themeColors.primary.light,
+    backdropFilter: "blur(8px)",
+    transition: TRANSITIONS.cubic,
+    "&:hover": {
+      borderColor: themeColors.primary.main,
+      background: `${themeColors.primary.main}15`,
+      boxShadow: `0 0 25px ${themeColors.primary.main}30`,
+    },
+  };
+
   /** @type {React.ReactNode[] | null} */
   const restoreCollectionOptions = backupData
     ? ALL_COLLECTIONS.map((name) => {
         const available = backupData.collections[name] != null;
+        const checked = selected.includes(name);
         return (
           <FormControlLabel
             key={name}
             disabled={!available}
             control={
               <Checkbox
-                checked={selected.includes(name)}
+                checked={checked}
                 onChange={() => toggleCollection(name)}
                 size="small"
               />
@@ -330,6 +442,17 @@ function RestoreSection({ showAlert }) {
                 {name.replace("_", " ")}
               </Typography>
             }
+            sx={{
+              m: 0,
+              px: 1.5,
+              py: 0.5,
+              borderRadius: "8px",
+              background: themeColors.alpha.card,
+              border: `1px solid ${
+                checked ? `${themeColors.primary.main}60` : "transparent"
+              }`,
+              transition: TRANSITIONS.cubic,
+            }}
           />
         );
       })
@@ -348,21 +471,70 @@ function RestoreSection({ showAlert }) {
         onChange={handleFileChange}
         style={{ display: "none" }}
       />
-      <Button
-        variant="outlined"
-        onClick={() => fileInputRef.current?.click()}
-        sx={{ mb: 2 }}
-      >
-        {fileName || "Choose Backup File"}
-      </Button>
+
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => fileInputRef.current?.click()}
+          startIcon={<IconFolderOpen size={16} />}
+          sx={{ ...outlinedButtonSx, whiteSpace: "nowrap" }}
+        >
+          Choose File
+        </Button>
+        {fileName ? (
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              px: 2,
+              py: 1,
+              borderRadius: "10px",
+              background: themeColors.alpha.card,
+              border: `1px solid ${themeColors.alpha.cardBorder}`,
+              backdropFilter: "blur(8px)",
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            <IconFile
+              size={16}
+              color={themeColors.primary.light}
+              style={{ flexShrink: 0 }}
+            />
+            <Typography
+              variant="body2"
+              color="text.primary"
+              sx={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {fileName}
+            </Typography>
+          </Box>
+        ) : null}
+      </Box>
 
       {backupData ? (
         <>
-          <Typography variant="body2" sx={{ mb: 1, mt: 1 }}>
-            Exported at: {new Date(backupData["exported_at"]).toLocaleString()}
-          </Typography>
+          <Chip
+            icon={<IconClock size={14} />}
+            label={`Exported ${new Date(
+              backupData["exported_at"]
+            ).toLocaleString()}`}
+            size="small"
+            variant="outlined"
+            sx={{
+              mb: 2,
+              borderColor: `${COMMON_COLORS.info.main}60`,
+              color: COMMON_COLORS.info.light,
+            }}
+          />
 
-          <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
+          <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2.5 }}>
             {restoreCollectionOptions}
           </Stack>
 
@@ -370,12 +542,19 @@ function RestoreSection({ showAlert }) {
             variant="contained"
             disabled={importing || selected.length === 0}
             onClick={handleRestore}
-            startIcon={<IconDatabaseImport size={18} />}
+            startIcon={
+              importing ? (
+                <CircularProgress size={18} color="inherit" />
+              ) : (
+                <IconDatabaseImport size={18} />
+              )
+            }
             sx={{
               background: `linear-gradient(135deg, ${COMMON_COLORS.warning.main} 0%, ${COMMON_COLORS.warning.dark} 100%)`,
               color: "#0f172a",
               fontWeight: 600,
               boxShadow: GLOW.subtle("#FBBF24"),
+              transition: TRANSITIONS.cubic,
               "&:hover": {
                 background: `linear-gradient(135deg, ${COMMON_COLORS.warning.light}CC 0%, ${COMMON_COLORS.warning.main}CC 100%)`,
                 boxShadow: GLOW.medium("#FBBF24"),
@@ -390,6 +569,163 @@ function RestoreSection({ showAlert }) {
         </>
       ) : null}
     </Box>
+  );
+}
+
+function formatCleanupSummary(report) {
+  const deleted =
+    report &&
+    typeof report === "object" &&
+    typeof report["deleted"] === "object"
+      ? report["deleted"]
+      : {};
+  return (
+    `Cleanup completed. Deleted ` +
+    `${deleted["auth_storage_file"] || 0} auth file(s), ` +
+    `${deleted["log_files"] || 0} log file(s), ` +
+    `${deleted["screenshot_files"] || 0} screenshot file(s), ` +
+    `${deleted["json_files"] || 0} JSON file(s).`
+  );
+}
+
+function formatLegacyMigrationSummary(report) {
+  const migratedValue =
+    report && typeof report === "object" ? report["migrated"] : undefined;
+  const migrated = Array.isArray(migratedValue) ? migratedValue : [];
+  const completedWithWarnings =
+    report && typeof report === "object"
+      ? report.status === "completed_with_warnings"
+      : false;
+
+  if (migrated.length === 0) {
+    return completedWithWarnings
+      ? "Legacy migration completed with warnings. No legacy artifacts were imported."
+      : "Legacy migration completed. No legacy artifacts were imported.";
+  }
+
+  return completedWithWarnings
+    ? `Legacy migration completed with warnings. Imported: ${migrated.join(
+        ", "
+      )}.`
+    : `Legacy migration completed. Imported: ${migrated.join(", ")}.`;
+}
+
+const MAINTENANCE_TASKS = [
+  {
+    key: "legacy-migration",
+    icon: IconDatabaseImport,
+    title: "Legacy Migration",
+    description: "Import legacy JSON data into MongoDB",
+    route: "maintenance/legacy-migration",
+    formatSuccess: formatLegacyMigrationSummary,
+    errorMessage: "Failed to run legacy migration.",
+  },
+  {
+    key: "local-cleanup",
+    icon: IconTrash,
+    title: "Local Cleanup",
+    description: "Remove local artifacts and screenshots",
+    route: "maintenance/local-cleanup",
+    formatSuccess: formatCleanupSummary,
+    errorMessage: "Failed to run local cleanup.",
+  },
+];
+
+function MaintenanceSection({ showAlert }) {
+  const { themeColors } = useThemeContext();
+  const { useActionData } = DataLoader();
+  const legacyMigrationMutation = useActionData("maintenance/legacy-migration");
+  const cleanupMutation = useActionData("maintenance/local-cleanup");
+
+  const mutations = {
+    "legacy-migration": legacyMigrationMutation,
+    "local-cleanup": cleanupMutation,
+  };
+
+  const handleRun = async (task) => {
+    const mutation = mutations[task.key];
+    try {
+      const result = await mutation.mutateAsync({});
+      showAlert("success", task.formatSuccess(result));
+    } catch (error) {
+      showAlert(
+        "error",
+        error instanceof Error ? error.message : task.errorMessage
+      );
+    }
+  };
+
+  const warningOutlinedSx = {
+    borderColor: `${COMMON_COLORS.warning.main}80`,
+    color: COMMON_COLORS.warning.light,
+    transition: TRANSITIONS.cubic,
+    "&:hover": {
+      borderColor: COMMON_COLORS.warning.main,
+      background: `${COMMON_COLORS.warning.main}15`,
+      boxShadow: `0 0 25px ${COMMON_COLORS.warning.main}30`,
+    },
+  };
+
+  return (
+    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+      {MAINTENANCE_TASKS.map((task) => {
+        const TaskIcon = task.icon;
+        const isPending = mutations[task.key].isPending;
+        return (
+          <Box
+            key={task.key}
+            component={motion.div}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            sx={{
+              flex: 1,
+              p: 2.5,
+              borderRadius: "12px",
+              background: themeColors.alpha.card,
+              border: `1px solid ${themeColors.alpha.cardBorder}`,
+              backdropFilter: "blur(8px)",
+              transition: TRANSITIONS.cubic,
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+              "&:hover": {
+                borderColor: `${COMMON_COLORS.warning.main}60`,
+                background: `${COMMON_COLORS.warning.main}08`,
+                boxShadow: GLOW.subtle(COMMON_COLORS.warning.main),
+              },
+            }}
+          >
+            <TaskIcon size={28} color={COMMON_COLORS.warning.light} />
+            <Typography variant="subtitle2" fontWeight={600}>
+              {task.title}
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mb: 0.5 }}
+            >
+              {task.description}
+            </Typography>
+            <Box>
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={isPending}
+                onClick={() => handleRun(task)}
+                startIcon={
+                  isPending ? (
+                    <CircularProgress size={14} color="inherit" />
+                  ) : null
+                }
+                sx={warningOutlinedSx}
+              >
+                {isPending ? "Running..." : "Run"}
+              </Button>
+            </Box>
+          </Box>
+        );
+      })}
+    </Stack>
   );
 }
 
@@ -414,7 +750,10 @@ export default function Backup() {
   });
 
   const showAlert = (type, message) => setAlert({ open: true, type, message });
-  const handleAlertClose = () => setAlert({ ...alert, open: false });
+  const handleAlertClose = (_, reason) => {
+    if (reason === "clickaway") return;
+    setAlert({ ...alert, open: false });
+  };
 
   if (isSummaryLoading && !summary) {
     return <BackupSkeleton />;
@@ -464,6 +803,21 @@ export default function Backup() {
           colorScheme="primary"
         >
           <RestoreSection showAlert={showAlert} />
+        </SectionCard>
+      </motion.div>
+
+      <motion.div
+        custom={3}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <SectionCard
+          title="Maintenance"
+          icon={<IconTool size={24} color="#ffffff" />}
+          colorScheme="primary"
+        >
+          <MaintenanceSection showAlert={showAlert} />
         </SectionCard>
       </motion.div>
 

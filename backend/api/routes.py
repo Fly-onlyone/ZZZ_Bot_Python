@@ -21,7 +21,16 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
 import repositories.MongoRepository as MongoRepository
-from core.GlobalVar import CONFIG, RedeemItem, accounts, is_exe, resource_path, settings
+from core.GlobalVar import (
+    CONFIG,
+    RedeemItem,
+    accounts,
+    ensure_accounts_loaded,
+    get_startup_status,
+    is_exe,
+    resource_path,
+    settings,
+)
 from core.ManualLogin import run
 from core.settings_contract import extract_advanced_settings
 
@@ -58,12 +67,110 @@ INTERNAL_ROUTE_PREFIXES = {
 }
 SHUTDOWN_RESPONSE_DELAY_SECONDS = 0.2
 SHUTDOWN_SENTRY_FLUSH_TIMEOUT_SECONDS = 2.0
+LEGACY_MIGRATION_COLLECTIONS_BY_FILE = {
+    "settings.json": "settings",
+    "account.json": "account",
+    "shopping.json": "shopping",
+    "missions.json": "missions",
+    "redeem.json": "redemptions",
+    "last_run.json": "last_run",
+}
 
 
 def _build_backup_export_filename(exported_at: datetime | None = None) -> str:
     """Generate a timestamped backup filename so repeated exports stay distinct."""
     timestamp = (exported_at or datetime.now()).strftime("%Y-%m-%d_%H-%M-%S-%f")
     return f"zzz-bot-backup-{timestamp}.json"
+
+
+def _collect_migrated_collections_from_report(
+    migration_report: dict[str, object],
+) -> set[str]:
+    """Map migrated legacy artifacts to their runtime collection names."""
+    migrated_collections: set[str] = set()
+    artifact_status = migration_report.get("artifact_status", {})
+    if not isinstance(artifact_status, dict):
+        return migrated_collections
+
+    for filename, collection_name in LEGACY_MIGRATION_COLLECTIONS_BY_FILE.items():
+        status = artifact_status.get(filename, {})
+        if not isinstance(status, dict):
+            continue
+        action = status.get("action")
+        if isinstance(action, str) and action.startswith("migrated"):
+            migrated_collections.add(collection_name)
+
+    return migrated_collections
+
+
+def _migration_report_has_warnings(migration_report: dict[str, object]) -> bool:
+    """Detect partial or invalid legacy migration results."""
+    artifact_status = migration_report.get("artifact_status", {})
+    if not isinstance(artifact_status, dict):
+        return False
+
+    for status in artifact_status.values():
+        if not isinstance(status, dict):
+            continue
+        action = status.get("action")
+        if action in {"skipped_invalid", "migrated_partial"}:
+            return True
+        parse_error = status.get("parse_error")
+        if isinstance(parse_error, str) and parse_error:
+            return True
+
+    return False
+
+
+def _refresh_runtime_state_after_restore(
+    restored_collections: set[str],
+) -> dict[str, str]:
+    """Reload shared in-memory state after restore-style operations."""
+    from Bot import schedule_hunt_tasks, schedule_tasks
+    from repositories.connection import get_db, set_runtime_uri
+
+    runtime_errors: dict[str, str] = {}
+
+    if "settings" in restored_collections:
+        previous_mongodb_uri = getattr(settings, "mongodb_uri", "")
+        restored_settings = MongoRepository.get_settings()
+        if restored_settings:
+            for key, value in restored_settings.items():
+                if hasattr(settings, key):
+                    setattr(settings, key, value)
+
+            restored_mongodb_uri = restored_settings.get("mongodb_uri")
+            if restored_mongodb_uri != previous_mongodb_uri:
+                try:
+                    set_runtime_uri(
+                        restored_mongodb_uri
+                        if isinstance(restored_mongodb_uri, str)
+                        else ""
+                    )
+                    get_db()
+                except Exception as exc:
+                    logger.error(
+                        "Failed to reconnect MongoDB after runtime restore: %s",
+                        exc,
+                        exc_info=True,
+                    )
+                    runtime_errors[
+                        "settings_runtime"
+                    ] = f"Settings restored but MongoDB reconnect failed: {exc}"
+
+        schedule_tasks()
+
+    if "account" in restored_collections:
+        restored_account = MongoRepository.get_account()
+        if restored_account:
+            for key, value in restored_account.items():
+                if hasattr(accounts, key):
+                    setattr(accounts, key, value)
+
+    if "settings" not in restored_collections and "shopping" in restored_collections:
+        schedule_hunt_tasks()
+
+    return runtime_errors
 
 
 def _has_valid_desktop_token(request: Request) -> bool:
@@ -207,7 +314,7 @@ def _start_shutdown_worker(
 @router.get("/health")
 def health_check():
     """Return backend readiness status for frontend startup gating."""
-    return {"status": "ok"}
+    return get_startup_status()
 
 
 @router.get("/routes")
@@ -428,6 +535,7 @@ def get_hunt_info():
 @router.get("/account")
 def get_account():
     """Retrieve account credentials for email notifications."""
+    ensure_accounts_loaded()
     return asdict(accounts)
 
 
@@ -441,6 +549,7 @@ async def update_account(request: Request):
     Returns:
         Success message
     """
+    ensure_accounts_loaded()
     data = await request.json()
     for key, value in data.items():
         if hasattr(accounts, key):
@@ -582,16 +691,9 @@ def run_local_cleanup():
     """Run local artifact cleanup on demand from the UI."""
     from repositories.connection import get_db, get_runtime_mode
     from utils.local_artifact_maintenance import cleanup_local_artifacts_once
-    from utils.migrate_json_to_mongo import migrate_if_needed
 
     import sentry_sdk
 
-    with sentry_sdk.start_span(op="maintenance.migrate", name="local-cleanup-migrate"):
-        migration_report = migrate_if_needed(
-            CONFIG["OUTPUT_FOLDER"],
-            CONFIG["STORAGE_PATH"],
-            CONFIG["SCREENSHOT_FOLDER"],
-        )
     with sentry_sdk.start_span(
         op="maintenance.cleanup", name="local-cleanup-artifacts"
     ):
@@ -600,10 +702,40 @@ def run_local_cleanup():
             config=CONFIG,
             is_exe_mode=is_exe,
             runtime_mode=get_runtime_mode(),
-            migration_report=migration_report,
+            migration_report={},
             exe_base_dir=os.path.dirname(sys.executable) if is_exe else None,
         )
     return JSONResponse(cleanup_report)
+
+
+@router.post("/maintenance/legacy-migration")
+def run_legacy_migration():
+    """Import legacy local JSON and binary artifacts into Mongo on demand."""
+    from utils.migrate_json_to_mongo import migrate_if_needed
+
+    import sentry_sdk
+
+    with sentry_sdk.start_span(
+        op="maintenance.legacy_migration", name="legacy-migration"
+    ):
+        migration_report = migrate_if_needed(
+            CONFIG["OUTPUT_FOLDER"],
+            CONFIG["STORAGE_PATH"],
+            CONFIG["SCREENSHOT_FOLDER"],
+        )
+
+    restored_collections = _collect_migrated_collections_from_report(migration_report)
+    runtime_errors = _refresh_runtime_state_after_restore(restored_collections)
+
+    response_payload = dict(migration_report)
+    response_payload["status"] = (
+        "completed_with_warnings"
+        if runtime_errors or _migration_report_has_warnings(migration_report)
+        else "completed"
+    )
+    if runtime_errors:
+        response_payload["errors"] = runtime_errors
+    return JSONResponse(response_payload)
 
 
 @router.get("/settings")
@@ -1004,9 +1136,6 @@ async def import_backup(request: Request):
     Returns:
         Import report with restored/skipped/errors
     """
-    from Bot import schedule_hunt_tasks, schedule_tasks
-    from repositories.connection import get_db, set_runtime_uri
-
     body = await request.json()
     backup_data = body.get("data")
     collections = body.get("collections", [])
@@ -1020,45 +1149,8 @@ async def import_backup(request: Request):
         )
 
     report = MongoRepository.import_data(backup_data, collections)
-
-    # Reload in-memory state if settings or account were restored
-    if "settings" in report.get("restored", []):
-        previous_mongodb_uri = getattr(settings, "mongodb_uri", "")
-        restored_settings = MongoRepository.get_settings()
-        if restored_settings:
-            for key, value in restored_settings.items():
-                if hasattr(settings, key):
-                    setattr(settings, key, value)
-            restored_mongodb_uri = restored_settings.get("mongodb_uri")
-            if restored_mongodb_uri != previous_mongodb_uri:
-                try:
-                    set_runtime_uri(
-                        restored_mongodb_uri
-                        if isinstance(restored_mongodb_uri, str)
-                        else ""
-                    )
-                    get_db()
-                except Exception as exc:
-                    logger.error(
-                        "Failed to reconnect MongoDB after backup restore: %s",
-                        exc,
-                        exc_info=True,
-                    )
-                    report["errors"][
-                        "settings_runtime"
-                    ] = f"Settings restored but MongoDB reconnect failed: {exc}"
-        schedule_tasks()
-
-    if "account" in report.get("restored", []):
-        restored_account = MongoRepository.get_account()
-        if restored_account:
-            for key, value in restored_account.items():
-                if hasattr(accounts, key):
-                    setattr(accounts, key, value)
-
-    if "settings" not in report.get("restored", []) and "shopping" in report.get(
-        "restored", []
-    ):
-        schedule_hunt_tasks()
+    runtime_errors = _refresh_runtime_state_after_restore(set(report.get("restored", [])))
+    if runtime_errors:
+        report.setdefault("errors", {}).update(runtime_errors)
 
     return JSONResponse(report)

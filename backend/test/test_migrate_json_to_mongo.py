@@ -133,11 +133,11 @@ def test_is_default_settings_payload_detects_modified_values():
     assert not is_default_settings_payload(modified)
 
 
-def test_is_default_settings_payload_accepts_legacy_browser_key():
+def test_is_default_settings_payload_rejects_legacy_browser_key():
     legacy_defaults = dict(getattr(migrate_json_to_mongo, "_DEFAULT_SETTINGS_PAYLOAD"))
     legacy_defaults["open_web_ui"] = legacy_defaults.pop("show_window_on_startup")
 
-    assert is_default_settings_payload(legacy_defaults)
+    assert not is_default_settings_payload(legacy_defaults)
 
 
 def test_is_blank_account_payload_requires_credentials():
@@ -368,3 +368,4 @@ def test_save_artifact_data_multi_all_fail():
     assert status["action"] == "migrated_partial"
     assert status["records_failed"] == 2
     assert migrated == ["test (0/2 records)"]
+

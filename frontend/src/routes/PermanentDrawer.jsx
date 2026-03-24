@@ -250,7 +250,7 @@ function PermanentDrawerContent() {
     isLoading: isBackendHealthLoading,
     isFetching: isBackendHealthFetching,
   } = useBackendHealth();
-  const isBackendReady = healthData?.status === "ok";
+  const isBackendReady = healthData?.ready === true;
   const scaledViewportHeight = `calc(100dvh / ${zoomLevel})`;
 
   useTaskEvents({ enabled: isBackendReady });

@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List
@@ -12,12 +13,13 @@ from starlette.staticfiles import StaticFiles
 
 from utils.DataHandler import Serializable
 from utils.StringUtil import clean_leading_dots
-from core.settings_compat import (
-    normalize_hunt_early_exit_default,
-    normalize_show_window_on_startup_setting,
-)
 
 logger = logging.getLogger(__name__)
+
+STARTUP_PHASE_BOOTING = "booting"
+STARTUP_PHASE_WARMING = "warming"
+STARTUP_PHASE_READY = "ready"
+STARTUP_PHASE_ERROR = "error"
 
 
 def is_exe():
@@ -344,11 +346,10 @@ def _init_startup_sentry_if_configured() -> None:
 
 
 def _bootstrap_mongo() -> None:
-    """Ensure Mongo is reachable and run one-time JSON migration check."""
+    """Ensure Mongo is reachable before loading persisted runtime state."""
     import sentry_sdk
 
     from repositories.connection import get_connection_debug_info, get_db
-    from utils.migrate_json_to_mongo import migrate_if_needed
 
     with sentry_sdk.start_span(
         op="startup.mongo_bootstrap",
@@ -357,19 +358,8 @@ def _bootstrap_mongo() -> None:
         with sentry_sdk.start_span(op="mongo.connect", name="Connect and ping"):
             db = get_db()
 
-        with sentry_sdk.start_span(
-            op="mongo.migrate",
-            name="Migrate JSON backups if needed",
-        ):
-            report = migrate_if_needed(
-                CONFIG["OUTPUT_FOLDER"],
-                CONFIG["STORAGE_PATH"],
-                CONFIG["SCREENSHOT_FOLDER"],
-            )
-
         span.set_data("mongo.db_name", db.name)
         span.set_data("mongo.connection", get_connection_debug_info())
-        span.set_data("mongo.migration_report", report)
 
 
 def _load_settings() -> "AppSettings":
@@ -378,11 +368,11 @@ def _load_settings() -> "AppSettings":
 
     from repositories import MongoRepository
     from repositories.connection import (
+        get_effective_mongodb_uri,
         get_connection_debug_info,
         get_db,
         set_runtime_uri,
     )
-    from utils.migrate_json_to_mongo import migrate_if_needed
 
     valid = AppSettings.__annotations__.keys()
     data = MongoRepository.get_settings()
@@ -391,66 +381,46 @@ def _load_settings() -> "AppSettings":
     else:
         loaded = AppSettings()
 
-    # settings.mongodb_uri is the primary runtime source after bootstrap.
-    set_runtime_uri(loaded.mongodb_uri)
+    previous_effective_uri = get_effective_mongodb_uri()
+    requested_runtime_uri = (loaded.mongodb_uri or "").strip()
+    should_switch_runtime_uri = bool(
+        requested_runtime_uri and requested_runtime_uri != previous_effective_uri
+    )
 
     with sentry_sdk.start_span(
         op="startup.mongo_runtime_uri_sync",
         name="mongo-runtime-uri-sync",
     ) as span:
-        with sentry_sdk.start_span(
-            op="mongo.connect",
-            name="Reconnect with settings.mongodb_uri",
-        ):
-            active_db = get_db()
-
-        with sentry_sdk.start_span(
-            op="mongo.migrate",
-            name="Migrate JSON backups into active runtime DB if needed",
-        ):
-            runtime_report = migrate_if_needed(
-                CONFIG["OUTPUT_FOLDER"],
-                CONFIG["STORAGE_PATH"],
-                CONFIG["SCREENSHOT_FOLDER"],
-            )
+        if should_switch_runtime_uri:
+            with sentry_sdk.start_span(
+                op="mongo.connect",
+                name="Reconnect with settings.mongodb_uri",
+            ):
+                set_runtime_uri(requested_runtime_uri)
+                active_db = get_db()
+        else:
+            with sentry_sdk.start_span(
+                op="mongo.connect",
+                name="Reuse active runtime MongoDB connection",
+            ):
+                active_db = get_db()
 
         span.set_data("mongo.db_name", active_db.name)
         span.set_data("mongo.connection", get_connection_debug_info())
-        span.set_data("mongo.runtime_migration_report", runtime_report)
+        span.set_data("mongo.runtime_uri_switched", should_switch_runtime_uri)
 
     # Read settings from the active database after applying runtime URI.
     active_data = MongoRepository.get_settings()
     source_data = active_data if active_data is not None else data
-    normalized_data = normalize_show_window_on_startup_setting(
-        source_data,
-        has_marker=MongoRepository.has_app_metadata_marker,
-        set_marker=MongoRepository.set_app_metadata_marker,
-        save_settings=MongoRepository.save_settings,
-        logger=logger,
-    )
-    normalized_data = normalize_hunt_early_exit_default(
-        normalized_data,
-        has_marker=MongoRepository.has_app_metadata_marker,
-        set_marker=MongoRepository.set_app_metadata_marker,
-        save_settings=MongoRepository.save_settings,
-        logger=logger,
-    )
-    if normalized_data:
+    if source_data:
         active_loaded = AppSettings(
-            **{k: v for k, v in normalized_data.items() if k in valid}
+            **{k: v for k, v in source_data.items() if k in valid}
         )
-        if active_data is None or any(key not in valid for key in normalized_data):
+        if active_data is None or any(key not in valid for key in source_data):
             MongoRepository.save_settings(asdict(active_loaded))
         return active_loaded
 
     # Ensure settings document exists in the active database.
-    normalize_hunt_early_exit_default(
-        None,
-        has_marker=MongoRepository.has_app_metadata_marker,
-        set_marker=MongoRepository.set_app_metadata_marker,
-        save_settings=MongoRepository.save_settings,
-        logger=logger,
-    )
     MongoRepository.save_settings(asdict(loaded))
     return loaded
 
@@ -480,15 +450,130 @@ def _load_accounts() -> "Account":
     return default_account
 
 
-load_runtime_env()
-_init_startup_sentry_if_configured()
-import sentry_sdk
-
-with sentry_sdk.start_transaction(op="startup", name="mongo-bootstrap", sampled=True):
-    _bootstrap_mongo()
-    settings = _load_settings()
-accounts = _load_accounts()
+settings = AppSettings()
+accounts = Account()
 app = FastAPI()
+_startup_lock = threading.RLock()
+_startup_phase = STARTUP_PHASE_BOOTING
+_startup_ready = False
+_startup_error: str | None = None
+_settings_loaded = False
+_accounts_loaded = False
+_deferred_startup_started = False
+
+
+def _apply_dataclass_values(target, source) -> None:
+    """Copy dataclass field values into a shared runtime instance."""
+    for field_name in target.__dataclass_fields__:
+        setattr(target, field_name, getattr(source, field_name))
+
+
+def initialize_runtime_state() -> AppSettings:
+    """Load runtime configuration needed before the API starts serving."""
+    global _settings_loaded, _startup_phase, _startup_ready, _startup_error
+
+    with _startup_lock:
+        if _settings_loaded:
+            return settings
+
+        _startup_phase = STARTUP_PHASE_BOOTING
+        _startup_ready = False
+        _startup_error = None
+
+        try:
+            load_runtime_env()
+            _init_startup_sentry_if_configured()
+            import sentry_sdk
+
+            with sentry_sdk.start_transaction(
+                op="startup",
+                name="critical-bootstrap",
+                sampled=True,
+            ):
+                _bootstrap_mongo()
+                loaded_settings = _load_settings()
+
+            _apply_dataclass_values(settings, loaded_settings)
+            _settings_loaded = True
+            _startup_ready = True
+            _startup_phase = STARTUP_PHASE_WARMING
+            return settings
+        except Exception as exc:
+            _startup_phase = STARTUP_PHASE_ERROR
+            _startup_error = str(exc)
+            logger.error("Critical startup bootstrap failed: %s", exc)
+            raise
+
+
+def ensure_accounts_loaded() -> Account:
+    """Lazily load persisted account credentials on first use."""
+    global _accounts_loaded
+
+    initialize_runtime_state()
+
+    with _startup_lock:
+        if _accounts_loaded:
+            return accounts
+
+        loaded_accounts = _load_accounts()
+        _apply_dataclass_values(accounts, loaded_accounts)
+        _accounts_loaded = True
+        return accounts
+
+
+def _run_deferred_startup_tasks() -> None:
+    """Warm non-critical state after the backend is already usable."""
+    global _startup_phase, _startup_error
+
+    try:
+        from repositories import MongoRepository
+
+        MongoRepository.ensure_indexes()
+        _startup_phase = STARTUP_PHASE_READY
+        _startup_error = None
+        logger.info("Deferred startup warmup completed")
+    except Exception as exc:
+        _startup_phase = STARTUP_PHASE_READY
+        _startup_error = str(exc)
+        logger.exception("Deferred startup warmup failed")
+
+
+def start_deferred_startup_tasks() -> None:
+    """Start deferred startup work once the critical path is complete."""
+    global _deferred_startup_started
+
+    initialize_runtime_state()
+
+    with _startup_lock:
+        if _deferred_startup_started:
+            return
+        _deferred_startup_started = True
+
+    threading.Thread(
+        target=_run_deferred_startup_tasks,
+        name="startup-warmup",
+        daemon=True,
+    ).start()
+
+
+def get_startup_status() -> dict[str, object]:
+    """Return a phase-aware readiness snapshot for local clients."""
+    with _startup_lock:
+        if _startup_phase == STARTUP_PHASE_ERROR and not _startup_ready:
+            status = "error"
+        elif _startup_phase == STARTUP_PHASE_READY:
+            status = "ok"
+        else:
+            status = "starting"
+
+        payload = {
+            "status": status,
+            "ready": _startup_ready,
+            "phase": _startup_phase,
+        }
+        if _startup_error:
+            payload["detail"] = _startup_error
+        return payload
 app.add_middleware(
     CORSMiddleware,
     # Allow desktop/web UI origins on localhost and WebView protocols.

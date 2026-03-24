@@ -1,8 +1,4 @@
-"""One-time JSON -> MongoDB migration.
-
-Called automatically on startup when MongoDB collections are empty.
-Preserves all existing data from output/ JSON files.
-"""
+"""Manual legacy artifact import into MongoDB."""
 
 import json
 import logging
@@ -118,11 +114,8 @@ def _is_default_settings_payload(data: Any) -> bool:
     """Return True when settings payload matches app defaults."""
     if not isinstance(data, dict):
         return False
-    normalized = dict(data)
-    if "show_window_on_startup" not in normalized and "open_web_ui" in normalized:
-        normalized["show_window_on_startup"] = normalized["open_web_ui"]
     return all(
-        normalized.get(key) == value for key, value in _DEFAULT_SETTINGS_PAYLOAD.items()
+        data.get(key) == value for key, value in _DEFAULT_SETTINGS_PAYLOAD.items()
     )
 
 
@@ -342,20 +335,19 @@ def _save_artifact_data(
 # ============================================================
 
 
-def _collection_counts(repo: Any, db: Any) -> dict[str, int]:
+def _collection_counts(db: Any) -> dict[str, int]:
     """Return lightweight per-collection document counts.
 
     Args:
-        repo: MongoRepository module (used for document-level queries).
         db: Raw pymongo database (used for binary_assets counts).
     """
     return {
-        "settings": 1 if repo.get_settings() is not None else 0,
-        "accounts": 1 if repo.get_account() is not None else 0,
-        "shopping": 1 if repo.get_shopping() is not None else 0,
-        "missions": len(repo.get_missions()),
-        "redemptions": len(repo.get_redemptions()),
-        "last_run": 1 if repo.get_last_run() is not None else 0,
+        "settings": db.settings.count_documents({"_id": "default"}, limit=1),
+        "accounts": db.accounts.count_documents({"_id": "default"}, limit=1),
+        "shopping": db.shopping.count_documents({"_id": "default"}, limit=1),
+        "missions": db.missions.count_documents({}),
+        "redemptions": db.redemptions.count_documents({}),
+        "last_run": db.last_run.count_documents({"_id": "default"}, limit=1),
         "storage_state_assets": db.binary_assets.count_documents(
             {"category": "storage_state"}
         ),
@@ -479,29 +471,6 @@ def _migrate_screenshots(
 def _backfill_settings(db: Any) -> None:
     """Remove deprecated fields and populate missing Sentry DSNs."""
     db.settings.update_many({}, {"$unset": {"sentry_profiles_sample_rate": ""}})
-    db.settings.update_many(
-        {
-            "show_window_on_startup": {"$exists": False},
-            "open_web_ui": {"$exists": True},
-        },
-        [
-            {
-                "$set": {
-                    "show_window_on_startup": "$open_web_ui",
-                }
-            },
-            {
-                "$unset": "open_web_ui",
-            },
-        ],
-    )
-    db.settings.update_many(
-        {
-            "show_window_on_startup": {"$exists": True},
-            "open_web_ui": {"$exists": True},
-        },
-        {"$unset": {"open_web_ui": ""}},
-    )
 
     for env_var, field in [
         ("SENTRY_DSN", "sentry_dsn"),
@@ -530,7 +499,7 @@ def migrate_if_needed(
     storage_state_path: str | None = None,
     screenshot_dir: str | None = None,
 ) -> dict[str, Any]:
-    """Check each MongoDB collection; migrate from JSON if empty.
+    """Import legacy local artifacts into MongoDB when requested.
 
     Args:
         output_dir: Absolute path to the output/ folder containing JSON files.
@@ -554,10 +523,10 @@ def migrate_if_needed(
         return _resolve_artifact_path(filename, output_dirs)
 
     with sentry_sdk.start_span(
-        op="startup.mongo_migration",
+        op="maintenance.legacy_migration",
         name="mongo-migration-check",
     ) as span:
-        counts_before = _collection_counts(MongoRepository, db)
+        counts_before = _collection_counts(db)
 
         for spec in _ARTIFACT_SPECS:
             path = _path(spec.filename)
@@ -576,7 +545,7 @@ def migrate_if_needed(
         if screenshot_dir:
             screenshot_report = _migrate_screenshots(db, screenshot_dir, migrated)
 
-        counts_after = _collection_counts(MongoRepository, db)
+        counts_after = _collection_counts(db)
         for spec in _ARTIFACT_SPECS:
             artifact_status[spec.filename]["collection_after_count"] = counts_after[
                 spec.count_key

@@ -76,6 +76,11 @@ def _ensure_indexes() -> None:
     logger.debug("MongoDB TTL indexes ensured for db=%s", db.name)
 
 
+def ensure_indexes() -> None:
+    """Public wrapper for startup warmup and maintenance tasks."""
+    _ensure_indexes()
+
+
 def _ensure_locator_tracker_schema(db) -> None:
     marker = db[APP_METADATA_COLLECTION].find_one(
         {"_id": LOCATOR_TRACKER_SCHEMA_MARKER},
