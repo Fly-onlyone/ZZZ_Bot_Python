@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import sys
 import threading
@@ -17,12 +18,6 @@ from automation import EventNavigator
 from handlers import DrawHandler, HuntModeHandler, MissionHandler, ShoppingHandler
 from core.frontend_env import resolve_frontend_sentry_dsn
 from core.mission_email import schedule_mission_email_delivery
-from core.settings_compat import (
-    HUNT_EARLY_EXIT_RESET_MARKER,
-    SHOW_WINDOW_ON_STARTUP_RENAME_MARKER,
-    normalize_hunt_early_exit_default,
-    normalize_show_window_on_startup_setting,
-)
 from core.settings_contract import ADVANCED_SETTINGS_KEYS, extract_advanced_settings
 from repositories.DataRepository import SettingsRepository
 from utils.Logger import StreamToLogger
@@ -808,70 +803,6 @@ def test_ensure_draw_ui_cleared_ignores_mask_without_result_controls():
     assert DrawHandler.ensure_draw_ui_cleared(cast(Any, FakePage())) is True
 
 
-def test_normalize_hunt_early_exit_default_resets_true_once():
-    markers: set[str] = set()
-    saved_payloads: list[dict] = []
-
-    normalized = normalize_hunt_early_exit_default(
-        {"hunt_early_exit_on_unavailable": True, "theme": "venom"},
-        has_marker=lambda marker: marker in markers,
-        set_marker=markers.add,
-        save_settings=lambda payload: saved_payloads.append(dict(payload)),
-    )
-
-    assert normalized == {
-        "hunt_early_exit_on_unavailable": False,
-        "theme": "venom",
-    }
-    assert saved_payloads == [normalized]
-    assert HUNT_EARLY_EXIT_RESET_MARKER in markers
-
-    preserved = normalize_hunt_early_exit_default(
-        {"hunt_early_exit_on_unavailable": True, "theme": "venom"},
-        has_marker=lambda marker: marker in markers,
-        set_marker=markers.add,
-        save_settings=lambda payload: saved_payloads.append(dict(payload)),
-    )
-
-    assert preserved == {
-        "hunt_early_exit_on_unavailable": True,
-        "theme": "venom",
-    }
-    assert saved_payloads == [normalized]
-
-
-def test_normalize_show_window_on_startup_setting_renames_legacy_key_once():
-    markers: set[str] = set()
-    saved_payloads: list[dict] = []
-
-    normalized = normalize_show_window_on_startup_setting(
-        {"open_web_ui": False, "theme": "venom"},
-        has_marker=lambda marker: marker in markers,
-        set_marker=markers.add,
-        save_settings=lambda payload: saved_payloads.append(dict(payload)),
-    )
-
-    assert normalized == {
-        "show_window_on_startup": False,
-        "theme": "venom",
-    }
-    assert saved_payloads == [normalized]
-    assert SHOW_WINDOW_ON_STARTUP_RENAME_MARKER in markers
-
-    preserved = normalize_show_window_on_startup_setting(
-        {"open_web_ui": True, "theme": "venom"},
-        has_marker=lambda marker: marker in markers,
-        set_marker=markers.add,
-        save_settings=lambda payload: saved_payloads.append(dict(payload)),
-    )
-
-    assert preserved == {
-        "show_window_on_startup": True,
-        "theme": "venom",
-    }
-    assert saved_payloads == [normalized, preserved]
-
-
 def test_schedule_mission_email_delivery_runs_inline_for_exit_after_run():
     deliveries: list[dict] = []
 
@@ -1447,6 +1378,121 @@ def test_dynamic_routes_hide_internal_action_endpoints():
     assert routes_module._is_public_route("/shutdown") is False
     assert routes_module._is_public_route("/tasks/run-playwright") is False
     assert routes_module._is_public_route("/maintenance/local-cleanup") is False
+    assert routes_module._is_public_route("/maintenance/legacy-migration") is False
+
+
+def test_health_check_returns_phase_aware_startup_status(monkeypatch):
+    payload = {
+        "status": "starting",
+        "ready": True,
+        "phase": "warming",
+    }
+    monkeypatch.setattr(routes_module, "get_startup_status", lambda: payload)
+
+    assert routes_module.health_check() == payload
+
+
+def test_run_local_cleanup_no_longer_triggers_legacy_migration(monkeypatch):
+    class _NullSpan:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    cleanup_calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
+    monkeypatch.setattr(
+        "utils.migrate_json_to_mongo.migrate_if_needed",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("legacy migration should not run during cleanup")
+        ),
+    )
+    monkeypatch.setattr("repositories.connection.get_db", lambda: object())
+    monkeypatch.setattr("repositories.connection.get_runtime_mode", lambda: "dev")
+    monkeypatch.setattr(
+        "utils.local_artifact_maintenance.cleanup_local_artifacts_once",
+        lambda **kwargs: cleanup_calls.append(kwargs) or {"status": "completed"},
+    )
+
+    response = routes_module.run_local_cleanup()
+
+    assert response.status_code == 200
+    assert json.loads(response.body) == {"status": "completed"}
+    assert cleanup_calls[0]["migration_report"] == {}
+
+
+def test_run_legacy_migration_refreshes_runtime_state(monkeypatch):
+    class _NullSpan:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    routes_module.settings.theme = "nebula"
+    routes_module.settings.show_window_on_startup = True
+    routes_module.settings.mongodb_uri = ""
+    routes_module.accounts.username = ""
+    routes_module.accounts.app_password = ""
+    routes_module.accounts.hoyo_username = ""
+    routes_module.accounts.hoyo_password = ""
+
+    schedule_calls: list[str] = []
+
+    monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
+    monkeypatch.setattr(
+        "utils.migrate_json_to_mongo.migrate_if_needed",
+        lambda *args, **kwargs: {
+            "migrated": ["settings", "account", "shopping"],
+            "counts_before": {},
+            "counts_after": {},
+            "artifact_status": {
+                "settings.json": {"action": "migrated"},
+                "account.json": {"action": "migrated"},
+                "shopping.json": {"action": "migrated"},
+            },
+            "storage_state_report": {"status": "skipped"},
+            "screenshot_report": {"status": "skipped", "scanned": 0, "upserted": 0},
+        },
+    )
+    monkeypatch.setattr(
+        mongo_module,
+        "get_settings",
+        lambda: {
+            "theme": "cyber",
+            "show_window_on_startup": False,
+            "mongodb_uri": "",
+        },
+    )
+    monkeypatch.setattr(
+        mongo_module,
+        "get_account",
+        lambda: {
+            "username": "notify@example.com",
+            "app_password": "secret",
+            "hoyo_username": "hoyo@example.com",
+            "hoyo_password": "pw",
+        },
+    )
+    monkeypatch.setattr(bot_module, "schedule_tasks", lambda: schedule_calls.append("all"))
+    monkeypatch.setattr(
+        bot_module, "schedule_hunt_tasks", lambda: schedule_calls.append("hunt")
+    )
+    monkeypatch.setattr("repositories.connection.set_runtime_uri", lambda _uri: None)
+    monkeypatch.setattr("repositories.connection.get_db", lambda: object())
+
+    response = routes_module.run_legacy_migration()
+    payload = json.loads(response.body)
+
+    assert response.status_code == 200
+    assert payload["status"] == "completed"
+    assert routes_module.settings.theme == "cyber"
+    assert routes_module.settings.show_window_on_startup is False
+    assert routes_module.accounts.username == "notify@example.com"
+    assert routes_module.accounts.hoyo_username == "hoyo@example.com"
+    assert schedule_calls == ["all"]
 
 
 def test_shutdown_rejects_invalid_desktop_token(monkeypatch):

@@ -27,7 +27,7 @@ export default function ThemePicker() {
   const { themeName, themeColors, changeTheme } = useThemeContext();
   const { useBackendHealth, useSaveData, useRouteData } = DataLoader();
   const { data: healthData } = useBackendHealth();
-  const isBackendReady = healthData?.status === "ok";
+  const isBackendReady = healthData?.ready === true;
   const saveMutation = useSaveData("settings");
   const { data: settings = {} } = useRouteData("settings", {
     enabled: isBackendReady,

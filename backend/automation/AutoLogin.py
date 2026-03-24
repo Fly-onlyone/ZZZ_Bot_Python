@@ -1,9 +1,10 @@
 from playwright.sync_api import Page
 
-from core.GlobalVar import accounts
+from core.GlobalVar import accounts, ensure_accounts_loaded
 
 
 def run(page: Page):
+    ensure_accounts_loaded()
 
     page.locator("#hyv-account-frame").content_frame.locator(
         'input[name="username"]'

@@ -4,7 +4,7 @@ from datetime import datetime
 import apprise
 from jinja2 import Template
 
-from .GlobalVar import accounts, CONFIG, settings
+from .GlobalVar import CONFIG, accounts, ensure_accounts_loaded, settings
 from utils.screenshot_store import get_screenshot_bytes
 
 
@@ -48,6 +48,7 @@ def send_mission_data_via_email_html(todays_data):
 
 
 def send_mail(mission_summary_html, todays_data):
+    ensure_accounts_loaded()
     apobj = apprise.Apprise()
     apobj.add(f"mailto://{accounts.username}:{accounts.app_password}@gmail.com")
     try:

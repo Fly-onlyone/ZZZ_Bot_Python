@@ -864,12 +864,6 @@ if __name__ == "__main__":
     # === 0.25. Load runtime env vars from .env files ===
     GlobalVar.load_runtime_env()
 
-    # === 0.5. Initialize Sentry (before everything else) ===
-    _sentry_status = configure_sentry_runtime(
-        trigger_source="startup",
-        force_reinit=False,
-    )
-
     # === 1. Setup Log Path and Initialize Logger (only in EXE mode) ===
     log_dir = _resolve_log_dir()
     os.makedirs(log_dir, exist_ok=True)
@@ -902,6 +896,15 @@ if __name__ == "__main__":
     # the logging system so they appear in the log file and reach _SentryWarningHandler.
     logging.captureWarnings(True)
 
+    # === 1.5. Load critical runtime state before serving requests ===
+    GlobalVar.initialize_runtime_state()
+
+    # === 1.75. Apply full Sentry configuration using persisted settings ===
+    _sentry_status = configure_sentry_runtime(
+        trigger_source="startup",
+        force_reinit=False,
+    )
+
     logger.info(
         "Sentry startup status: active=%s, dsn_source=%s, dsn_present=%s, environment=%s, logs_enabled=%s, send_test_event=%s, send_test_event_source=%s, traces_sample_rate=%.3f, traces_sample_rate_source=%s, trigger_source=%s, reconfigured=%s, error=%s",
         _sentry_status["active"],
@@ -917,6 +920,7 @@ if __name__ == "__main__":
         _sentry_status["reconfigured"],
         _sentry_status["error"],
     )
+    GlobalVar.start_deferred_startup_tasks()
 
     browser_path = resolve_playwright_browsers_path()
     if browser_path:
@@ -976,21 +980,6 @@ if __name__ == "__main__":
                 logger.error("Error mounting frontend: %s", e)
     else:
         logger.info("Frontend mounting disabled via --no-frontend")
-
-    # === 3.5. Validate MongoDB and migrate JSON backups on first run ===
-    try:
-        from repositories.connection import get_db
-        from utils.migrate_json_to_mongo import migrate_if_needed
-
-        get_db()
-        migrate_if_needed(
-            CONFIG["OUTPUT_FOLDER"],
-            CONFIG["STORAGE_PATH"],
-            CONFIG["SCREENSHOT_FOLDER"],
-        )
-    except Exception as mongo_exc:
-        logger.critical("MongoDB is required but unavailable: %s", mongo_exc)
-        raise SystemExit(1) from mongo_exc
 
     # === 4. Start Scheduler ===
     threading.Thread(target=run_scheduled_tasks, daemon=True).start()

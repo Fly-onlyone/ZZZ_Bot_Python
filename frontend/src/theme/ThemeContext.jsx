@@ -39,7 +39,7 @@ export function ThemeContextProvider({ children }) {
 
   const { useRouteData, useBackendHealth } = DataLoader();
   const { data: healthData } = useBackendHealth();
-  const isBackendReady = healthData?.status === "ok";
+  const isBackendReady = healthData?.ready === true;
 
   // Fetch theme setting from backend once health check confirms readiness.
   const { data: settingsData } = useRouteData("settings", {
