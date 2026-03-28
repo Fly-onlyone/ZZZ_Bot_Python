@@ -339,9 +339,7 @@ def playwright_task(*, manual_run: bool = False):
                     context = browser.new_context(**context_options)
                     mino_page = context.new_page()
 
-                    mino_page.goto(
-                        "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
-                    )
+                    EventNavigator.open_event_page(mino_page)
 
                     # Handle manual login only when neither MongoDB nor file has auth state.
                     has_auth_state = load_storage_state(

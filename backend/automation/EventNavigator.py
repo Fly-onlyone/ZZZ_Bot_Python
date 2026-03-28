@@ -7,11 +7,19 @@ from contextlib import suppress
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
-from playwright.sync_api import Locator, Page
+from playwright.sync_api import Error as PlaywrightError, Locator, Page
 
 from .Selectors import MISSION_DIALOG_CLOSE, SHOPPING_CLOSE_BUTTON
 from .tracking import safe_track_locator
-from core.constants import PANEL_BACK_SELECTOR
+from core.constants import (
+    DEFAULT_EVENT_URL,
+    EVENT_PAGE_GOTO_MAX_ATTEMPTS,
+    EVENT_PAGE_GOTO_RETRY_WAIT_MS,
+    EVENT_PAGE_GOTO_TIMEOUT,
+    EVENT_PAGE_WAIT_UNTIL,
+    PANEL_BACK_SELECTOR,
+)
+from utils.screenshot_store import save_page_screenshot
 
 logger = logging.getLogger(__name__)
 
@@ -194,3 +202,70 @@ def open_panel(
                 )
 
     return PanelOpenResult(False, None, last_error)
+
+
+def open_event_page(
+    page: Page,
+    *,
+    url: str = DEFAULT_EVENT_URL,
+    timeout: int = EVENT_PAGE_GOTO_TIMEOUT,
+    max_attempts: int = EVENT_PAGE_GOTO_MAX_ATTEMPTS,
+    retry_wait_ms: int = EVENT_PAGE_GOTO_RETRY_WAIT_MS,
+    wait_until: str = EVENT_PAGE_WAIT_UNTIL,
+) -> None:
+    """Open the HoYoLab event page with bounded retries and diagnostics."""
+    import sentry_sdk
+
+    last_error: Exception | None = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            logger.info(
+                "Opening HoYoLab event page (attempt %s/%s, wait_until=%s, timeout=%sms)",
+                attempt,
+                max_attempts,
+                wait_until,
+                timeout,
+            )
+            page.goto(url, wait_until=wait_until, timeout=timeout)
+            return
+        except PlaywrightError as exc:
+            last_error = exc
+            logger.warning(
+                "HoYoLab event page navigation failed on attempt %s/%s: %s",
+                attempt,
+                max_attempts,
+                exc,
+            )
+            if attempt < max_attempts:
+                page.wait_for_timeout(retry_wait_ms)
+
+    screenshot_name = f"event_page_navigation_failure_{max_attempts}attempts.png"
+    screenshot_asset_id = save_page_screenshot(page, screenshot_name)
+    logger.error(
+        "Failed to open HoYoLab event page after %s attempts; screenshot_asset_id=%s",
+        max_attempts,
+        screenshot_asset_id,
+    )
+
+    with sentry_sdk.isolation_scope():
+        sentry_sdk.set_tag("event_page.issue", "navigation_failed")
+        sentry_sdk.set_tag("event_page.attempts", str(max_attempts))
+        sentry_sdk.set_context(
+            "event_page_navigation",
+            {
+                "url": url,
+                "wait_until": wait_until,
+                "timeout_ms": timeout,
+                "max_attempts": max_attempts,
+                "retry_wait_ms": retry_wait_ms,
+                "screenshot_asset_id": screenshot_asset_id,
+                "last_error": str(last_error) if last_error is not None else None,
+            },
+        )
+        sentry_sdk.capture_exception(last_error)
+
+    if last_error is not None:
+        raise last_error
+
+    raise RuntimeError("Failed to open HoYoLab event page")

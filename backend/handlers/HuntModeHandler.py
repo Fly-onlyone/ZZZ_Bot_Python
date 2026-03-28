@@ -17,7 +17,7 @@ from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
-from automation import RedeemAutofill
+from automation import EventNavigator, RedeemAutofill
 from automation.Selectors import (
     SHOPPING_ITEM,
     SHOPPING_ITEM_BUTTON,
@@ -483,9 +483,7 @@ def run_hunt():
                     page = context.new_page()
 
                 try:
-                    page.goto(
-                        "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
-                    )
+                    EventNavigator.open_event_page(page)
 
                     # Handle manual login only when neither MongoDB nor file has auth state.
                     has_auth_state = load_storage_state(
