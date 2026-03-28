@@ -85,6 +85,10 @@ CHECK_IN_URL_WITH_AUTH = (
 DEFAULT_EVENT_URL = (
     "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
 )
+EVENT_PAGE_WAIT_UNTIL = "domcontentloaded"
+EVENT_PAGE_GOTO_TIMEOUT = 45000
+EVENT_PAGE_GOTO_MAX_ATTEMPTS = 3
+EVENT_PAGE_GOTO_RETRY_WAIT_MS = 2000
 
 
 # ============================================================================

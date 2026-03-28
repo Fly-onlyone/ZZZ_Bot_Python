@@ -4,6 +4,7 @@ Separates API logic from application bootstrapping for better maintainability.
 """
 
 import asyncio
+import importlib
 import json
 import logging
 import os
@@ -77,6 +78,16 @@ LEGACY_MIGRATION_COLLECTIONS_BY_FILE = {
 }
 
 
+def _resolve_bot_runtime(*required_attrs: str):
+    """Return the live backend runtime module, preferring packaged __main__."""
+    main_module = sys.modules.get("__main__")
+    if main_module is not None and all(
+        hasattr(main_module, attr) for attr in required_attrs
+    ):
+        return main_module
+    return importlib.import_module("Bot")
+
+
 def _build_backup_export_filename(exported_at: datetime | None = None) -> str:
     """Generate a timestamped backup filename so repeated exports stay distinct."""
     timestamp = (exported_at or datetime.now()).strftime("%Y-%m-%d_%H-%M-%S-%f")
@@ -126,8 +137,9 @@ def _refresh_runtime_state_after_restore(
     restored_collections: set[str],
 ) -> dict[str, str]:
     """Reload shared in-memory state after restore-style operations."""
-    from Bot import schedule_hunt_tasks, schedule_tasks
     from repositories.connection import get_db, set_runtime_uri
+
+    bot_runtime = _resolve_bot_runtime("schedule_hunt_tasks", "schedule_tasks")
 
     runtime_errors: dict[str, str] = {}
 
@@ -158,7 +170,7 @@ def _refresh_runtime_state_after_restore(
                         "settings_runtime"
                     ] = f"Settings restored but MongoDB reconnect failed: {exc}"
 
-        schedule_tasks()
+        bot_runtime.schedule_tasks()
 
     if "account" in restored_collections:
         restored_account = MongoRepository.get_account()
@@ -168,7 +180,7 @@ def _refresh_runtime_state_after_restore(
                     setattr(accounts, key, value)
 
     if "settings" not in restored_collections and "shopping" in restored_collections:
-        schedule_hunt_tasks()
+        bot_runtime.schedule_hunt_tasks()
 
     return runtime_errors
 
@@ -420,9 +432,7 @@ def update_shopping_data(selected: dict):
     shopping_data["Hunt"] = selected.get("Hunt", [])
     MongoRepository.save_shopping(shopping_data)
 
-    from Bot import schedule_hunt_tasks
-
-    schedule_hunt_tasks()
+    _resolve_bot_runtime("schedule_hunt_tasks").schedule_hunt_tasks()
 
     return {"message": "Shopping data updated successfully"}
 
@@ -675,9 +685,9 @@ def run_playwright_now(request: Request):
     if not _has_valid_desktop_token(request):
         return JSONResponse({"status": "rejected"}, status_code=401)
 
-    from Bot import run_playwright_task_async
-
-    run_playwright_task_async(manual_run=True)
+    _resolve_bot_runtime("run_playwright_task_async").run_playwright_task_async(
+        manual_run=True
+    )
     return JSONResponse({"status": "started"})
 
 
@@ -754,8 +764,13 @@ async def _update_settings_payload(request: Request) -> JSONResponse:
     """Persist settings updates to the shared settings document."""
     import sentry_sdk
 
-    from Bot import calculate_next_run, configure_sentry_runtime, schedule_tasks
     from repositories.connection import get_db, set_runtime_uri
+
+    bot_runtime = _resolve_bot_runtime(
+        "calculate_next_run",
+        "configure_sentry_runtime",
+        "schedule_tasks",
+    )
 
     data = await request.json()
     current_settings = asdict(settings)
@@ -819,7 +834,7 @@ async def _update_settings_payload(request: Request) -> JSONResponse:
         if key not in WINDOW_STATE_SETTING_KEYS
     }
     if non_window_updates:
-        schedule_tasks()
+        bot_runtime.schedule_tasks()
 
     sentry_setting_keys = {
         "sentry_dsn",
@@ -827,7 +842,7 @@ async def _update_settings_payload(request: Request) -> JSONResponse:
         "sentry_traces_sample_rate",
     }
     if any(key in applied_updates for key in sentry_setting_keys):
-        sentry_status = configure_sentry_runtime(
+        sentry_status = bot_runtime.configure_sentry_runtime(
             trigger_source="settings_update",
             force_reinit=True,
         )
@@ -842,7 +857,7 @@ async def _update_settings_payload(request: Request) -> JSONResponse:
 
     if "schedule_times" in applied_updates:
         run_data = MongoRepository.get_last_run() or {}
-        next_run = calculate_next_run()
+        next_run = bot_runtime.calculate_next_run()
         run_data["next_run"] = next_run.strftime("%H:%M %d/%m/%y")
         MongoRepository.save_last_run(run_data)
         logger.info("Updated next run to: %s", run_data["next_run"])
@@ -872,9 +887,8 @@ async def update_advanced_settings(request: Request):
 @router.get("/check-run-status")
 def check_run_status():
     """Check last run status with dynamically calculated next run."""
-    from Bot import calculate_next_run
-
     data = MongoRepository.get_last_run() or {}
+    calculate_next_run = _resolve_bot_runtime("calculate_next_run").calculate_next_run
     return {
         "last_run": data.get("last_run"),
         "next_run": calculate_next_run().strftime("%H:%M %d/%m/%y"),

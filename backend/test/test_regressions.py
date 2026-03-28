@@ -8,6 +8,8 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
+from playwright.sync_api import Error as PlaywrightError
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 image_processor_module = import_module("automation.ImageProcessor")
@@ -452,6 +454,279 @@ def test_run_hunt_skips_mismatched_target_date_without_backend_import(caplog):
         HuntModeHandler.set_hunt_target_date(None)
 
     assert "Skipping until correct date." in caplog.text
+
+
+def test_open_event_page_retries_until_navigation_succeeds(monkeypatch):
+    class FakePage:
+        def __init__(self):
+            self.goto_calls: list[dict[str, object]] = []
+            self.waits: list[int] = []
+
+        def goto(self, url, **kwargs):
+            self.goto_calls.append({"url": url, **kwargs})
+            if len(self.goto_calls) < 3:
+                raise PlaywrightError("temporary timeout")
+
+        def wait_for_timeout(self, timeout):
+            self.waits.append(timeout)
+
+    monkeypatch.setattr(
+        "automation.EventNavigator.save_page_screenshot",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("screenshot should not be saved on eventual success")
+        ),
+    )
+
+    page = FakePage()
+    EventNavigator.open_event_page(
+        cast(Any, page),
+        url="https://example.invalid/event",
+        timeout=12345,
+        max_attempts=3,
+        retry_wait_ms=321,
+        wait_until="domcontentloaded",
+    )
+
+    assert len(page.goto_calls) == 3
+    assert all(call["wait_until"] == "domcontentloaded" for call in page.goto_calls)
+    assert all(call["timeout"] == 12345 for call in page.goto_calls)
+    assert page.waits == [321, 321]
+
+
+def test_open_event_page_captures_diagnostics_after_final_failure(monkeypatch, caplog):
+    class _NullScope:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakePage:
+        def __init__(self):
+            self.waits: list[int] = []
+
+        def goto(self, *_args, **_kwargs):
+            raise PlaywrightError("navigation stayed too slow")
+
+        def wait_for_timeout(self, timeout):
+            self.waits.append(timeout)
+
+    screenshots: list[str] = []
+    sentry_tags: list[tuple[str, str]] = []
+    sentry_contexts: list[tuple[str, dict[str, object]]] = []
+    captured_errors: list[str] = []
+
+    monkeypatch.setattr(
+        "automation.EventNavigator.save_page_screenshot",
+        lambda *_args, **_kwargs: screenshots.append("saved") or "screenshot:event",
+    )
+    monkeypatch.setattr("sentry_sdk.isolation_scope", lambda: _NullScope())
+    monkeypatch.setattr(
+        "sentry_sdk.set_tag", lambda key, value: sentry_tags.append((key, value))
+    )
+    monkeypatch.setattr(
+        "sentry_sdk.set_context",
+        lambda key, value: sentry_contexts.append((key, value)),
+    )
+    monkeypatch.setattr(
+        "sentry_sdk.capture_exception",
+        lambda exc: captured_errors.append(str(exc)),
+    )
+
+    caplog.set_level(logging.ERROR, logger="automation.EventNavigator")
+    page = FakePage()
+
+    try:
+        EventNavigator.open_event_page(
+            cast(Any, page),
+            url="https://example.invalid/event",
+            timeout=222,
+            max_attempts=2,
+            retry_wait_ms=111,
+            wait_until="domcontentloaded",
+        )
+        raise AssertionError("Expected navigation failure")
+    except PlaywrightError as exc:
+        assert str(exc) == "navigation stayed too slow"
+
+    assert page.waits == [111]
+    assert screenshots == ["saved"]
+    assert ("event_page.issue", "navigation_failed") in sentry_tags
+    assert ("event_page.attempts", "2") in sentry_tags
+    assert sentry_contexts[0][0] == "event_page_navigation"
+    assert sentry_contexts[0][1]["screenshot_asset_id"] == "screenshot:event"
+    assert captured_errors == ["navigation stayed too slow"]
+    assert any(
+        "Failed to open HoYoLab event page after 2 attempts" in record.message
+        for record in caplog.records
+    )
+
+
+def test_playwright_task_uses_shared_event_navigation(monkeypatch):
+    class _NullSpan:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakePage:
+        pass
+
+    class FakeContext:
+        def new_page(self):
+            return FakePage()
+
+    class FakeBrowser:
+        def new_context(self, **_kwargs):
+            return FakeContext()
+
+        def close(self):
+            return None
+
+    class FakePlaywright:
+        def __init__(self):
+            self.firefox = self
+
+        def launch(self, **_kwargs):
+            return FakeBrowser()
+
+    class FakePlaywrightContext:
+        def __enter__(self):
+            return FakePlaywright()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    event_pages: list[object] = []
+    mission_calls: list[tuple[object, object, object, object]] = []
+    notifications: list[dict[str, object]] = []
+
+    monkeypatch.setattr(bot_module.settings, "run_task", True)
+    monkeypatch.setattr(bot_module.settings, "gather_shopping_data", False)
+    monkeypatch.setattr(bot_module.settings, "exchange_good", False)
+    monkeypatch.setattr(bot_module.settings, "draw_item", False)
+    monkeypatch.setattr(bot_module.settings, "exit_after_run", False)
+    monkeypatch.setattr(bot_module, "is_exe", True)
+    monkeypatch.setattr(
+        bot_module, "prepare_mission_data", lambda *_args, **_kwargs: ({}, {})
+    )
+    monkeypatch.setattr(bot_module, "sync_playwright", lambda: FakePlaywrightContext())
+    monkeypatch.setattr(
+        bot_module.EventNavigator,
+        "open_event_page",
+        lambda page: event_pages.append(page),
+    )
+    monkeypatch.setattr(bot_module, "load_storage_state", lambda _path: {"ok": True})
+    monkeypatch.setattr(bot_module.os.path, "exists", lambda _path: True)
+    monkeypatch.setattr(
+        bot_module.Mission,
+        "run",
+        lambda output_file, page, previous_data, todays_data: mission_calls.append(
+            (output_file, page, previous_data, todays_data)
+        )
+        or False,
+    )
+    monkeypatch.setattr(bot_module, "save_last_run", lambda: None)
+    monkeypatch.setattr(
+        bot_module, "save_context_storage_state", lambda *_args, **_kwargs: None
+    )
+    monkeypatch.setattr(
+        bot_module.NotificationModule,
+        "notify",
+        lambda **kwargs: notifications.append(kwargs),
+    )
+    monkeypatch.setattr(
+        bot_module, "schedule_mission_email_delivery", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(
+        "sentry_sdk.start_transaction", lambda *args, **kwargs: _NullSpan()
+    )
+    monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
+
+    bot_module.playwright_task()
+
+    assert len(event_pages) == 1
+    assert len(mission_calls) == 1
+    assert mission_calls[0][1] is event_pages[0]
+    assert notifications[-1]["message"] == "Task finished"
+
+
+def test_run_hunt_uses_shared_event_navigation(monkeypatch):
+    class _NullSpan:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def set_data(self, *_args, **_kwargs):
+            return None
+
+    class FakePage:
+        pass
+
+    class FakeContext:
+        def new_page(self):
+            return FakePage()
+
+    class FakeBrowser:
+        def new_context(self, **_kwargs):
+            return FakeContext()
+
+        def close(self):
+            return None
+
+    class FakePlaywright:
+        def __init__(self):
+            self.firefox = self
+
+        def launch(self, **_kwargs):
+            return FakeBrowser()
+
+    class FakePlaywrightContext:
+        def __enter__(self):
+            return FakePlaywright()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    event_pages: list[object] = []
+
+    monkeypatch.setattr(HuntModeHandler.settings, "run_task", True)
+    monkeypatch.setattr(HuntModeHandler.settings, "enable_hunt_mode", True)
+    monkeypatch.setattr(HuntModeHandler, "get_hunt_items", lambda: ["Polychrome ×100"])
+    monkeypatch.setattr(
+        HuntModeHandler, "get_next_hunt_time", lambda: "20:00 28/03/26"
+    )
+    monkeypatch.setattr(
+        HuntModeHandler, "sync_playwright", lambda: FakePlaywrightContext()
+    )
+    monkeypatch.setattr(
+        HuntModeHandler.EventNavigator,
+        "open_event_page",
+        lambda page: event_pages.append(page),
+    )
+    monkeypatch.setattr(
+        HuntModeHandler, "load_storage_state", lambda _path: {"ok": True}
+    )
+    monkeypatch.setattr(HuntModeHandler.os.path, "exists", lambda _path: True)
+    monkeypatch.setattr(
+        HuntModeHandler.ShoppingHandler, "open_shopping_screen", lambda _page: False
+    )
+    monkeypatch.setattr(
+        HuntModeHandler.NotificationHelper,
+        "notify",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("manual login notification should not fire")
+        ),
+    )
+    monkeypatch.setattr("sentry_sdk.start_transaction", lambda *args, **kwargs: _NullSpan())
+    monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
+
+    HuntModeHandler.run_hunt()
+
+    assert len(event_pages) == 1
 
 
 def test_stream_to_logger_buffers_partial_lines(caplog):
@@ -1287,17 +1562,38 @@ def test_manual_run_route_starts_manual_override(monkeypatch):
     class FakeRequest:
         headers = {"x-desktop-token": "expected-token"}
 
-    monkeypatch.setattr(
-        bot_module,
-        "run_playwright_task_async",
-        lambda *, manual_run=False: calls.append(manual_run),
+    class FakeMain:
+        pass
+
+    fake_main = FakeMain()
+    fake_main.run_playwright_task_async = lambda *, manual_run=False: calls.append(
+        manual_run
     )
+
+    monkeypatch.setitem(sys.modules, "__main__", fake_main)
 
     response = routes_module.run_playwright_now(FakeRequest())
 
     assert response.status_code == 200
     assert response.body == b'{"status":"started"}'
     assert calls == [True]
+
+
+def test_resolve_bot_runtime_prefers_main_module(monkeypatch):
+    class FakeMain:
+        pass
+
+    fake_main = FakeMain()
+    fake_main.schedule_tasks = lambda: None
+    fake_main.schedule_hunt_tasks = lambda: None
+
+    monkeypatch.setitem(sys.modules, "__main__", fake_main)
+
+    resolved = routes_module._resolve_bot_runtime(
+        "schedule_tasks", "schedule_hunt_tasks"
+    )
+
+    assert resolved is fake_main
 
 
 def test_extract_advanced_settings_returns_only_advanced_fields():
