@@ -215,7 +215,20 @@ def _close_shopping_screen_helper(page):
     Args:
         page: Playwright Page instance
     """
-    shopping_screen = page.locator(".wrapper-O3T67n")
+    def _shopping_panel_closed() -> bool:
+        """Treat shopping as closed only when shopping-specific UI is gone."""
+        if ShoppingHandler._shopping_ready(page):
+            return False
+        return not any(
+            (
+                EventNavigator.is_locator_visible(
+                    page.locator(ShoppingHandler.SHOPPING_CLOSE_BUTTON).first
+                ),
+                EventNavigator.is_locator_visible(
+                    page.locator(ShoppingHandler.PANEL_BACK_SELECTOR).first
+                ),
+            )
+        )
 
     max_close_attempts = 3
 
@@ -238,7 +251,7 @@ def _close_shopping_screen_helper(page):
             page.wait_for_timeout(1000)
 
             # Check if screen disappeared
-            if not shopping_screen.is_visible(timeout=2000):
+            if _shopping_panel_closed():
                 logger.info("Shopping screen closed successfully")
                 return True
             else:
