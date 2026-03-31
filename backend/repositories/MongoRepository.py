@@ -20,7 +20,8 @@ APP_METADATA_COLLECTION = "app_metadata"
 LOCATOR_TRACKER_FAILURES_COLLECTION = "locator_tracker_failures"
 LOCATOR_TRACKER_ASSET_OWNER = "locator_tracker"
 LOCATOR_TRACKER_TTL_SECONDS = 7 * 24 * 60 * 60
-LOCATOR_TRACKER_SCHEMA_MARKER = "locator_tracker_schema_v2"
+# Bump the schema marker when ephemeral locator diagnostics need a one-time reset.
+LOCATOR_TRACKER_SCHEMA_MARKER = "locator_tracker_schema_v3"
 
 
 # ============================================================================

@@ -8,7 +8,7 @@ import logging
 import time
 from contextlib import suppress
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 from uuid import uuid4
 
 from PIL import Image
@@ -23,8 +23,8 @@ from utils.screenshot_store import (
 
 logger = logging.getLogger(__name__)
 
-_screenshot_cache: dict[str, float] = {}
-_SCREENSHOT_THROTTLE_SECONDS = 3600
+_failure_capture_cache: dict[str, float] = {}
+_FAILURE_CAPTURE_COOLDOWN_SECONDS = 15 * 60
 
 
 def _selector_hash(selector: str) -> str:
@@ -54,11 +54,25 @@ def _asset_metadata(
 
 
 def _should_capture(summary_id: str, success: bool) -> bool:
-    if not success:
-        return True
+    if success:
+        return False
 
-    last_capture = _screenshot_cache.get(summary_id, 0)
-    return time.time() - last_capture >= _SCREENSHOT_THROTTLE_SECONDS
+    last_capture = _failure_capture_cache.get(summary_id, 0)
+    return time.time() - last_capture >= _FAILURE_CAPTURE_COOLDOWN_SECONDS
+
+
+def _capture_mode(
+    summary_id: str,
+    success: bool,
+    existing: dict | None,
+) -> Literal["failure", "recovery"] | None:
+    if not success:
+        return "failure" if _should_capture(summary_id, success) else None
+
+    if existing and existing.get("last_success") is False:
+        return "recovery"
+
+    return None
 
 
 _CHILD_SCAN_JS = """
@@ -141,7 +155,7 @@ _CHILD_SCAN_JS = """
 })()
 """
 
-_CHILD_SCAN_MAX_ELEMENTS = 40
+_CHILD_SCAN_MAX_ELEMENTS = 6
 _CHILD_SCAN_MIN_AREA = 400  # 20x20 px
 
 
@@ -216,7 +230,7 @@ def _capture_artifacts(
     summary_id: str,
     handler: str,
     action: str,
-    success: bool,
+    capture_mode: Literal["failure", "recovery"],
     locator: Optional[Locator],
 ) -> dict[str, str | None]:
     page_asset_id = None
@@ -233,16 +247,7 @@ def _capture_artifacts(
         selector_hash=selector_hash,
         summary_id=summary_id,
     )
-    try:
-        page_png_bytes = page.screenshot(full_page=True)
-        page_asset_id = save_screenshot_bytes(
-            f"locator_{selector_hash}_{timestamp}.png",
-            page_png_bytes,
-            metadata={**page_metadata, "full_page": True},
-        )
-        _screenshot_cache[summary_id] = time.time()
-    except Exception as exc:
-        logger.debug("Locator tracker page screenshot failed: %s", exc)
+    should_capture_page = capture_mode == "failure"
 
     if locator is not None:
         try:
@@ -261,7 +266,21 @@ def _capture_artifacts(
         except Exception as exc:
             logger.debug("Locator tracker element screenshot failed: %s", exc)
 
-    if not success:
+    if capture_mode == "recovery" and locator_asset_id is None:
+        should_capture_page = True
+
+    if should_capture_page:
+        try:
+            page_png_bytes = page.screenshot(full_page=True)
+            page_asset_id = save_screenshot_bytes(
+                f"locator_{selector_hash}_{timestamp}.png",
+                page_png_bytes,
+                metadata={**page_metadata, "full_page": True},
+            )
+        except Exception as exc:
+            logger.debug("Locator tracker page screenshot failed: %s", exc)
+
+    if capture_mode == "failure":
         try:
             dom_snapshot_asset_id = save_screenshot_bytes(
                 f"locator_dom_{selector_hash}_{timestamp}.html",
@@ -278,7 +297,11 @@ def _capture_artifacts(
         except Exception as exc:
             logger.debug("Locator tracker DOM snapshot failed: %s", exc)
 
-    if page_png_bytes is not None:
+    if (
+        capture_mode == "failure"
+        and page_png_bytes is not None
+        and _CHILD_SCAN_MAX_ELEMENTS > 0
+    ):
         try:
             child_scan = _scan_child_elements(
                 page,
@@ -291,6 +314,18 @@ def _capture_artifacts(
             )
         except Exception as exc:
             logger.debug("Locator tracker child scan failed: %s", exc)
+
+    if capture_mode == "failure" and any(
+        (
+            page_asset_id,
+            locator_asset_id,
+            dom_snapshot_asset_id,
+            child_scan,
+        )
+    ):
+        _failure_capture_cache[summary_id] = time.time()
+    elif capture_mode == "recovery":
+        _failure_capture_cache.pop(summary_id, None)
 
     return {
         "page_asset_id": page_asset_id,
@@ -329,23 +364,25 @@ def track_locator(
         0 if success else 1
     )
     first_seen = existing.get("first_seen", now) if existing else now
+    capture_mode = _capture_mode(summary_id, success, existing)
 
     page_asset_id = existing.get("page_asset_id") if existing else None
     locator_asset_id = existing.get("locator_asset_id") if existing else None
     dom_snapshot_asset_id = existing.get("dom_snapshot_asset_id") if existing else None
+    summary_child_scan = list(existing.get("child_scan", [])) if existing else []
     current_page_asset_id = None
     current_locator_asset_id = None
     current_dom_snapshot_asset_id = None
     current_child_scan: list[dict] = []
 
-    if _should_capture(summary_id, success):
+    if capture_mode is not None:
         artifacts = _capture_artifacts(
             page,
             selector_hash,
             summary_id,
             handler,
             action,
-            success,
+            capture_mode,
             locator,
         )
         current_page_asset_id = artifacts["page_asset_id"]
@@ -354,9 +391,9 @@ def track_locator(
         current_child_scan = artifacts.get("child_scan", [])
         page_asset_id = current_page_asset_id or page_asset_id
         locator_asset_id = current_locator_asset_id or locator_asset_id
-        dom_snapshot_asset_id = (
-            current_dom_snapshot_asset_id if not success else dom_snapshot_asset_id
-        )
+        dom_snapshot_asset_id = current_dom_snapshot_asset_id or dom_snapshot_asset_id
+        if current_child_scan:
+            summary_child_scan = current_child_scan
 
     entry = {
         "_id": summary_id,
@@ -369,10 +406,11 @@ def track_locator(
         "hit_count": hit_count,
         "success_count": success_count,
         "failure_count": failure_count,
+        "last_capture_mode": capture_mode,
         "page_asset_id": page_asset_id,
         "locator_asset_id": locator_asset_id,
-        "dom_snapshot_asset_id": dom_snapshot_asset_id if not success else None,
-        "child_scan": current_child_scan,
+        "dom_snapshot_asset_id": dom_snapshot_asset_id,
+        "child_scan": summary_child_scan,
         "first_seen": first_seen,
         "last_seen": now,
     }
@@ -390,6 +428,7 @@ def track_locator(
             "action": action,
             "error_message": error_message,
             "seen_at": now,
+            "capture_mode": capture_mode,
             "page_asset_id": current_page_asset_id,
             "locator_asset_id": current_locator_asset_id,
             "dom_snapshot_asset_id": current_dom_snapshot_asset_id,
@@ -413,5 +452,5 @@ def get_failure_events(limit: int = 100, summary_id: str | None = None) -> list[
 
 def clear_entries() -> None:
     """Remove all tracked locator entries and reset capture throttling."""
-    _screenshot_cache.clear()
+    _failure_capture_cache.clear()
     MongoRepository.clear_locator_entries()
