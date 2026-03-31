@@ -63,6 +63,31 @@ const LOCATOR_PAGE_SIZE = 25;
 const FAILURE_HISTORY_LIMIT = 50;
 const CHILD_SCAN_PREVIEW_COUNT = 24;
 
+function formatCaptureMode(mode) {
+  if (mode === "failure") return "Failure Capture";
+  if (mode === "recovery") return "Recovery Capture";
+  return "No Capture";
+}
+
+function captureModeChipSx(mode) {
+  if (mode === "failure") {
+    return {
+      backgroundColor: "rgba(244, 67, 54, 0.12)",
+      color: "#ef5350",
+    };
+  }
+  if (mode === "recovery") {
+    return {
+      backgroundColor: "rgba(255, 193, 7, 0.14)",
+      color: "#ffca28",
+    };
+  }
+  return {
+    backgroundColor: "rgba(158, 158, 158, 0.12)",
+    color: COMMON_COLORS.text.muted,
+  };
+}
+
 function assetUrl(assetId) {
   if (!assetId) return null;
   const filename = assetId.replace("screenshot:", "");
@@ -114,6 +139,23 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
         },
       }}
     >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+        <Chip
+          label={formatCaptureMode(entry.last_capture_mode)}
+          size="small"
+          sx={{
+            ...captureModeChipSx(entry.last_capture_mode),
+            fontWeight: 700,
+            fontSize: "0.7rem",
+          }}
+        />
+        {entry.last_success && entry.last_capture_mode === "recovery" && (
+          <Typography variant="caption" sx={{ color: COMMON_COLORS.text.muted }}>
+            Latest success followed an earlier failure, so recovery evidence was saved.
+          </Typography>
+        )}
+      </Box>
+
       {/* Screenshots */}
       {(entry.page_asset_id ||
         entry.locator_asset_id ||
@@ -214,13 +256,23 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
                   borderRadius: 1,
                   backgroundColor: "rgba(244, 67, 54, 0.05)",
                 }}
-              >
-                <Typography
-                  variant="caption"
-                  sx={{ minWidth: 60, color: COMMON_COLORS.text.muted }}
                 >
-                  {relativeTime(f.seen_at)}
-                </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ minWidth: 60, color: COMMON_COLORS.text.muted }}
+                  >
+                    {relativeTime(f.seen_at)}
+                  </Typography>
+                <Chip
+                  label={formatCaptureMode(f.capture_mode)}
+                  size="small"
+                  sx={{
+                    ...captureModeChipSx(f.capture_mode),
+                    fontWeight: 700,
+                    fontSize: "0.65rem",
+                    height: 20,
+                  }}
+                />
                 <Tooltip title={f.error_message || "-"} arrow>
                   <Typography
                     variant="caption"
@@ -625,18 +677,42 @@ export default function LocatorTracker() {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={entry.last_success ? "OK" : "FAIL"}
-                          size="small"
+                        <Box
                           sx={{
-                            backgroundColor: entry.last_success
-                              ? "rgba(76, 175, 80, 0.15)"
-                              : "rgba(244, 67, 54, 0.15)",
-                            color: entry.last_success ? "#66bb6a" : "#ef5350",
-                            fontWeight: 700,
-                            fontSize: "0.7rem",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.75,
+                            flexWrap: "wrap",
                           }}
-                        />
+                        >
+                          <Chip
+                            label={entry.last_success ? "OK" : "FAIL"}
+                            size="small"
+                            sx={{
+                              backgroundColor: entry.last_success
+                                ? "rgba(76, 175, 80, 0.15)"
+                                : "rgba(244, 67, 54, 0.15)",
+                              color: entry.last_success ? "#66bb6a" : "#ef5350",
+                              fontWeight: 700,
+                              fontSize: "0.7rem",
+                            }}
+                          />
+                          {entry.last_capture_mode && (
+                            <Chip
+                              label={
+                                entry.last_capture_mode === "recovery"
+                                  ? "RECOVERY"
+                                  : "CAPTURED"
+                              }
+                              size="small"
+                              sx={{
+                                ...captureModeChipSx(entry.last_capture_mode),
+                                fontWeight: 700,
+                                fontSize: "0.65rem",
+                              }}
+                            />
+                          )}
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
