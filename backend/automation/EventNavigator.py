@@ -103,6 +103,17 @@ def close_panel_back(
     if not is_locator_visible(panel_back):
         return False
 
+    def _panel_back_hidden() -> bool:
+        """Treat the panel as closed only after the back button disappears."""
+        with suppress(Exception):
+            page.wait_for_selector(
+                PANEL_BACK_SELECTOR,
+                state="hidden",
+                timeout=timeout,
+            )
+            return True
+        return not is_locator_visible(page.locator(PANEL_BACK_SELECTOR).first, timeout=250)
+
     logger.info("Closing open panel while %s", context)
     for force_click in (False, True):
         try:
@@ -113,7 +124,13 @@ def close_panel_back(
             page.wait_for_timeout(500)
             with suppress(Exception):
                 page.wait_for_load_state("domcontentloaded", timeout=2000)
-            return True
+            if _panel_back_hidden():
+                return True
+            logger.warning(
+                "Panel back remained visible while %s after %s click",
+                context,
+                "forced" if force_click else "normal",
+            )
         except Exception as exc:
             if not force_click:
                 logger.warning(

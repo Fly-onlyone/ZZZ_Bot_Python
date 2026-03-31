@@ -244,6 +244,27 @@ def test_close_open_panel_returns_false_when_back_button_click_races():
     assert ShoppingHandler._close_open_panel(cast(Any, FakePage())) is False
 
 
+def test_close_open_panel_returns_false_when_back_button_stays_visible():
+    class FakePage:
+        def locator(self, selector):
+            if selector == ShoppingHandler.PANEL_BACK_SELECTOR:
+                return _FakeLocator(
+                    count=1,
+                    visible=True,
+                    click_action=lambda: None,
+                    page=self,
+                )
+            return _FakeLocator(count=0, visible=False, page=self)
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+        def wait_for_load_state(self, *_args, **_kwargs):
+            return None
+
+    assert ShoppingHandler._close_open_panel(cast(Any, FakePage())) is False
+
+
 def test_event_navigator_open_panel_uses_fresh_candidates_until_ready():
     state = {"launcher_clicks": 0, "panel_open": False}
 
@@ -280,6 +301,38 @@ def test_event_navigator_open_panel_uses_fresh_candidates_until_ready():
     assert result.opened is True
     assert result.candidate_name == "launcher"
     assert state["launcher_clicks"] == 1
+
+
+def test_close_shopping_screen_helper_ignores_stale_wrapper_visibility(monkeypatch):
+    class FakePage:
+        class _Keyboard:
+            @staticmethod
+            def press(_key):
+                return None
+
+        keyboard = _Keyboard()
+
+        def locator(self, selector):
+            if selector == ".wrapper-O3T67n":
+                return _FakeLocator(count=1, visible=True, page=self)
+            return _FakeLocator(count=0, visible=False, page=self)
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+    monkeypatch.setattr(
+        EventNavigator,
+        "close_reward_dialog",
+        lambda *args, **kwargs: False,
+    )
+    monkeypatch.setattr(
+        EventNavigator,
+        "close_panel_back",
+        lambda *args, **kwargs: False,
+    )
+    monkeypatch.setattr(ShoppingHandler, "_shopping_ready", lambda page: False)
+
+    assert bot_module._close_shopping_screen_helper(cast(Any, FakePage())) is True
 
 
 def test_execute_shopping_with_existing_data_forces_reopen(monkeypatch):
