@@ -527,11 +527,29 @@ def _run_deferred_startup_tasks() -> None:
 
     try:
         from repositories import MongoRepository
+        from repositories.connection import get_db, get_runtime_mode
+        from utils.local_artifact_maintenance import sync_logs_to_mongo_once
 
         MongoRepository.ensure_indexes()
+        redemption_repair_report = (
+            MongoRepository.repair_redemptions_indexed_at_once()
+        )
+        log_sync_report = sync_logs_to_mongo_once(
+            db=get_db(),
+            config=CONFIG,
+            is_exe_mode=is_exe,
+            runtime_mode=get_runtime_mode(),
+            exe_base_dir=os.path.dirname(sys.executable) if is_exe else None,
+        )
         _startup_phase = STARTUP_PHASE_READY
         _startup_error = None
-        logger.info("Deferred startup warmup completed")
+        logger.info(
+            "Deferred startup warmup completed: redemptions_updated=%s, log_files_scanned=%s, lines_upserted=%s, failures=%s",
+            redemption_repair_report["updated"],
+            log_sync_report["files_scanned"],
+            log_sync_report["lines_upserted"],
+            len(log_sync_report["failures"]),
+        )
     except Exception as exc:
         _startup_phase = STARTUP_PHASE_READY
         _startup_error = str(exc)

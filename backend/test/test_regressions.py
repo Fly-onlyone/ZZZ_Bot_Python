@@ -3,7 +3,7 @@ import json
 import logging
 import sys
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
@@ -13,9 +13,11 @@ from playwright.sync_api import Error as PlaywrightError
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 image_processor_module = import_module("automation.ImageProcessor")
+redeem_autofill_module = import_module("automation.RedeemAutofill")
 routes_module = import_module("api.routes")
 bot_module = import_module("Bot")
 mongo_module = import_module("repositories.MongoRepository")
+global_var_module = import_module("core.GlobalVar")
 from automation import EventNavigator
 from handlers import DrawHandler, HuntModeHandler, MissionHandler, ShoppingHandler
 from core.frontend_env import resolve_frontend_sentry_dsn
@@ -851,6 +853,234 @@ def test_retry_until_screen_appears_keeps_diagnostics_below_error(monkeypatch, c
     )
 
 
+def test_redeem_autofill_records_unconfirmed_redeem(monkeypatch):
+    class _NullSpan:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeVisibility:
+        def __init__(self, visible=False):
+            self.visible = visible
+
+        def is_visible(self):
+            return self.visible
+
+        def click(self):
+            return None
+
+    class FakeFrame:
+        def get_by_text(self, _text):
+            return FakeVisibility(False)
+
+    class FakeLocator:
+        @property
+        def content_frame(self):
+            return FakeFrame()
+
+    class FakeInput:
+        def __init__(self, page):
+            self.page = page
+
+        def fill(self, value):
+            self.page.filled_code = value
+
+    class FakeButton:
+        def __init__(self, page):
+            self.page = page
+
+        def click(self):
+            self.page.submit_clicked = True
+
+    class FakePage:
+        def __init__(self):
+            self.filled_code = None
+            self.submit_clicked = False
+            self.closed = False
+
+        def goto(self, _url):
+            return None
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+        def get_by_text(self, text):
+            if text in {
+                "Please Log in to Redeem",
+                "Successfully redeemed. Please claim rewards from in-game mail.",
+                "Select a server",
+            }:
+                return FakeVisibility(False)
+            return FakeVisibility(False)
+
+        def locator(self, _selector):
+            return FakeLocator()
+
+        def get_by_placeholder(self, _text):
+            return FakeInput(self)
+
+        def get_by_role(self, _role, name=None):
+            assert name == "Redeem"
+            return FakeButton(self)
+
+        def close(self):
+            self.closed = True
+
+    class FakeContext:
+        def __init__(self, page):
+            self.page = page
+
+        def new_page(self):
+            events.append("new_page")
+            return self.page
+
+    notifications: list[dict[str, object]] = []
+    saved_attempts: list[dict[str, object]] = []
+    state_saves: list[bool] = []
+    events: list[str] = []
+    page = FakePage()
+
+    monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
+    monkeypatch.setattr(
+        redeem_autofill_module.NotificationHelper,
+        "notify",
+        lambda **kwargs: notifications.append(kwargs),
+    )
+    monkeypatch.setattr(
+        redeem_autofill_module,
+        "save_context_storage_state",
+        lambda *_args, **_kwargs: state_saves.append(True),
+    )
+    monkeypatch.setattr(
+        redeem_autofill_module,
+        "save_redeem_data",
+        lambda item_name,
+        code,
+        current_day,
+        redeem_file_path,
+        state,
+        detail=None,
+        status=None,
+        record_id=None: saved_attempts.append(
+            {
+                "item_name": item_name,
+                "code": code,
+                "state": state,
+                "detail": detail,
+                "status": status,
+                "record_id": record_id,
+            }
+        )
+        or events.append(f"save:{status}")
+        or ("record-1" if record_id is None else record_id),
+    )
+
+    result = redeem_autofill_module.run(
+        FakeContext(page),
+        "ABCD1234EFGH",
+        "Polychrome ×10",
+    )
+
+    assert result == {
+        "ok": False,
+        "status": "redeem_not_confirmed",
+        "detail": "Redeem page did not show the success confirmation popup.",
+    }
+    assert notifications == [
+        {
+            "title": "ZZZ Bot",
+            "message": "Redeem for Polychrome ×10 could not be confirmed. Code was saved for manual use.",
+            "app_icon": redeem_autofill_module.CONFIG["SAD_ICON"],
+        }
+    ]
+    assert saved_attempts == [
+        {
+            "item_name": "Polychrome ×10",
+            "code": "ABCD1234EFGH",
+            "state": False,
+            "detail": "Code saved before redeem attempt started.",
+            "status": "redeem_pending",
+            "record_id": None,
+        },
+        {
+            "item_name": "Polychrome ×10",
+            "code": "ABCD1234EFGH",
+            "state": False,
+            "detail": "Redeem page did not show the success confirmation popup.",
+            "status": "redeem_not_confirmed",
+            "record_id": "record-1",
+        }
+    ]
+    assert events[:2] == ["save:redeem_pending", "new_page"]
+    assert state_saves == [True]
+    assert page.filled_code == "ABCD1234EFGH"
+    assert page.submit_clicked is True
+    assert page.closed is True
+
+
+def test_process_single_item_logs_unconfirmed_redeem(monkeypatch, caplog):
+    class FakeExchangeButton:
+        def inner_text(self):
+            return ShoppingHandler.EXCHANGE_BUTTON_TEXT
+
+        def click(self):
+            return None
+
+    class FakeItemLocator:
+        def count(self):
+            return 1
+
+        def locator(self, selector):
+            assert selector == ShoppingHandler.SHOPPING_ITEM_BUTTON
+            return FakeExchangeButton()
+
+    class FakeItemCollection:
+        def filter(self, **_kwargs):
+            return FakeItemLocator()
+
+    class FakePage:
+        def __init__(self):
+            self.context = object()
+
+        def locator(self, selector):
+            assert selector == ShoppingHandler.SHOPPING_ITEM
+            return FakeItemCollection()
+
+        def get_by_text(self, text, exact=None):
+            assert exact is True
+            return text
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+    monkeypatch.setattr(ShoppingHandler, "handle_exchange_dialog", lambda *_args: "CODE123")
+    monkeypatch.setattr(
+        ShoppingHandler.RedeemAutofill,
+        "run",
+        lambda *_args, **_kwargs: {
+            "ok": False,
+            "status": "manual_captcha_required",
+            "detail": "Captcha blocked automatic redeem login.",
+        },
+    )
+
+    caplog.set_level(logging.WARNING, logger="handlers.ShoppingHandler")
+    result = ShoppingHandler._process_single_item(cast(Any, FakePage()), "Polychrome ×10")
+
+    warning_messages = [
+        record.message
+        for record in caplog.records
+        if record.name == "handlers.ShoppingHandler" and record.levelno == logging.WARNING
+    ]
+
+    assert result is False
+    assert warning_messages == [
+        "Exchanged 'Polychrome ×10' but redemption was not confirmed (status=manual_captcha_required, detail=Captcha blocked automatic redeem login.)"
+    ]
+
+
 def test_mission_run_returns_false_when_screen_does_not_open(monkeypatch):
     monkeypatch.setattr(MissionHandler, "open_mission_screen", lambda page: False)
 
@@ -1560,6 +1790,183 @@ def test_replace_all_missions_replaces_existing_documents(monkeypatch):
     ]
 
 
+def test_save_redemption_uses_redeem_day_for_indexed_at(monkeypatch):
+    inserted_records: list[dict[str, object]] = []
+
+    class _FakeRedemptions:
+        def insert_one(self, record):
+            inserted_records.append(record)
+            return type("_InsertResult", (), {"inserted_id": "record-1"})()
+
+    class _FakeDb:
+        def __init__(self):
+            self.redemptions = _FakeRedemptions()
+
+    fake_db = _FakeDb()
+    fallback_now = datetime(2026, 4, 1, 8, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(mongo_module, "get_db", lambda: fake_db)
+    monkeypatch.setattr(mongo_module, "_ensure_indexes", lambda: None)
+    monkeypatch.setattr(mongo_module, "_now_utc", lambda: fallback_now)
+
+    mongo_module.save_redemption(
+        {
+            "item_name": "Polychrome ×30",
+            "code": "TESTCODE123",
+            "day": "21:51 12/11/2025",
+            "state": True,
+        }
+    )
+
+    assert inserted_records == [
+        {
+            "item_name": "Polychrome ×30",
+            "code": "TESTCODE123",
+            "day": "21:51 12/11/2025",
+            "state": True,
+            "indexed_at": datetime(2025, 11, 12, 21, 51, tzinfo=timezone.utc),
+        }
+    ]
+
+
+def test_replace_all_redemptions_uses_each_redeem_day_for_indexed_at(monkeypatch):
+    inserted_records: list[list[dict[str, object]]] = []
+
+    class _FakeRedemptions:
+        def count_documents(self, _query):
+            return 2
+
+        def delete_many(self, _query):
+            return None
+
+        def insert_many(self, records):
+            inserted_records.append(records)
+
+    class _FakeDb:
+        def __init__(self):
+            self.redemptions = _FakeRedemptions()
+
+    fake_db = _FakeDb()
+    fallback_now = datetime(2026, 4, 1, 8, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(mongo_module, "get_db", lambda: fake_db)
+    monkeypatch.setattr(mongo_module, "_ensure_indexes", lambda: None)
+    monkeypatch.setattr(mongo_module, "_now_utc", lambda: fallback_now)
+
+    mongo_module.replace_all_redemptions(
+        [
+            {
+                "item_name": "Polychrome ×30",
+                "code": "OLDCODE",
+                "day": "21:51 12/11/2025",
+                "state": True,
+            },
+            {
+                "item_name": "Polychrome ×10",
+                "code": "BADDATE",
+                "day": "not-a-date",
+                "state": False,
+            },
+        ]
+    )
+
+    assert inserted_records == [
+        [
+            {
+                "item_name": "Polychrome ×30",
+                "code": "OLDCODE",
+                "day": "21:51 12/11/2025",
+                "state": True,
+                "indexed_at": datetime(2025, 11, 12, 21, 51, tzinfo=timezone.utc),
+            },
+            {
+                "item_name": "Polychrome ×10",
+                "code": "BADDATE",
+                "day": "not-a-date",
+                "state": False,
+                "indexed_at": fallback_now,
+            },
+        ]
+    ]
+
+
+def test_repair_redemptions_indexed_at_once_updates_existing_records(monkeypatch):
+    replacements: list[tuple[dict[str, object], dict[str, object], bool]] = []
+    applied_markers: list[str] = []
+
+    class _FakeRedemptions:
+        def __init__(self):
+            self.docs = [
+                {
+                    "_id": "old-code",
+                    "item_name": "Polychrome ×30",
+                    "code": "RANFLJQVXYQV",
+                    "day": "21:51 12/11/2025",
+                    "state": True,
+                    "indexed_at": datetime(2026, 3, 15, 5, 53, 31, tzinfo=timezone.utc),
+                },
+                {
+                    "_id": "bad-day",
+                    "item_name": "Polychrome ×10",
+                    "code": "BADDATE",
+                    "day": "not-a-date",
+                    "state": False,
+                    "indexed_at": datetime(2026, 3, 20, 0, 0, tzinfo=timezone.utc),
+                },
+            ]
+
+        def find(self):
+            return [dict(doc) for doc in self.docs]
+
+        def find_one_and_replace(self, query, replacement, upsert=False):
+            replacements.append((query, replacement, upsert))
+            for index, doc in enumerate(self.docs):
+                if doc["_id"] == query["_id"]:
+                    self.docs[index] = replacement
+                    return replacement
+            raise AssertionError(f"unknown document: {query}")
+
+    class _FakeDb:
+        def __init__(self):
+            self.redemptions = _FakeRedemptions()
+
+    fake_db = _FakeDb()
+    monkeypatch.setattr(mongo_module, "get_db", lambda: fake_db)
+    monkeypatch.setattr(mongo_module, "_ensure_indexes", lambda: None)
+    monkeypatch.setattr(
+        mongo_module,
+        "has_app_metadata_marker",
+        lambda marker_id: False,
+    )
+    monkeypatch.setattr(
+        mongo_module,
+        "set_app_metadata_marker",
+        lambda marker_id: applied_markers.append(marker_id),
+    )
+
+    report = mongo_module.repair_redemptions_indexed_at_once()
+
+    assert report == {
+        "already_applied": False,
+        "scanned": 2,
+        "updated": 1,
+        "skipped": 1,
+    }
+    assert replacements == [
+        (
+            {"_id": "old-code"},
+            {
+                "_id": "old-code",
+                "item_name": "Polychrome ×30",
+                "code": "RANFLJQVXYQV",
+                "day": "21:51 12/11/2025",
+                "state": True,
+                "indexed_at": datetime(2025, 11, 12, 21, 51, tzinfo=timezone.utc),
+            },
+            True,
+        )
+    ]
+    assert applied_markers == [mongo_module.REDEMPTIONS_INDEXED_AT_REPAIR_MARKER]
+
+
 def test_backup_export_filename_includes_timestamp():
     earlier = routes_module._build_backup_export_filename(
         datetime(2026, 3, 13, 8, 0, 0)
@@ -1770,6 +2177,58 @@ def test_run_local_cleanup_no_longer_triggers_legacy_migration(monkeypatch):
     assert response.status_code == 200
     assert json.loads(response.body) == {"status": "completed"}
     assert cleanup_calls[0]["migration_report"] == {}
+
+
+def test_deferred_startup_tasks_sync_runtime_logs(monkeypatch):
+    ensure_indexes_calls: list[str] = []
+    redemption_repair_calls: list[str] = []
+    sync_calls: list[dict[str, object]] = []
+    original_phase = global_var_module._startup_phase
+    original_error = global_var_module._startup_error
+
+    monkeypatch.setattr(
+        "repositories.MongoRepository.ensure_indexes",
+        lambda: ensure_indexes_calls.append("ensure_indexes"),
+    )
+    monkeypatch.setattr(
+        "repositories.MongoRepository.repair_redemptions_indexed_at_once",
+        lambda: redemption_repair_calls.append("repair")
+        or {
+            "already_applied": False,
+            "scanned": 1,
+            "updated": 1,
+            "skipped": 0,
+        },
+    )
+    monkeypatch.setattr("repositories.connection.get_db", lambda: object())
+    monkeypatch.setattr("repositories.connection.get_runtime_mode", lambda: "dev")
+    monkeypatch.setattr(
+        "utils.local_artifact_maintenance.sync_logs_to_mongo_once",
+        lambda **kwargs: sync_calls.append(kwargs)
+        or {
+            "files_scanned": 1,
+            "files_migrated": 1,
+            "lines_scanned": 3,
+            "lines_upserted": 3,
+            "migrated_files": ["backend/logs/app.log"],
+            "failures": [],
+        },
+    )
+
+    try:
+        global_var_module._run_deferred_startup_tasks()
+
+        assert ensure_indexes_calls == ["ensure_indexes"]
+        assert redemption_repair_calls == ["repair"]
+        assert sync_calls[0]["config"] == global_var_module.CONFIG
+        assert sync_calls[0]["is_exe_mode"] is global_var_module.is_exe
+        assert sync_calls[0]["runtime_mode"] == "dev"
+        assert sync_calls[0]["exe_base_dir"] is None
+        assert global_var_module._startup_phase == global_var_module.STARTUP_PHASE_READY
+        assert global_var_module._startup_error is None
+    finally:
+        global_var_module._startup_phase = original_phase
+        global_var_module._startup_error = original_error
 
 
 def test_run_legacy_migration_refreshes_runtime_state(monkeypatch):

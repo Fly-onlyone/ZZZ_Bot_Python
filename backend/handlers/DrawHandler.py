@@ -575,10 +575,23 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
             redeem_code = _extract_redemption_code(success_dialog, draw_number)
             if redeem_code:
                 try:
-                    RedeemAutofill.run(page.context, redeem_code, reward_name)
-                    logger.info(
-                        f"Processed redemption code for '{reward_name}': {redeem_code}"
+                    redeem_result = RedeemAutofill.run(
+                        page.context, redeem_code, reward_name
                     )
+                    if redeem_result["ok"]:
+                        logger.info(
+                            "Processed redemption code for '%s': %s",
+                            reward_name,
+                            redeem_code,
+                        )
+                    else:
+                        logger.warning(
+                            "Draw %s: Redemption for '%s' was not confirmed (status=%s, detail=%s)",
+                            draw_number,
+                            reward_name,
+                            redeem_result["status"],
+                            redeem_result["detail"],
+                        )
                 except Exception as e:
                     logger.error(f"Error running autofill for '{reward_name}': {e}")
             else:

@@ -351,6 +351,18 @@ def collect_targets(config: dict, is_exe_mode: bool, exe_base_dir: str | None = 
     }
 
 
+def sync_logs_to_mongo_once(
+    db: Database,
+    config: dict,
+    is_exe_mode: bool,
+    runtime_mode: str,
+    exe_base_dir: str | None = None,
+) -> dict:
+    """Mirror runtime logs into MongoDB without deleting local files."""
+    targets = collect_targets(config, is_exe_mode, exe_base_dir)
+    return migrate_logs_to_mongo(db, targets["log_files"], runtime_mode)
+
+
 def cleanup_local_artifacts_once(
     db: Database,
     config: dict,

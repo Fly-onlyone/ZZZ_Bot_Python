@@ -22,6 +22,7 @@ LOCATOR_TRACKER_ASSET_OWNER = "locator_tracker"
 LOCATOR_TRACKER_TTL_SECONDS = 7 * 24 * 60 * 60
 # Bump the schema marker when ephemeral locator diagnostics need a one-time reset.
 LOCATOR_TRACKER_SCHEMA_MARKER = "locator_tracker_schema_v3"
+REDEMPTIONS_INDEXED_AT_REPAIR_MARKER = "redemptions_indexed_at_repair_v1"
 
 
 # ============================================================================
@@ -120,6 +121,38 @@ def _clean(doc: Dict) -> Dict:
 
 def _now_utc() -> datetime:
     return datetime.now(tz=timezone.utc)
+
+
+def _normalize_utc_datetime(value: Any) -> datetime | None:
+    if not isinstance(value, datetime):
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _parse_redemption_day(day_value: Any) -> datetime | None:
+    if not isinstance(day_value, str):
+        return None
+    try:
+        parsed_day = datetime.strptime(day_value, "%H:%M %d/%m/%Y")
+    except ValueError:
+        logger.debug("Could not parse redemption day for TTL: %s", day_value)
+        return None
+    return parsed_day.replace(tzinfo=timezone.utc)
+
+
+def _resolve_redemption_indexed_at(entry: Dict) -> datetime:
+    """Prefer the original redeem timestamp so TTL matches the visible redeem day."""
+    indexed_at = _normalize_utc_datetime(entry.get("indexed_at"))
+    if indexed_at is not None:
+        return indexed_at
+
+    parsed_day = _parse_redemption_day(entry.get("day"))
+    if parsed_day is not None:
+        return parsed_day
+
+    return _now_utc()
 
 
 # ============================================================================
@@ -298,18 +331,40 @@ def get_redemptions() -> List[Dict]:
     return results
 
 
-def save_redemption(entry: Dict) -> None:
+def save_redemption(entry: Dict):
     """Append a single redemption entry; TTL index handles cleanup."""
     _ensure_indexes()
     record = {
         **{k: v for k, v in entry.items() if k != "_id"},
-        "indexed_at": _now_utc(),
+        "indexed_at": _resolve_redemption_indexed_at(entry),
     }
     try:
-        get_db().redemptions.insert_one(record)
+        result = get_db().redemptions.insert_one(record)
         logger.info("save_redemption: inserted entry code=%s", entry.get("code", "?"))
+        return result.inserted_id
     except Exception:
         logger.error("save_redemption: failed to insert entry", exc_info=True)
+        raise
+
+
+def update_redemption(record_id, entry: Dict) -> None:
+    """Update an existing redemption entry without creating a duplicate row."""
+    _ensure_indexes()
+    record = {
+        **{k: v for k, v in entry.items() if k != "_id"},
+        "indexed_at": _resolve_redemption_indexed_at(entry),
+    }
+    try:
+        result = get_db().redemptions.update_one({"_id": record_id}, {"$set": record})
+        if result.matched_count == 0:
+            raise ValueError(f"Redemption record not found: {record_id}")
+        logger.info(
+            "update_redemption: updated entry id=%s code=%s",
+            record_id,
+            entry.get("code", "?"),
+        )
+    except Exception:
+        logger.error("update_redemption: failed to update entry", exc_info=True)
         raise
 
 
@@ -326,9 +381,11 @@ def replace_all_redemptions(entries: List[Dict]) -> None:
         # delete_many keeps the collection + its TTL index intact
         col.delete_many({})
         if entries:
-            now = _now_utc()
             records = [
-                {**{k: v for k, v in e.items() if k != "_id"}, "indexed_at": now}
+                {
+                    **{k: v for k, v in e.items() if k != "_id"},
+                    "indexed_at": _resolve_redemption_indexed_at(e),
+                }
                 for e in entries
             ]
             col.insert_many(records)
@@ -342,6 +399,53 @@ def replace_all_redemptions(entries: List[Dict]) -> None:
     except Exception:
         logger.error("replace_all_redemptions: operation failed", exc_info=True)
         raise
+
+
+def repair_redemptions_indexed_at_once() -> Dict[str, int | bool]:
+    """Backfill existing redemption TTL timestamps from their visible redeem day."""
+    _ensure_indexes()
+    report: Dict[str, int | bool] = {
+        "already_applied": False,
+        "scanned": 0,
+        "updated": 0,
+        "skipped": 0,
+    }
+    if has_app_metadata_marker(REDEMPTIONS_INDEXED_AT_REPAIR_MARKER):
+        report["already_applied"] = True
+        return report
+
+    col = get_db().redemptions
+    try:
+        for doc in col.find():
+            report["scanned"] += 1
+            parsed_day = _parse_redemption_day(doc.get("day"))
+            if parsed_day is None:
+                report["skipped"] += 1
+                continue
+
+            current_indexed_at = _normalize_utc_datetime(doc.get("indexed_at"))
+            if current_indexed_at == parsed_day:
+                continue
+
+            col.find_one_and_replace(
+                {"_id": doc["_id"]},
+                {**doc, "indexed_at": parsed_day},
+                upsert=True,
+            )
+            report["updated"] += 1
+
+        set_app_metadata_marker(REDEMPTIONS_INDEXED_AT_REPAIR_MARKER)
+        logger.info(
+            "repair_redemptions_indexed_at_once: scanned=%d updated=%d skipped=%d",
+            report["scanned"],
+            report["updated"],
+            report["skipped"],
+        )
+    except Exception:
+        logger.error("repair_redemptions_indexed_at_once: failed", exc_info=True)
+        raise
+
+    return report
 
 
 # ============================================================================
