@@ -383,8 +383,16 @@ def redeem_all_codes(context, codes_to_redeem: List[Tuple[str, str]]):
     for item_name, redeem_code in codes_to_redeem:
         try:
             logger.info(f"Redeeming code for '{item_name}': {redeem_code}")
-            RedeemAutofill.run(context, redeem_code, item_name)
-            logger.info(f"Successfully redeemed '{item_name}'")
+            redeem_result = RedeemAutofill.run(context, redeem_code, item_name)
+            if redeem_result["ok"]:
+                logger.info("Redeem confirmed for '%s'", item_name)
+            else:
+                logger.warning(
+                    "Redeem was not confirmed for '%s' (status=%s, detail=%s)",
+                    item_name,
+                    redeem_result["status"],
+                    redeem_result["detail"],
+                )
         except Exception as e:
             logger.error(f"Failed to redeem '{item_name}': {e}")
 

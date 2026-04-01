@@ -82,7 +82,16 @@ def save_shopping_data(file_path, shopping_data):
     mongo.save_shopping(existing)
 
 
-def save_redeem_data(item_name, code_text, current_day, redeem_file_path, state):
+def save_redeem_data(
+    item_name,
+    code_text,
+    current_day,
+    redeem_file_path,
+    state,
+    detail=None,
+    status=None,
+    record_id=None,
+):
     """Append a redemption entry to MongoDB. TTL index handles 30-day cleanup."""
     import repositories.MongoRepository as mongo
 
@@ -92,8 +101,24 @@ def save_redeem_data(item_name, code_text, current_day, redeem_file_path, state)
         "day": current_day,
         "state": state,
     }
-    mongo.save_redemption(entry)
-    logger.info("Redeem data saved to MongoDB for %s", item_name)
+    if detail:
+        entry["detail"] = detail
+    if status:
+        entry["status"] = status
+
+    if record_id is None:
+        record_id = mongo.save_redemption(entry)
+    else:
+        mongo.update_redemption(record_id, entry)
+    logger.info(
+        "Redeem data saved to MongoDB for %s with state=%s status=%s detail=%s record_id=%s",
+        item_name,
+        state,
+        status,
+        detail,
+        record_id,
+    )
+    return record_id
 
 
 def load_redeem_data(redeem_file_path):

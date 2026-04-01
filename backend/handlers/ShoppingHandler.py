@@ -737,10 +737,18 @@ def _process_single_item(page: Page, item_name: str) -> bool:
         page.wait_for_timeout(500)
 
         # Autofill and redeem (after dialog is closed)
-        RedeemAutofill.run(page.context, redeem_code, item_name)
-        logger.info(f"Successfully exchanged and redeemed '{item_name}'")
+        redeem_result = RedeemAutofill.run(page.context, redeem_code, item_name)
+        if redeem_result["ok"]:
+            logger.info("Exchanged '%s' and confirmed redemption", item_name)
+            return True
 
-        return True
+        logger.warning(
+            "Exchanged '%s' but redemption was not confirmed (status=%s, detail=%s)",
+            item_name,
+            redeem_result["status"],
+            redeem_result["detail"],
+        )
+        return False
 
     except PlaywrightTimeoutError as e:
         logger.error(f"Timeout while exchanging '{item_name}': {e}")
