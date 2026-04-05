@@ -52,9 +52,19 @@ DRAW_COST_SELECTOR = ".lotteryCost-D-QGTv"
 DRAW_LIMIT_SELECTOR = ".lotteryLimitCount-fqLQOi"
 DRAW_BUTTON_SELECTOR = ".lotteryBtnCover-xI-MlR"
 SUCCESS_DIALOG_TEXT = "Congratulations, you've"
-REWARD_IMAGE_SELECTOR = ".gainPrizeImage-FqEqMM"
-REWARD_IMAGE_SELECTOR_ALT = (
-    ".gainPrizeImage-FqEqMM img"  # Alternative: img inside container
+REWARD_IMAGE_CONTAINER_SELECTOR = (
+    "[class^='gainPrizeImage-'], [class*=' gainPrizeImage-']"
+)
+REWARD_IMAGE_SELECTOR = (
+    f":is({REWARD_IMAGE_CONTAINER_SELECTOR}) img"  # Preferred: concrete image node
+)
+REWARD_IMAGE_SELECTOR_ALT = REWARD_IMAGE_CONTAINER_SELECTOR
+REWARD_CODE_IMAGE_CONTAINER_SELECTOR = (
+    "[class^='gainCodeImage-'], [class*=' gainCodeImage-']"
+)
+REWARD_CODE_IMAGE_SELECTOR = f":is({REWARD_CODE_IMAGE_CONTAINER_SELECTOR}) img"
+REWARD_IMAGE_TRACK_SELECTOR = (
+    f"{REWARD_IMAGE_CONTAINER_SELECTOR}, {REWARD_CODE_IMAGE_CONTAINER_SELECTOR}"
 )
 SUCCESS_DIALOG_SELECTOR = ".customModal-JTvCMP"  # Container for success dialog
 DRAW_MASK_SELECTOR = ".custom-mihoyo-common-mask"
@@ -111,6 +121,10 @@ def _wait_for_success_dialog(page: Page, draw_number: int) -> Optional[Locator]:
     )
     reward_image = page.locator(REWARD_IMAGE_SELECTOR).first
     reward_image_alt = page.locator(REWARD_IMAGE_SELECTOR_ALT).first
+    code_reward_image = page.locator(REWARD_CODE_IMAGE_SELECTOR).first
+    code_reward_image_container = page.locator(
+        REWARD_CODE_IMAGE_CONTAINER_SELECTOR
+    ).first
     redeem_code = page.locator(REDEEM_CODE_SELECTOR_ALT).first
     close_button = page.locator(CLOSE_DIALOG_SELECTOR).first
     page_root = page.locator("body").first
@@ -133,7 +147,14 @@ def _wait_for_success_dialog(page: Page, draw_number: int) -> Optional[Locator]:
 
         if any(
             _is_locator_visible(locator)
-            for locator in (reward_image, reward_image_alt, redeem_code, close_button)
+            for locator in (
+                reward_image,
+                reward_image_alt,
+                code_reward_image,
+                code_reward_image_container,
+                redeem_code,
+                close_button,
+            )
         ):
             if _is_locator_visible(success_dialog):
                 logger.debug(
@@ -172,6 +193,8 @@ def _draw_result_ui_present(page: Page) -> bool:
         page.locator(CLOSE_DIALOG_SELECTOR).first,
         page.locator(REWARD_IMAGE_SELECTOR).first,
         page.locator(REWARD_IMAGE_SELECTOR_ALT).first,
+        page.locator(REWARD_CODE_IMAGE_SELECTOR).first,
+        page.locator(REWARD_CODE_IMAGE_CONTAINER_SELECTOR).first,
         page.locator(REDEEM_CODE_SELECTOR_ALT).first,
     )
     return any(_is_locator_visible(locator) for locator in signals)
@@ -186,11 +209,17 @@ def _find_reward_image(success_dialog: Locator, draw_number: int) -> Optional[Lo
     Returns:
         Locator for the reward image if found, None otherwise
     """
-    # Try multiple selectors in order of preference
-    selectors_to_try = [REWARD_IMAGE_SELECTOR, REWARD_IMAGE_SELECTOR_ALT, "img"]
+    # Support both prize-only and code-reward dialog variants while staying
+    # scoped to draw-result image containers instead of arbitrary page images.
+    selectors_to_try = [
+        REWARD_IMAGE_SELECTOR,
+        REWARD_IMAGE_SELECTOR_ALT,
+        REWARD_CODE_IMAGE_SELECTOR,
+        REWARD_CODE_IMAGE_CONTAINER_SELECTOR,
+    ]
 
     # Escalating timeouts: 3s → 5s → 8s to handle animation + CDN load delays
-    timeouts = [3000, 5000, 8000]
+    timeouts = [3000, 5000, 5000, 8000]
 
     for selector_idx, selector in enumerate(selectors_to_try):
         timeout = timeouts[min(selector_idx, len(timeouts) - 1)]
@@ -222,11 +251,11 @@ def _find_reward_image(success_dialog: Locator, draw_number: int) -> Optional[Lo
     with suppress(Exception):
         _safe_track(
             success_dialog.page,
-            REWARD_IMAGE_SELECTOR,
+            REWARD_IMAGE_TRACK_SELECTOR,
             "wait_for",
             False,
             error_message=f"Draw {draw_number}: reward image not found",
-            locator=success_dialog.locator(REWARD_IMAGE_SELECTOR).first,
+            locator=success_dialog.locator(REWARD_IMAGE_TRACK_SELECTOR).first,
         )
     return None
 
