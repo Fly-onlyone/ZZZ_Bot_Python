@@ -12,12 +12,97 @@ from . import AutoLogin, RetryHelper
 
 logger = logging.getLogger(__name__)
 
+_MANUAL_CAPTCHA_NOTIFICATION = "Captcha detected. Please do manual login."
+_MANUAL_LOGIN_NOTIFICATION = "Manual login required to continue redeem."
+_CAPTCHA_CHALLENGE_TEXTS = (
+    "Slide to complete the puzzle",
+    "Slide to complete puzzle",
+    "Complete verification",
+    "Security verification",
+    "Verify it's you",
+)
+
 
 def _mask_code(code: str) -> str:
     cleaned = code.strip()
     if len(cleaned) <= 8:
         return cleaned
     return f"{cleaned[:4]}...{cleaned[-4:]}"
+
+
+def _capture_manual_captcha_required_event(item_name: str, masked_code: str) -> None:
+    """Emit a dedicated Sentry warning for redeem attempts blocked by captcha."""
+    import sentry_sdk
+
+    with sentry_sdk.isolation_scope():
+        sentry_sdk.set_tag("redeem.status", "manual_captcha_required")
+        sentry_sdk.set_tag("redeem.manual_captcha_required", "true")
+        sentry_sdk.set_context(
+            "redeem",
+            {
+                "item_name": item_name,
+                "masked_code": masked_code,
+            },
+        )
+        sentry_sdk.capture_message(
+            "Redeem requires manual captcha completion",
+            level="warning",
+        )
+
+
+def _is_text_visible(locator) -> bool:
+    try:
+        return locator.is_visible()
+    except Exception:
+        return False
+
+
+def _redeem_requires_manual_login(redeem_page) -> bool:
+    try:
+        account_frame = redeem_page.locator("#hyv-account-frame").content_frame
+    except Exception:
+        return False
+
+    for text in _CAPTCHA_CHALLENGE_TEXTS:
+        if _is_text_visible(account_frame.get_by_text(text)):
+            return True
+
+    return False
+
+
+def _build_manual_captcha_required_result(item_name: str, masked_code: str) -> dict:
+    logger.warning(
+        "Redeem for '%s' requires manual captcha completion",
+        item_name,
+    )
+    _capture_manual_captcha_required_event(item_name, masked_code)
+    NotificationHelper.notify(
+        title="ZZZ Bot",
+        message=_MANUAL_CAPTCHA_NOTIFICATION,
+        app_icon=CONFIG["SAD_ICON"],
+    )
+    return {
+        "ok": False,
+        "status": "manual_captcha_required",
+        "detail": "Captcha blocked automatic redeem login.",
+    }
+
+
+def _build_manual_login_required_result(item_name: str) -> dict:
+    logger.warning(
+        "Redeem for '%s' still requires manual login after automatic login attempt",
+        item_name,
+    )
+    NotificationHelper.notify(
+        title="ZZZ Bot",
+        message=_MANUAL_LOGIN_NOTIFICATION,
+        app_icon=CONFIG["SAD_ICON"],
+    )
+    return {
+        "ok": False,
+        "status": "manual_login_required",
+        "detail": "Redeem page still requires login after automatic login attempt.",
+    }
 
 
 def run(context: BrowserContext, code, item_name):
@@ -81,24 +166,9 @@ def run(context: BrowserContext, code, item_name):
                 ):
                     logger.info("Attempting automatic redeem login for '%s'", item_name)
                     AutoLogin.run(redeem_page)
-                    if (
-                        redeem_page.locator("#hyv-account-frame")
-                        .content_frame.get_by_text("Slide to complete the puzzle")
-                        .is_visible()
-                    ):
-                        redeem_result = {
-                            "ok": False,
-                            "status": "manual_captcha_required",
-                            "detail": "Captcha blocked automatic redeem login.",
-                        }
-                        logger.warning(
-                            "Redeem for '%s' requires manual captcha completion",
-                            item_name,
-                        )
-                        NotificationHelper.notify(
-                            title="ZZZ Bot",
-                            message=f"Redeem for {item_name} needs manual login/captcha. Code was saved for manual use.",
-                            app_icon=CONFIG["SAD_ICON"],
+                    if _redeem_requires_manual_login(redeem_page):
+                        redeem_result = _build_manual_captcha_required_result(
+                            item_name, masked_code
                         )
                         return redeem_result
 
@@ -108,6 +178,19 @@ def run(context: BrowserContext, code, item_name):
                         select_server.click()
                         redeem_page.get_by_text("Asia").click()
                         logger.info("Selected Asia server for '%s'", item_name)
+                    elif any(
+                        (
+                            _is_text_visible(
+                                redeem_page.get_by_text("Please Log in to Redeem")
+                            ),
+                            _is_text_visible(
+                                redeem_page.locator("#hyv-account-frame")
+                                .content_frame.get_by_text("Account Log In")
+                            ),
+                        )
+                    ):
+                        redeem_result = _build_manual_login_required_result(item_name)
+                        return redeem_result
                 else:
                     logger.warning(
                         "Redeem login UI did not stabilize for '%s'; continuing with current page state",

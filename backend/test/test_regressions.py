@@ -469,7 +469,9 @@ def test_find_correct_avatar_retries_transient_fetch_failures(monkeypatch):
     assert calls["count"] == 2
 
 
-def test_fetch_image_from_locator_uses_screenshot_fallback_when_url_missing(monkeypatch):
+def test_fetch_image_from_locator_uses_screenshot_fallback_when_url_missing(
+    monkeypatch,
+):
     class FakePage:
         url = "https://example.com/"
 
@@ -751,9 +753,7 @@ def test_run_hunt_uses_shared_event_navigation(monkeypatch):
     monkeypatch.setattr(HuntModeHandler.settings, "run_task", True)
     monkeypatch.setattr(HuntModeHandler.settings, "enable_hunt_mode", True)
     monkeypatch.setattr(HuntModeHandler, "get_hunt_items", lambda: ["Polychrome ×100"])
-    monkeypatch.setattr(
-        HuntModeHandler, "get_next_hunt_time", lambda: "20:00 28/03/26"
-    )
+    monkeypatch.setattr(HuntModeHandler, "get_next_hunt_time", lambda: "20:00 28/03/26")
     monkeypatch.setattr(
         HuntModeHandler, "sync_playwright", lambda: FakePlaywrightContext()
     )
@@ -776,7 +776,9 @@ def test_run_hunt_uses_shared_event_navigation(monkeypatch):
             AssertionError("manual login notification should not fire")
         ),
     )
-    monkeypatch.setattr("sentry_sdk.start_transaction", lambda *args, **kwargs: _NullSpan())
+    monkeypatch.setattr(
+        "sentry_sdk.start_transaction", lambda *args, **kwargs: _NullSpan()
+    )
     monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
 
     HuntModeHandler.run_hunt()
@@ -956,14 +958,7 @@ def test_redeem_autofill_records_unconfirmed_redeem(monkeypatch):
     monkeypatch.setattr(
         redeem_autofill_module,
         "save_redeem_data",
-        lambda item_name,
-        code,
-        current_day,
-        redeem_file_path,
-        state,
-        detail=None,
-        status=None,
-        record_id=None: saved_attempts.append(
+        lambda item_name, code, current_day, redeem_file_path, state, detail=None, status=None, record_id=None: saved_attempts.append(
             {
                 "item_name": item_name,
                 "code": code,
@@ -1011,12 +1006,309 @@ def test_redeem_autofill_records_unconfirmed_redeem(monkeypatch):
             "detail": "Redeem page did not show the success confirmation popup.",
             "status": "redeem_not_confirmed",
             "record_id": "record-1",
-        }
+        },
     ]
     assert events[:2] == ["save:redeem_pending", "new_page"]
     assert state_saves == [True]
     assert page.filled_code == "ABCD1234EFGH"
     assert page.submit_clicked is True
+    assert page.closed is True
+
+
+def test_redeem_autofill_reports_manual_captcha_required(monkeypatch):
+    class _TestNullSpan:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeVisibility:
+        def __init__(self, visible=False):
+            self.visible = visible
+
+        def is_visible(self):
+            return self.visible
+
+    class FakeFrame:
+        def get_by_text(self, text):
+            return FakeVisibility(text == "Slide to complete the puzzle")
+
+    class FakeLocator:
+        @property
+        def content_frame(self):
+            return FakeFrame()
+
+    class FakePage:
+        def __init__(self):
+            self.closed = False
+
+        def goto(self, _url):
+            return None
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+        def get_by_text(self, text):
+            if text == "Please Log in to Redeem":
+                return FakeVisibility(True)
+            return FakeVisibility(False)
+
+        def locator(self, _selector):
+            return FakeLocator()
+
+        def close(self):
+            self.closed = True
+
+    class FakeContext:
+        def __init__(self, page):
+            self.page = page
+
+        def new_page(self):
+            return self.page
+
+    notifications: list[dict[str, object]] = []
+    saved_attempts: list[dict[str, object]] = []
+    sentry_messages: list[tuple[str, str]] = []
+    sentry_tags: dict[str, str] = {}
+    sentry_contexts: list[tuple[str, dict[str, object]]] = []
+    state_saves: list[bool] = []
+    page = FakePage()
+
+    monkeypatch.setattr(
+        "sentry_sdk.start_span", lambda *args, **kwargs: _TestNullSpan()
+    )
+    monkeypatch.setattr("sentry_sdk.isolation_scope", lambda: _TestNullSpan())
+    monkeypatch.setattr(
+        "sentry_sdk.capture_message",
+        lambda message, level=None: sentry_messages.append((message, level)),
+    )
+    monkeypatch.setattr(
+        "sentry_sdk.set_tag", lambda key, value: sentry_tags.__setitem__(key, value)
+    )
+    monkeypatch.setattr(
+        "sentry_sdk.set_context",
+        lambda key, value: sentry_contexts.append((key, value)),
+    )
+    monkeypatch.setattr(
+        redeem_autofill_module.NotificationHelper,
+        "notify",
+        lambda **kwargs: notifications.append(kwargs),
+    )
+    monkeypatch.setattr(
+        redeem_autofill_module,
+        "save_context_storage_state",
+        lambda *_args, **_kwargs: state_saves.append(True),
+    )
+    monkeypatch.setattr(
+        redeem_autofill_module.AutoLogin,
+        "run",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        redeem_autofill_module.RetryHelper,
+        "retry_until_screen_appears",
+        lambda *_args, **_kwargs: True,
+    )
+    monkeypatch.setattr(
+        redeem_autofill_module,
+        "save_redeem_data",
+        lambda item_name, code, current_day, redeem_file_path, state, detail=None, status=None, record_id=None: saved_attempts.append(
+            {
+                "item_name": item_name,
+                "code": code,
+                "state": state,
+                "detail": detail,
+                "status": status,
+                "record_id": record_id,
+            }
+        )
+        or ("record-1" if record_id is None else record_id),
+    )
+
+    result = redeem_autofill_module.run(
+        FakeContext(page),
+        "ABCD1234EFGH",
+        "Polychrome",
+    )
+
+    assert result == {
+        "ok": False,
+        "status": "manual_captcha_required",
+        "detail": "Captcha blocked automatic redeem login.",
+    }
+    assert sentry_messages == [("Redeem requires manual captcha completion", "warning")]
+    assert sentry_tags == {
+        "redeem.status": "manual_captcha_required",
+        "redeem.manual_captcha_required": "true",
+    }
+    assert sentry_contexts == [
+        (
+            "redeem",
+            {
+                "item_name": "Polychrome",
+                "masked_code": "ABCD...EFGH",
+            },
+        )
+    ]
+    assert notifications == [
+        {
+            "title": "ZZZ Bot",
+            "message": "Captcha detected. Please do manual login.",
+            "app_icon": redeem_autofill_module.CONFIG["SAD_ICON"],
+        }
+    ]
+    assert saved_attempts == [
+        {
+            "item_name": "Polychrome",
+            "code": "ABCD1234EFGH",
+            "state": False,
+            "detail": "Code saved before redeem attempt started.",
+            "status": "redeem_pending",
+            "record_id": None,
+        },
+        {
+            "item_name": "Polychrome",
+            "code": "ABCD1234EFGH",
+            "state": False,
+            "detail": "Captcha blocked automatic redeem login.",
+            "status": "manual_captcha_required",
+            "record_id": "record-1",
+        },
+    ]
+    assert state_saves == [True]
+    assert page.closed is True
+
+
+def test_redeem_autofill_reports_manual_login_required_when_login_prompt_persists(
+    monkeypatch,
+):
+    class _TestNullSpan:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeVisibility:
+        def __init__(self, visible=False):
+            self.visible = visible
+
+        def is_visible(self):
+            return self.visible
+
+    class FakeFrame:
+        def get_by_text(self, text):
+            return FakeVisibility(text == "Account Log In")
+
+    class FakeLocator:
+        @property
+        def content_frame(self):
+            return FakeFrame()
+
+    class FakePage:
+        def __init__(self):
+            self.closed = False
+
+        def goto(self, _url):
+            return None
+
+        def wait_for_timeout(self, *_args, **_kwargs):
+            return None
+
+        def get_by_text(self, text):
+            if text == "Please Log in to Redeem":
+                return FakeVisibility(True)
+            if text == "Select a server":
+                return FakeVisibility(False)
+            return FakeVisibility(False)
+
+        def locator(self, _selector):
+            return FakeLocator()
+
+        def close(self):
+            self.closed = True
+
+    class FakeContext:
+        def __init__(self, page):
+            self.page = page
+
+        def new_page(self):
+            return self.page
+
+    notifications: list[dict[str, object]] = []
+    saved_attempts: list[dict[str, object]] = []
+    sentry_messages: list[tuple[str, str]] = []
+    state_saves: list[bool] = []
+    page = FakePage()
+
+    monkeypatch.setattr(
+        "sentry_sdk.start_span", lambda *args, **kwargs: _TestNullSpan()
+    )
+    monkeypatch.setattr("sentry_sdk.isolation_scope", lambda: _TestNullSpan())
+    monkeypatch.setattr(
+        "sentry_sdk.capture_message",
+        lambda message, level=None: sentry_messages.append((message, level)),
+    )
+    monkeypatch.setattr("sentry_sdk.set_tag", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("sentry_sdk.set_context", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        redeem_autofill_module.NotificationHelper,
+        "notify",
+        lambda **kwargs: notifications.append(kwargs),
+    )
+    monkeypatch.setattr(
+        redeem_autofill_module,
+        "save_context_storage_state",
+        lambda *_args, **_kwargs: state_saves.append(True),
+    )
+    monkeypatch.setattr(
+        redeem_autofill_module.AutoLogin,
+        "run",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        redeem_autofill_module.RetryHelper,
+        "retry_until_screen_appears",
+        lambda *_args, **_kwargs: True,
+    )
+    monkeypatch.setattr(
+        redeem_autofill_module,
+        "save_redeem_data",
+        lambda item_name, code, current_day, redeem_file_path, state, detail=None, status=None, record_id=None: saved_attempts.append(
+            {
+                "item_name": item_name,
+                "code": code,
+                "state": state,
+                "detail": detail,
+                "status": status,
+                "record_id": record_id,
+            }
+        )
+        or ("record-1" if record_id is None else record_id),
+    )
+
+    result = redeem_autofill_module.run(
+        FakeContext(page),
+        "ABCD1234EFGH",
+        "Polychrome",
+    )
+
+    assert result == {
+        "ok": False,
+        "status": "manual_login_required",
+        "detail": "Redeem page still requires login after automatic login attempt.",
+    }
+    assert sentry_messages == []
+    assert notifications == [
+        {
+            "title": "ZZZ Bot",
+            "message": "Manual login required to continue redeem.",
+            "app_icon": redeem_autofill_module.CONFIG["SAD_ICON"],
+        }
+    ]
+    assert saved_attempts[-1]["status"] == "manual_login_required"
+    assert state_saves == [True]
     assert page.closed is True
 
 
@@ -1055,7 +1347,9 @@ def test_process_single_item_logs_unconfirmed_redeem(monkeypatch, caplog):
         def wait_for_timeout(self, *_args, **_kwargs):
             return None
 
-    monkeypatch.setattr(ShoppingHandler, "handle_exchange_dialog", lambda *_args: "CODE123")
+    monkeypatch.setattr(
+        ShoppingHandler, "handle_exchange_dialog", lambda *_args: "CODE123"
+    )
     monkeypatch.setattr(
         ShoppingHandler.RedeemAutofill,
         "run",
@@ -1067,12 +1361,15 @@ def test_process_single_item_logs_unconfirmed_redeem(monkeypatch, caplog):
     )
 
     caplog.set_level(logging.WARNING, logger="handlers.ShoppingHandler")
-    result = ShoppingHandler._process_single_item(cast(Any, FakePage()), "Polychrome ×10")
+    result = ShoppingHandler._process_single_item(
+        cast(Any, FakePage()), "Polychrome ×10"
+    )
 
     warning_messages = [
         record.message
         for record in caplog.records
-        if record.name == "handlers.ShoppingHandler" and record.levelno == logging.WARNING
+        if record.name == "handlers.ShoppingHandler"
+        and record.levelno == logging.WARNING
     ]
 
     assert result is False
@@ -1173,6 +1470,8 @@ def test_wait_for_success_dialog_accepts_visible_modal_without_old_text():
             if selector in {
                 DrawHandler.REWARD_IMAGE_SELECTOR,
                 DrawHandler.REWARD_IMAGE_SELECTOR_ALT,
+                DrawHandler.REWARD_CODE_IMAGE_SELECTOR,
+                DrawHandler.REWARD_CODE_IMAGE_CONTAINER_SELECTOR,
                 DrawHandler.REDEEM_CODE_SELECTOR_ALT,
                 DrawHandler.CLOSE_DIALOG_SELECTOR,
             }:
@@ -1221,6 +1520,8 @@ def test_wait_for_success_dialog_uses_page_root_when_modal_selector_missing():
             if selector in {
                 DrawHandler.REWARD_IMAGE_SELECTOR,
                 DrawHandler.REWARD_IMAGE_SELECTOR_ALT,
+                DrawHandler.REWARD_CODE_IMAGE_SELECTOR,
+                DrawHandler.REWARD_CODE_IMAGE_CONTAINER_SELECTOR,
                 DrawHandler.REDEEM_CODE_SELECTOR_ALT,
                 DrawHandler.CLOSE_DIALOG_SELECTOR,
             }:
@@ -1252,11 +1553,57 @@ def test_find_reward_image_waits_for_delayed_selector_visibility():
 
     class FakeSuccessDialog:
         def locator(self, selector):
-            return FakeRewardLocator(succeeds=selector == "img")
+            return FakeRewardLocator(
+                succeeds=selector == DrawHandler.REWARD_CODE_IMAGE_SELECTOR
+            )
 
     result = DrawHandler._find_reward_image(cast(Any, FakeSuccessDialog()), 1)
 
     assert result is not None
+
+
+def test_reward_image_selectors_target_nested_images():
+    assert DrawHandler.REWARD_IMAGE_SELECTOR == (
+        f":is({DrawHandler.REWARD_IMAGE_CONTAINER_SELECTOR}) img"
+    )
+    assert DrawHandler.REWARD_CODE_IMAGE_SELECTOR == (
+        f":is({DrawHandler.REWARD_CODE_IMAGE_CONTAINER_SELECTOR}) img"
+    )
+
+
+def test_find_reward_image_does_not_fallback_to_generic_page_images():
+    attempted_selectors = []
+
+    class FakeRewardLocator:
+        def __init__(self, *, succeeds: bool):
+            self.succeeds = succeeds
+
+        @property
+        def first(self):
+            return self
+
+        def wait_for(self, *args, **kwargs):
+            if not self.succeeds:
+                raise DrawHandler.PlaywrightTimeoutError("not visible yet")
+
+    class FakeSuccessDialog:
+        def locator(self, selector):
+            attempted_selectors.append(selector)
+            if selector == "img":
+                raise AssertionError("Generic page image fallback should not be used")
+            return FakeRewardLocator(
+                succeeds=selector == DrawHandler.REWARD_CODE_IMAGE_CONTAINER_SELECTOR
+            )
+
+    result = DrawHandler._find_reward_image(cast(Any, FakeSuccessDialog()), 1)
+
+    assert result is not None
+    assert attempted_selectors == [
+        DrawHandler.REWARD_IMAGE_SELECTOR,
+        DrawHandler.REWARD_IMAGE_SELECTOR_ALT,
+        DrawHandler.REWARD_CODE_IMAGE_SELECTOR,
+        DrawHandler.REWARD_CODE_IMAGE_CONTAINER_SELECTOR,
+    ]
 
 
 def test_close_draw_screen_clears_reward_dialog_then_panel_back(monkeypatch):
@@ -1460,7 +1807,9 @@ def test_playwright_task_does_not_mark_failed_run_as_finished(monkeypatch):
         "notify",
         lambda **kwargs: notifications.append(kwargs),
     )
-    monkeypatch.setattr(bot_module, "save_last_run", lambda: last_run_calls.append(True))
+    monkeypatch.setattr(
+        bot_module, "save_last_run", lambda: last_run_calls.append(True)
+    )
 
     bot_module.playwright_task()
 
@@ -1482,7 +1831,9 @@ def test_check_missed_runs_does_not_mark_failed_replay_as_finished(monkeypatch):
     monkeypatch.setattr(
         bot_module, "playwright_task", lambda: replay_calls.append("attempted")
     )
-    monkeypatch.setattr(bot_module, "save_last_run", lambda: last_run_calls.append(True))
+    monkeypatch.setattr(
+        bot_module, "save_last_run", lambda: last_run_calls.append(True)
+    )
 
     bot_module.check_missed_runs()
 
@@ -2284,7 +2635,9 @@ def test_run_legacy_migration_refreshes_runtime_state(monkeypatch):
             "hoyo_password": "pw",
         },
     )
-    monkeypatch.setattr(bot_module, "schedule_tasks", lambda: schedule_calls.append("all"))
+    monkeypatch.setattr(
+        bot_module, "schedule_tasks", lambda: schedule_calls.append("all")
+    )
     monkeypatch.setattr(
         bot_module, "schedule_hunt_tasks", lambda: schedule_calls.append("hunt")
     )
