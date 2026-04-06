@@ -15,7 +15,6 @@
         "@mui/system": "^7.3.7",
         "@mui/x-data-grid": "^7.23.0",
         "@mui/x-date-pickers": "^7.22.3",
-        "@react-buddy/ide-toolbox": "^2.4.0",
         "@sentry/react": "^9.41.0",
         "@tabler/icons-react": "^3.24.0",
         "@tanstack/react-query": "^5.62.3",
@@ -28,15 +27,13 @@
         "react-router-dom": "^7.0.0",
       },
       "devDependencies": {
+        "@babel/parser": "^7.26.2",
         "@types/bun": "^1.3.10",
         "@vitejs/plugin-react": "^1.0.7",
         "prettier": "^2.5.1",
         "prettier-plugin-tailwindcss": "^0.1.5",
         "vitawind": "^2.0.0",
         "vite": "7.1.11",
-      },
-      "peerDependencies": {
-        "typescript": "^5",
       },
     },
   },
@@ -220,8 +217,6 @@
     "@pkgjs/parseargs": ["@pkgjs/parseargs@0.11.0", "", {}, ""],
 
     "@popperjs/core": ["@popperjs/core@2.11.8", "", {}, ""],
-
-    "@react-buddy/ide-toolbox": ["@react-buddy/ide-toolbox@2.4.0", "", { "peerDependencies": { "react": "^17.0.0 || ^18.0.0" } }, ""],
 
     "@rollup/pluginutils": ["@rollup/pluginutils@4.2.1", "", { "dependencies": { "estree-walker": "^2.0.1", "picomatch": "^2.2.2" } }, ""],
 
@@ -611,8 +606,6 @@
 
     "turbo-stream": ["turbo-stream@2.4.0", "", {}, ""],
 
-    "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
-
     "undici-types": ["undici-types@7.18.2", "", {}, ""],
 
     "update-browserslist-db": ["update-browserslist-db@1.1.1", "", { "dependencies": { "escalade": "^3.2.0", "picocolors": "^1.1.0" }, "peerDependencies": { "browserslist": ">= 4.21.0" }, "bin": "cli.js" }, ""],
@@ -674,10 +667,6 @@
     "string-width-cjs/strip-ansi": ["strip-ansi@6.0.1", "", { "dependencies": { "ansi-regex": "^5.0.1" } }, ""],
 
     "strip-ansi-cjs/ansi-regex": ["ansi-regex@5.0.1", "", {}, ""],
-
-    "tinyglobby/fdir": ["fdir@6.5.0", "", { "peerDependencies": { "picomatch": "^3 || ^4" } }, ""],
-
-    "tinyglobby/picomatch": ["picomatch@4.0.3", "", {}, ""],
 
     "wrap-ansi-cjs/ansi-styles": ["ansi-styles@4.3.0", "", { "dependencies": { "color-convert": "^2.0.1" } }, ""],
 
