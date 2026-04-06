@@ -22,7 +22,6 @@
     "@mui/system": "^7.3.7",
     "@mui/x-data-grid": "^7.23.0",
     "@mui/x-date-pickers": "^7.22.3",
-    "@react-buddy/ide-toolbox": "^2.4.0",
     "@sentry/react": "^9.41.0",
     "@tabler/icons-react": "^3.24.0",
     "@tanstack/react-query": "^5.62.3",

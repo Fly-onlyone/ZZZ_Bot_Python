@@ -317,15 +317,8 @@ def get_manager() -> ManualLoginManager:
     return _manager
 
 
-# Legacy compatibility - maintain old interface
-playState_lock = _manager._state_lock
-
-
 def run(url: str):
     """Legacy run function for backward compatibility."""
     _manager.run(url)
 
 
-# Module-level variable to maintain backward compatibility with direct access
-# This will be updated by the routes using the manager
-playState = False

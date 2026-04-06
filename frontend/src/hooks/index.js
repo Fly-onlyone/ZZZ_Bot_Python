@@ -7,5 +7,4 @@
 export { useFormState } from "./useFormState.js";
 export { useFieldRenderer } from "./useFieldRenderer.jsx";
 export { useShoppingState } from "./useShoppingState.js";
-export { usePriorityManagement } from "./usePriorityManagement.js";
 export { default as useTaskEvents } from "./useTaskEvents.js";
