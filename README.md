@@ -11,6 +11,16 @@ miHoYo, or Cognosphere.
 - Optional prize-draw / lucky-draw reward collection
 - HoYoLab redemption-code tracking and status updates
 
+## Screenshots
+
+| Overview | Shopping |
+|---|---|
+| ![Overview — mission report and check-in](docs/screenshots/overview.png) | ![Shopping — event shop items and selections](docs/screenshots/shopping.png) |
+
+| Settings | Logs |
+|---|---|
+| ![Settings — schedule and task toggles](docs/screenshots/settings.png) | ![Logs — filterable in-app log viewer](docs/screenshots/logs.png) |
+
 ## Automation Flow
 
 The diagram below shows the scheduler-driven run path, including optional branches for shopping execution, draw, and
