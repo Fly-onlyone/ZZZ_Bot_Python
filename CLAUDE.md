@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> Documentation lives in [`obsidian/`](./obsidian/_HOME.md) — open as an Obsidian vault, or browse the markdown directly. Start at `_HOME.md` for reading paths.
+
 ## Project Overview
 
 ZZZ Bot is a desktop automation tool for the game "Zenless Zone Zero" by HoYoverse. It automates daily tasks on the

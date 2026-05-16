@@ -4,6 +4,8 @@
 shopping priorities, monitors hunts, and centralizes logs in a single UI. Not affiliated with or endorsed by HoYoverse,
 miHoYo, or Cognosphere.
 
+> Documentation lives in [`obsidian/`](./obsidian/_HOME.md) — open as an Obsidian vault, or browse the markdown directly.
+
 ## What It Automates
 
 - Daily HoYoLab check-in and mission workflow
