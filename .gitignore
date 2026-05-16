@@ -40,3 +40,10 @@ obsidian/.obsidian/workspace.json
 obsidian/.obsidian/workspace-mobile.json
 obsidian/.obsidian/workspaces.json
 
+# npm / yarn / pnpm lockfiles (project uses Bun via frontend/bun.lock)
+# A stray package-lock.json here just confuses Dependabot.
+frontend/package-lock.json
+frontend/yarn.lock
+frontend/pnpm-lock.yaml
+frontend/node_modules/
+
