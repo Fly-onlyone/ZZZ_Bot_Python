@@ -29,7 +29,7 @@ dev = [
     "pillow==12.2.0",
     "pyinstaller==6.16.0",
     "pyinstaller-hooks-contrib==2025.9",
-    "pytest==8.4.2",
+    "pytest==9.0.3",
     "pytest-base-url==2.1.0",
     "pytest-playwright==0.8.0",
     "ruff>=0.14",
