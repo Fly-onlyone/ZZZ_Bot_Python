@@ -23,7 +23,7 @@
     "@mui/icons-material": "^6.5.0",
     "@mui/material": "^6.5.0",
     "@mui/system": "^7.3.11",
-    "@mui/x-data-grid": "^7.29.13",
+    "@mui/x-data-grid": "^9.3.0",
     "@mui/x-date-pickers": "^7.29.4",
     "@sentry/react": "^9.47.1",
     "@tabler/icons-react": "^3.44.0",
