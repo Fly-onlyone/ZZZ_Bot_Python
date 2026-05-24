@@ -29,6 +29,9 @@
       <excludeFolder url="file://$MODULE_DIR$/backend/logs" />
       <excludeFolder url="file://$MODULE_DIR$/product/build-sidecar" />
       <excludeFolder url="file://$MODULE_DIR$/.claude/worktrees/deps-python-bump/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/.codex" />
+      <excludeFolder url="file://$MODULE_DIR$/data" />
+      <excludeFolder url="file://$MODULE_DIR$/output/migrations" />
     </content>
     <orderEntry type="jdk" jdkName="uv (ZZZ bot - Python)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -40,12 +40,16 @@ sequenceDiagram
 
 `useSaveData(route)` mutations call `POST /api/{route}` and auto-invalidate related
 keys (e.g., `backup/import` invalidates `settings`, `account`, `shopping`,
-`overview/mission`). `useBackendHealth()` polls `/health` with startup-aware retries
-(12 attempts at 500ms backoff) so the UI doesn't show errors during sidecar warmup.
+`overview/mission`). Edit-style pages wrap `useSaveData` in [[useAutoSave]], which
+exposes a debounced `commit(value)` and a `status` string driving the [[SaveStatus]]
+pill — there is no manual save button on any form. `useBackendHealth()` polls `/health`
+with startup-aware retries (12 attempts at 500ms backoff) so the UI doesn't show errors
+during sidecar warmup.
 
 ## Depends on
 
 - [[DataLoader]] — TanStack Query wrapper
+- [[useAutoSave]] — debounced commit + status for edit pages
 - [[useTaskEvents]] — SSE consumer
 - [[Frontend Constants]] — stale times
 - [[Event Bus]] — backend SSE source

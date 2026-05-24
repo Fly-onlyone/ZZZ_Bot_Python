@@ -7,7 +7,7 @@ tags: [integration]
 > Material UI component library + MUI X (DataGrid, DatePickers) — provides every button, card, table, form field, and date picker in the UI.
 
 ## Used for
-- All page chrome, forms, dialogs ([[SectionCard]], [[SaveButton]], [[Text Field]], etc.)
+- All page chrome, forms, dialogs ([[SectionCard]], [[SaveStatus]], [[Text Field]], etc.)
 - Mission report table via `@mui/x-data-grid` ([[DataTable]], [[Locator Tracker Page]])
 - Date filtering via `@mui/x-date-pickers` with the [[Day.js]] adapter
 - Theming via `createTheme` + `ThemeProvider` (see [[MUI Theme Factory]])

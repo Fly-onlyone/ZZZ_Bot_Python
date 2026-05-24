@@ -11,8 +11,13 @@ import { useThemeContext } from "../../theme/ThemeContext";
  *
  * Enhanced text field with optional password visibility toggle and copy-to-clipboard functionality.
  * Automatically handles password fields with show/hide toggle.
+ *
+ * `onCommit` is optional but required for auto-save behavior: edits are persisted
+ * only when onCommit fires (on blur or Enter). Consumers that omit it get a
+ * text field whose edits never leave local state — useful for read-only previews
+ * but a footgun otherwise.
  */
-export default function TextField({ id, value, onChange, isPassword = false, sx = {} }) {
+export default function TextField({ id, value, onChange, onCommit, isPassword = false, sx = {} }) {
   const { themeColors } = useThemeContext();
   const [passwordVisible, setPasswordVisible] = useState(false);
 
@@ -59,6 +64,17 @@ export default function TextField({ id, value, onChange, isPassword = false, sx 
         type={isPassword && passwordVisible ? "text" : isPassword ? "password" : "text"}
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={() => onCommit?.()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            // Preserve the old form's Enter-to-submit affordance now that
+            // ValueAdapter no longer wraps fields in a <form>. Blur fires the
+            // commit too (via onBlur above), but calling onCommit directly
+            // means single-line edits save without the user having to Tab away.
+            e.preventDefault();
+            onCommit?.();
+          }
+        }}
         fullWidth
         sx={sx}
       />

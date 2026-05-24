@@ -25,7 +25,7 @@ Colors are concatenated with hex alpha bytes (e.g. `${color}30`), assuming 6-dig
 
 ## Used by
 - [[MUI Theme Factory]] — buttons, drawer, app bar
-- Component sx props across [[SectionCard]], [[SaveButton]], and various page surfaces
+- Component sx props across [[SectionCard]], [[SaveStatus]], and various page surfaces
 
 ## Gotchas
 - Pass 6-digit hex to `GLOW` helpers; shorthand (`#abc`) breaks the alpha-byte concatenation.

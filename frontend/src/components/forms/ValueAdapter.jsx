@@ -1,6 +1,7 @@
 import React from "react";
-import { Button, Divider, Stack } from "@mui/material";
-import SaveButton from "../common/SaveButton";
+import { Box, Button, Divider, Snackbar, Stack, Alert } from "@mui/material";
+import { motion } from "framer-motion";
+import SaveStatus from "../common/SaveStatus";
 import { COMMON_COLORS } from "../../theme/colors";
 import { useThemeContext } from "../../theme/ThemeContext";
 import { useFieldRenderer, useFormState } from "../../hooks";
@@ -9,13 +10,14 @@ import { useFieldRenderer, useFormState } from "../../hooks";
  * ValueAdapter Component
  *
  * Dynamic form generator that automatically renders appropriate input fields
- * based on data types and configuration. Supports sections, custom icons,
- * and type-specific rendering.
+ * based on data types and configuration. Edits auto-save through useFormState
+ * — discrete controls commit on change, text inputs commit on blur. A
+ * SaveStatus pill at the top of the rendered output surfaces save state.
  *
  * @param {Object} customIcons - Icon mappings for specific fields
  * @param {Object} customSections - Section configuration with fields and icons
  * @param {Object} typeConfig - Custom type configuration (e.g., select options)
- * @param {Array} extraActions - Additional action buttons displayed above Save
+ * @param {Array} extraActions - Additional action buttons displayed below the form
  */
 export default function ValueAdapter({
   customIcons = {},
@@ -25,9 +27,14 @@ export default function ValueAdapter({
   route,
 }) {
   const { themeColors } = useThemeContext();
-  const { value, error, handleChange, handleSubmit, alert, setAlert } = useFormState(route);
+  const { value, error, handleChange, commit, autoSave } = useFormState(route);
   const { renderField } = useFieldRenderer(typeConfig);
   const [actionLoading, setActionLoading] = React.useState({});
+  const [actionAlert, setActionAlert] = React.useState({
+    open: false,
+    type: "success",
+    message: "",
+  });
   /** @type {{key: string, label: string, onClick: Function, successMessage?: string | Function, errorMessage?: string}[]} */
   const actions = Array.isArray(extraActions) ? extraActions : [];
   const resolvedSections =
@@ -59,7 +66,12 @@ export default function ValueAdapter({
           {typeConfig[fieldKey]?.label || fieldKey.replace(/_/g, " ")}:
         </label>
         <div className={isArrayField ? "" : isThemeField ? "flex w-3/4 justify-end" : "flex w-3/4"}>
-          {renderField(fieldKey, value[fieldKey], (newValue) => handleChange(fieldKey, newValue))}
+          {renderField(
+            fieldKey,
+            value[fieldKey],
+            (newValue) => handleChange(fieldKey, newValue),
+            commit,
+          )}
         </div>
       </div>
     );
@@ -128,14 +140,14 @@ export default function ValueAdapter({
         typeof action.successMessage === "function"
           ? action.successMessage(result)
           : action.successMessage || "Action completed successfully!";
-      setAlert({
+      setActionAlert({
         open: true,
         type: "success",
         message: successMessage,
       });
     } catch (error) {
       const fallbackMessage = error instanceof Error ? error.message : "Action failed.";
-      setAlert({
+      setActionAlert({
         open: true,
         type: "error",
         message: action.errorMessage || fallbackMessage,
@@ -169,8 +181,15 @@ export default function ValueAdapter({
     </Button>
   ));
 
+  const handleCloseActionAlert = () => {
+    setActionAlert((prev) => ({ ...prev, open: false }));
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1, minHeight: 28 }}>
+        <SaveStatus status={autoSave.status} error={autoSave.error} onRetry={autoSave.retry} />
+      </Box>
       <div className="mb-10">
         {resolvedSections
           ? Object.keys(resolvedSections).map((sectionKey, index) =>
@@ -188,7 +207,23 @@ export default function ValueAdapter({
           {actionButtons}
         </Stack>
       )}
-      <SaveButton onSave={handleSubmit} alert={alert} setAlert={setAlert} />
-    </form>
+      <Snackbar
+        open={actionAlert.open}
+        autoHideDuration={3000}
+        onClose={handleCloseActionAlert}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 50 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Alert severity={actionAlert.type} variant="outlined">
+            {actionAlert.message}
+          </Alert>
+        </motion.div>
+      </Snackbar>
+    </div>
   );
 }

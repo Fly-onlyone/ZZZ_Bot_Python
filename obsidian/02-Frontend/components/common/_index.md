@@ -8,7 +8,7 @@ tags: [moc, frontend, components, common]
 
 - [[SectionCard]] — content wrapper with glow + alpha background
 - [[EmptyState]] — placeholder when no data is available
-- [[SaveButton]] — form submission button with loading state
+- [[SaveStatus]] — inline auto-save status pill (saving/saved/error + retry)
 - [[ErrorFallback]] — Sentry error boundary fallback
 - [[DataTable]] — MUI DataGrid wrapper with theme styling
 - [[SortableSelectedItems]] — @dnd-kit/sortable item list for priority ordering

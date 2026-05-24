@@ -2,26 +2,27 @@ import { DataLoader } from "../services";
 import DoneIcon from "@mui/icons-material/Done";
 import CloseIcon from "@mui/icons-material/Close";
 import { DataGrid } from "@mui/x-data-grid";
-import { Button } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { Box, Button } from "@mui/material";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import RedeemIcon from "@mui/icons-material/Redeem";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { EmptyState, RedeemSkeleton, SaveButton } from "../components";
+import { EmptyState, RedeemSkeleton, SaveStatus } from "../components";
+import { useAutoSave } from "../hooks";
 import { logInfo, logWarn } from "../services/sentryLogger.js";
 
 export default function Redeem() {
-  const { useRouteData, useSaveData } = DataLoader();
+  const { useRouteData } = DataLoader();
   const { data: redeemList = [], isLoading, error } = useRouteData("redeem");
-  const { mutate: saveData } = useSaveData("redeem");
+  const autoSave = useAutoSave("redeem");
 
   const [rows, setRows] = useState([]);
-  const [alert, setAlert] = useState({
-    open: false,
-    type: "success",
-    message: "",
-  });
 
+  // Gate hydration on autoSave.isPending so a server refetch landing inside
+  // the debounce window can't overwrite the user's just-clicked DONE before
+  // the save fires.
+  const autoSaveIsPending = autoSave.isPending;
   useEffect(() => {
+    if (autoSaveIsPending) return;
     const nextRows = redeemList.map((item, index) => ({
       id: index,
       ...item,
@@ -32,7 +33,7 @@ export default function Redeem() {
       const nextSnapshot = JSON.stringify(nextRows);
       return previousSnapshot === nextSnapshot ? prevRows : nextRows;
     });
-  }, [redeemList]);
+  }, [autoSaveIsPending, redeemList]);
 
   useEffect(() => {
     logInfo("Redeem page data ready", {
@@ -50,40 +51,28 @@ export default function Redeem() {
     });
   }, [error]);
 
-  const handleSwitchState = (id) => {
-    logInfo("Redeem item marked done", {
-      itemId: id,
-    });
-    setRows((prevRows) =>
-      prevRows.map((row) => (row.id === id ? { ...row, state: !row.state } : row)),
-    );
-  };
-
-  const handleSave = () => {
-    saveData(rows, {
-      onSuccess: () => {
-        logInfo("Redeem save succeeded", {
-          itemCount: rows.length,
-        });
-        setAlert({
-          open: true,
-          type: "success",
-          message: "Redeem data updated successfully",
-        });
-      },
-      onError: (saveError) => {
-        logWarn("Redeem save failed in page handler", {
-          error: saveError instanceof Error ? saveError.message : String(saveError),
-          itemCount: rows.length,
-        });
-        setAlert({
-          open: true,
-          type: "error",
-          message: "Failed to update redeem data",
-        });
-      },
-    });
-  };
+  // Auto-save fires directly from the user-action handler — never from a
+  // state-watching effect. Server-driven row changes (hydration, refetch)
+  // bypass this and so never trigger a save.
+  //
+  // Use the setRows updater form so the click handler — closed over by the
+  // columns useMemo from the first render — always sees the freshest rows.
+  // commit() inside the updater is safe because it's debounced; StrictMode's
+  // double-invocation collapses into one save.
+  const commit = autoSave.commit;
+  const handleSwitchState = useCallback(
+    (id) => {
+      logInfo("Redeem item marked done", {
+        itemId: id,
+      });
+      setRows((prev) => {
+        const next = prev.map((row) => (row.id === id ? { ...row, state: !row.state } : row));
+        commit(next);
+        return next;
+      });
+    },
+    [commit],
+  );
 
   // Hooks must run before any conditional return to keep render order stable.
   const columns = useMemo(
@@ -119,7 +108,7 @@ export default function Redeem() {
           ) : null,
       },
     ],
-    [],
+    [handleSwitchState],
   );
 
   if (isLoading && redeemList.length === 0) {
@@ -142,17 +131,19 @@ export default function Redeem() {
   }
 
   return (
-    <div style={{ height: 420, minWidth: 320, width: "100%" }}>
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        hideFooterSelectedRowCount
-        rowBufferPx={60}
-        columnBufferPx={60}
-        sx={{ height: "100%", width: "100%" }}
-      />
-      <div className="flex justify-center">
-        <SaveButton onSave={handleSave} alert={alert} setAlert={setAlert} />
+    <div style={{ minWidth: 320, width: "100%" }}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", px: 1, py: 1, minHeight: 28 }}>
+        <SaveStatus status={autoSave.status} error={autoSave.error} onRetry={autoSave.retry} />
+      </Box>
+      <div style={{ height: 420, width: "100%" }}>
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          hideFooterSelectedRowCount
+          rowBufferPx={60}
+          columnBufferPx={60}
+          sx={{ height: "100%", width: "100%" }}
+        />
       </div>
     </div>
   );

@@ -1,12 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { Box, Grid2, Tab, Tabs, Typography } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import { DataLoader } from "../services";
-import { EmptyState, SaveButton, ShoppingSkeleton, SortableSelectedItems } from "../components";
-import { useShoppingState } from "../hooks";
+import { EmptyState, SaveStatus, ShoppingSkeleton, SortableSelectedItems } from "../components";
+import { useAutoSave, useShoppingState } from "../hooks";
 import { logError, logInfo, logWarn } from "../services/sentryLogger.js";
 import { useThemeContext } from "../theme/ThemeContext";
 import { COMMON_COLORS } from "../theme/colors";
@@ -20,15 +20,25 @@ function TabFallback() {
 }
 
 function ShoppingItems() {
-  const [alert, setAlert] = useState({
-    open: false,
-    type: "success",
-    message: "",
-  });
-
-  const { useRouteData, useSaveData } = DataLoader();
+  const { useRouteData } = DataLoader();
   const { data: shopping, error } = useRouteData("shopping");
-  const mutation = useSaveData("shopping");
+  const autoSave = useAutoSave("shopping");
+
+  // Fire auto-save directly from useShoppingState's user-action handlers via
+  // its onChange callback. This avoids watching state with useEffect, which
+  // can't distinguish a real user edit from an interim render during server
+  // hydration.
+  const commit = autoSave.commit;
+  const handleShoppingChange = useCallback(
+    (payload) => {
+      logInfo("Shopping auto-save scheduled", {
+        selectedCount: payload.Selected.length,
+        huntCount: payload.Hunt.length,
+      });
+      commit(payload);
+    },
+    [commit],
+  );
 
   const {
     selectedRows,
@@ -37,7 +47,7 @@ function ShoppingItems() {
     handleRowSelectionChange,
     handleDragEnd,
     handlePriorityEdit,
-  } = useShoppingState(shopping);
+  } = useShoppingState(shopping, handleShoppingChange, autoSave.isPending);
 
   useEffect(() => {
     if (!shopping) {
@@ -203,49 +213,12 @@ function ShoppingItems() {
     );
   }
 
-  const handleSave = () => {
-    const payload = {
-      Selected: selectedRows.map((row) => row.Name),
-      Hunt: huntItems,
-    };
-
-    logInfo("Shopping save payload prepared", {
-      selectedCount: payload.Selected.length,
-      huntCount: payload.Hunt.length,
-    });
-
-    mutation.mutate(payload, {
-      onSuccess: () => {
-        logInfo("Shopping save succeeded", {
-          selectedCount: payload.Selected.length,
-          huntCount: payload.Hunt.length,
-        });
-        setAlert({
-          open: true,
-          type: "success",
-          message: "Data saved successfully!",
-        });
-      },
-      onError: (error) => {
-        logWarn("Shopping save failed in page handler", {
-          error: error instanceof Error ? error.message : String(error),
-          selectedCount: payload.Selected.length,
-          huntCount: payload.Hunt.length,
-        });
-        setAlert({
-          open: true,
-          type: "error",
-          message: "Error saving data.",
-        });
-      },
-    });
-  };
-
   return (
     <Box sx={{ p: 4 }}>
       {/* Header Section */}
       <Grid2 container justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Typography variant="h6">Point: {shopping.Point}</Typography>
+        <SaveStatus status={autoSave.status} error={autoSave.error} onRetry={autoSave.retry} />
         <Typography variant="h6">
           Duration: {durationStart} - {durationEnd}
         </Typography>
@@ -298,9 +271,6 @@ function ShoppingItems() {
           }}
         />
       </div>
-
-      {/* Save Button */}
-      <SaveButton onSave={handleSave} alert={alert} setAlert={setAlert} />
     </Box>
   );
 }

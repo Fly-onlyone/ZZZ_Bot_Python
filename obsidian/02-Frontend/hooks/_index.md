@@ -6,7 +6,8 @@ tags: [moc, frontend, hooks]
 
 > Custom hooks. State machinery for forms, server events, and UI scaling.
 
-- [[useFormState]] — fetch + dirty tracking + save mutation per route
+- [[useFormState]] — fetch + cache-mirrored edits + auto-save commit per route
+- [[useAutoSave]] — debounced commit wrapper around useSaveData with status + retry
 - [[useShoppingState]] — shopping list state with drag-drop reordering
 - [[useFieldRenderer]] — maps field key → field component (Text, Boolean, Select, Array)
 - [[useTaskEvents]] — SSE listener for backend task updates

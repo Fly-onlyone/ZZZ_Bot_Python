@@ -2,12 +2,12 @@
  * Components Index
  *
  * Central export point for all reusable components.
- * Enables clean imports: import { SaveButton, ArrayField } from '@/components';
+ * Enables clean imports: import { SaveStatus, ArrayField } from '@/components';
  */
 
 // Common Components
 export { default as EmptyState } from "./common/EmptyState.jsx";
-export { default as SaveButton } from "./common/SaveButton.jsx";
+export { default as SaveStatus } from "./common/SaveStatus.jsx";
 export { default as SectionCard } from "./common/SectionCard.jsx";
 export { default as SortableSelectedItems } from "./common/SortableSelectedItems.jsx";
 export { default as DataTable } from "./common/DataTable.jsx";
