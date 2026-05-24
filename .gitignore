@@ -34,6 +34,9 @@ authentication data/
 # Embedded SQLite database (created on first run; -wal/-shm sidecars included)
 data/
 
+# One-shot Mongo -> SQLite migration archives (output/migrations/log_lines-*.ndjson)
+output/migrations/
+
 # Python virtual environments
 .venv/
 .venv-ci/
