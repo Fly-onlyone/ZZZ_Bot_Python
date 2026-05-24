@@ -24,7 +24,7 @@ tags: [operations]
   browser install is needed.
 - `frontend-build` on **`ubuntu-latest`** — `bun install --frozen-lockfile` → `bun run
   build`. The Vite build is OS-agnostic and needs no env vars.
-- `backend-lint` on **`ubuntu-latest`** — `astral-sh/ruff-action@v4` runs `ruff check
+- `backend-lint` on **`ubuntu-latest`** — `astral-sh/ruff-action@v4.0.0` runs `ruff check
   backend/` then `ruff format --check backend/`. The action downloads the Ruff binary
   standalone — **no Python venv is created** (Ruff doesn't need project deps to lint).
   Config lives in `pyproject.toml` `[tool.ruff]` (line-length 100, import sorting;
@@ -60,6 +60,10 @@ Minor/patch bumps are grouped into one PR per ecosystem; majors stay as individu
 - ESLint is pinned to v9 — `eslint-plugin-react` is not yet compatible with ESLint 10. Only
   the classic `react-hooks` rules are enabled; the v7 React-Compiler rules are left off.
 - Cutting a release requires Conventional Commit messages (`feat:` / `fix:` …) on `dev`.
+- **`astral-sh/*` actions ship immutable-only** since `setup-uv@v8.0.0` (2026-03) and
+  `ruff-action@v4.0.0` (2026-04) — bare major tags like `@v8` / `@v4` no longer resolve
+  and CI fails at "Set up job". Pin to a full version (`@v8.1.0`, `@v4.0.0`) or git SHA;
+  Dependabot's `actions-all` group will bump these forward weekly.
 
 ## Depends on
 - [[uv]]
