@@ -100,7 +100,7 @@ const NavigationDrawer = memo(function NavigationDrawer({
 
       void prefetchRoutes(routes);
     },
-    [prefetchRoutes]
+    [prefetchRoutes],
   );
 
   // Memoize style functions to prevent recreating objects on every render
@@ -141,7 +141,7 @@ const NavigationDrawer = memo(function NavigationDrawer({
         transition: TRANSITIONS.default,
       },
     }),
-    [location.pathname, themeColors]
+    [location.pathname, themeColors],
   );
 
   const getIconStyles = useMemo(
@@ -151,7 +151,7 @@ const NavigationDrawer = memo(function NavigationDrawer({
       transition: TRANSITIONS.default,
       transform: isActive(path) ? "scale(1.1)" : "scale(1)",
     }),
-    [location.pathname, themeColors]
+    [location.pathname, themeColors],
   );
 
   const getTextStyles = useMemo(
@@ -162,7 +162,7 @@ const NavigationDrawer = memo(function NavigationDrawer({
         transition: TRANSITIONS.default,
       },
     }),
-    [location.pathname]
+    [location.pathname],
   );
 
   /** @type {React.ReactNode[]} */

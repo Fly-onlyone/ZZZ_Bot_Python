@@ -104,7 +104,7 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
   const [showAllChildren, setShowAllChildren] = useState(false);
 
   const failureRoute = `locator-tracker/failures?limit=${FAILURE_HISTORY_LIMIT}&summary_id=${encodeURIComponent(
-    entry.id
+    entry.id,
   )}`;
   const { data: failures } = useRouteData(failureRoute, {
     queryKey: ["locator-tracker/failures", entry.id],
@@ -425,7 +425,7 @@ export default function LocatorTracker() {
           {handler}
         </MenuItem>
       )),
-    [handlers]
+    [handlers],
   );
 
   const openScreenshot = (assetId) => {

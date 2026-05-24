@@ -122,7 +122,7 @@ export default function Logs() {
 
   const toggleLevel = (lvl) =>
     setSelectedLevels((prev) =>
-      prev.includes(lvl) ? prev.filter((l) => l !== lvl) : [...prev, lvl]
+      prev.includes(lvl) ? prev.filter((l) => l !== lvl) : [...prev, lvl],
     );
   const errorMessage = error instanceof Error ? error.message : String(error);
   /** @type {React.ReactNode[]} */

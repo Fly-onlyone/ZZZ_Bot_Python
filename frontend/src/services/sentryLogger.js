@@ -28,7 +28,7 @@ function normalizeAttributes(attributes = {}) {
   return Object.fromEntries(
     Object.entries(attributes)
       .map(([key, value]) => [key, normalizeAttributeValue(value)])
-      .filter(([, value]) => value !== undefined)
+      .filter(([, value]) => value !== undefined),
   );
 }
 

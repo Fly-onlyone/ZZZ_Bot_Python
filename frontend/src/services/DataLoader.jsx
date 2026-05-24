@@ -88,7 +88,7 @@ export const DataLoader = () => {
       });
       return data;
     },
-    [fetchJson]
+    [fetchJson],
   );
 
   const prefetchRouteData = useCallback(
@@ -99,14 +99,14 @@ export const DataLoader = () => {
         {
           requestFailureSeverity: "warn",
           requestFailureMessage: "Frontend route prefetch request failed",
-        }
+        },
       );
       logInfo("Frontend route data prefetched", {
         route,
       });
       return data;
     },
-    [fetchJson]
+    [fetchJson],
   );
 
   const prefetchRoutes = useCallback(
@@ -124,8 +124,8 @@ export const DataLoader = () => {
             queryFn: () => prefetchRouteData(route),
             staleTime: STALE_TIMES[route] || DEFAULT_STALE_TIME,
             retry: API_RETRY_COUNT,
-          })
-        )
+          }),
+        ),
       );
 
       const failedRoutes = results
@@ -144,7 +144,7 @@ export const DataLoader = () => {
         routeCount: uniqueRoutes.length,
       });
     },
-    [prefetchRouteData, queryClient]
+    [prefetchRouteData, queryClient],
   );
 
   const useRouteData = (route, queryOptions = {}) => {
@@ -210,7 +210,7 @@ export const DataLoader = () => {
         });
         const relatedQueryKeys = RELATED_QUERY_KEYS_BY_ROUTE[route] || [[route]];
         await Promise.all(
-          relatedQueryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey }))
+          relatedQueryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
         );
       },
     });
@@ -265,7 +265,7 @@ export const DataLoader = () => {
         const relatedQueryKeys = RELATED_QUERY_KEYS_BY_ROUTE[route];
         if (relatedQueryKeys) {
           await Promise.all(
-            relatedQueryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey }))
+            relatedQueryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
           );
         }
       },

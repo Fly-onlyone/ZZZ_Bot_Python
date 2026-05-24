@@ -187,7 +187,7 @@ export default function Mission() {
             >
               <img
                 src={`${BACKEND_URL}/assets/screenshot/login_reward.png?day=${encodeURIComponent(
-                  day
+                  day,
                 )}`}
                 alt="Login Reward"
                 style={{ display: "block", maxWidth: "100%" }}

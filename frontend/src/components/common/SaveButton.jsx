@@ -23,7 +23,7 @@ const SaveButton = ({ onSave, alert, setAlert, loading = false }) => {
         0 0 10px ${themeColors.glow}60;
     }
   `,
-    [themeColors.glow]
+    [themeColors.glow],
   );
 
   const handleCloseAlert = () => {

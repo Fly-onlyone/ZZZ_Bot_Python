@@ -99,7 +99,7 @@ function ShoppingItems() {
   const huntItemsSet = useMemo(() => new Set(huntItems), [huntItems]);
   const selectedNamesSet = useMemo(
     () => new Set(selectedRows.map((row) => row.Name)),
-    [selectedRows]
+    [selectedRows],
   );
   const rowSelectionModel = useMemo(() => selectedRows.map((row) => row.Name), [selectedRows]);
   const columns = useMemo(
@@ -148,7 +148,7 @@ function ShoppingItems() {
         },
       },
     ],
-    [huntItemsSet, selectedNamesSet]
+    [huntItemsSet, selectedNamesSet],
   );
 
   const processRowUpdate = React.useCallback(
@@ -165,7 +165,7 @@ function ShoppingItems() {
       }
       return newRow;
     },
-    [handlePriorityEdit, selectedNamesSet]
+    [handlePriorityEdit, selectedNamesSet],
   );
 
   const isCellEditable = React.useCallback(
@@ -173,7 +173,7 @@ function ShoppingItems() {
       if (params.field !== "Priority") return false;
       return selectedNamesSet.has(params.row.Name);
     },
-    [selectedNamesSet]
+    [selectedNamesSet],
   );
   const getRowClassName = React.useCallback(
     (params) => {
@@ -182,7 +182,7 @@ function ShoppingItems() {
       if (huntItemsSet.has(params.row.Name)) classes.push("hunt-row");
       return classes.join(" ");
     },
-    [huntItemsSet]
+    [huntItemsSet],
   );
 
   if (!shopping) {

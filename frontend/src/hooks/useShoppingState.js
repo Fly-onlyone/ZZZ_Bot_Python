@@ -28,7 +28,7 @@ export function useShoppingState(shopping) {
         shopping.Selected.map((name, index) => ({
           Name: name,
           Priority: index + DEFAULT_PRIORITY_OFFSET,
-        }))
+        })),
       );
     }
     if (shopping?.Hunt) {
@@ -66,7 +66,7 @@ export function useShoppingState(shopping) {
 
     // Auto-remove hunt items that are no longer selected for shopping
     setHuntItems((prevHuntItems) =>
-      prevHuntItems.filter((huntItem) => newSelection.includes(huntItem))
+      prevHuntItems.filter((huntItem) => newSelection.includes(huntItem)),
     );
   };
 

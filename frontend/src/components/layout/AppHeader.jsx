@@ -76,7 +76,7 @@ export default function AppHeader({ isMobile = false, onMenuClick }) {
       0%, 100% { box-shadow: ${GLOW.subtle(themeColors.glow)}; }
       50% { box-shadow: ${GLOW.strong(themeColors.glow)}; }
     `,
-    [themeColors.glow]
+    [themeColors.glow],
   );
 
   return (

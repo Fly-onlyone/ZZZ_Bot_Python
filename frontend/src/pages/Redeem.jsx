@@ -55,7 +55,7 @@ export default function Redeem() {
       itemId: id,
     });
     setRows((prevRows) =>
-      prevRows.map((row) => (row.id === id ? { ...row, state: !row.state } : row))
+      prevRows.map((row) => (row.id === id ? { ...row, state: !row.state } : row)),
     );
   };
 
@@ -119,7 +119,7 @@ export default function Redeem() {
           ) : null,
       },
     ],
-    []
+    [],
   );
 
   if (isLoading && redeemList.length === 0) {

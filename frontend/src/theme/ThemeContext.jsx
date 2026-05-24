@@ -7,7 +7,7 @@ import { DataLoader } from "../services";
  */
 function useReducedMotionPreference() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(
-    () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
+    () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
   );
 
   useEffect(() => {

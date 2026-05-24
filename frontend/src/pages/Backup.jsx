@@ -95,8 +95,8 @@ function DataSummary({ summary }) {
           {info.count !== undefined
             ? `${info.count} record(s)`
             : info["field_count"] !== undefined
-            ? `${info["field_count"]} field(s)`
-            : "-"}
+              ? `${info["field_count"]} field(s)`
+              : "-"}
         </TableCell>
       </TableRow>
     );

@@ -43,7 +43,7 @@ if (SENTRY_DSN && !window[SENTRY_INIT_KEY]) {
       Sentry.httpClientIntegration(),
     ],
     tracesSampleRate: parseFloat(
-      import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || DEFAULT_SAMPLE_RATE
+      import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || DEFAULT_SAMPLE_RATE,
     ),
     tracePropagationTargets: ["localhost", "127.0.0.1"],
     sendDefaultPii: false,
@@ -57,7 +57,7 @@ function ThemedApp() {
   // Create the theme based on the selected theme and system preference
   const theme = React.useMemo(
     () => createMuiTheme(themeName, prefersDarkMode, themeColors),
-    [prefersDarkMode, themeName, themeColors]
+    [prefersDarkMode, themeName, themeColors],
   );
 
   return (
@@ -120,5 +120,5 @@ root.render(
     >
       <App />
     </Sentry.ErrorBoundary>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

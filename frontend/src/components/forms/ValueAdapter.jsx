@@ -178,8 +178,8 @@ export default function ValueAdapter({
                 sectionKey,
                 resolvedSections[sectionKey],
                 index,
-                Object.keys(resolvedSections).length
-              )
+                Object.keys(resolvedSections).length,
+              ),
             )
           : renderStandaloneFields()}
       </div>

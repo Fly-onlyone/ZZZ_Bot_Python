@@ -128,7 +128,7 @@ export default function SortableSelectedItems({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   if (selectedRows.length === 0) return null;

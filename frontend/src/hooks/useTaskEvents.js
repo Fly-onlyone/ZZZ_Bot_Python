@@ -62,7 +62,7 @@ export default function useTaskEvents({ enabled = false } = {}) {
           for (const queryKey of TASK_REFRESH_QUERY_KEYS) {
             void queryClient.invalidateQueries({ queryKey });
           }
-        }
+        },
       );
 
       es.onerror = () => {
