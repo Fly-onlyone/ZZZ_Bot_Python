@@ -739,6 +739,11 @@ def test_wait_for_authenticated_event_home_times_out_when_home_never_stabilizes(
         def __exit__(self, exc_type, exc, tb):
             return False
 
+    # Production code times the polling loop with time.monotonic(), not wait counts.
+    # Advance a fake monotonic clock whenever the page is asked to wait, so the
+    # timeout fires deterministically after the expected number of iterations.
+    fake_clock = {"now": 0.0}
+
     class FakePage:
         url = "https://example.invalid/event"
 
@@ -765,7 +770,12 @@ def test_wait_for_authenticated_event_home_times_out_when_home_never_stabilizes(
 
         def wait_for_timeout(self, timeout):
             self.waits.append(timeout)
+            fake_clock["now"] += timeout / 1000
 
+    monkeypatch.setattr(
+        "automation.EventNavigator.time.monotonic",
+        lambda: fake_clock["now"],
+    )
     monkeypatch.setattr(
         "automation.EventNavigator.save_page_screenshot",
         lambda *_args, **_kwargs: "screenshot:event_timeout",
