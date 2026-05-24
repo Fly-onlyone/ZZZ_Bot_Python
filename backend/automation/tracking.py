@@ -9,7 +9,12 @@ from typing import Optional
 
 from playwright.sync_api import Locator, Page
 
-_LOCATOR_SELECTOR_RE = re.compile(r" selector=(?P<selector>'(?:\\.|[^'])*'|\"(?:\\.|[^\"])*\")>$")
+# Quoted-string alternations exclude backslash from the negated class so the
+# two branches (`\\.` and `[^...]`) cannot match the same input — prevents
+# exponential backtracking on crafted inputs (CodeQL py/redos).
+_LOCATOR_SELECTOR_RE = re.compile(
+    r" selector=(?P<selector>'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\")>$"
+)
 
 
 def extract_selector(locator: Locator) -> str:

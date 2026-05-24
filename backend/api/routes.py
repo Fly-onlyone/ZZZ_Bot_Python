@@ -794,6 +794,11 @@ _LOG_PATTERN = re.compile(
     r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - (.+?) - (DEBUG|INFO|WARNING|ERROR|CRITICAL) - (.*)"
 )
 
+# TimedRotatingFileHandler rotates with a YYYY-MM-DD suffix; reject any other
+# shape up front so the query string can't influence the resolved log path
+# (defense in depth alongside the .resolve()/.relative_to() check below).
+_LOG_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
 
 def _get_log_dir() -> Path:
     """Return the log directory for the current run mode."""
@@ -834,6 +839,8 @@ def get_logs(
 
     # Determine which file to read
     if log_date:
+        if not _LOG_DATE_RE.match(log_date):
+            return JSONResponse({"message": "Invalid date"}, status_code=400)
         target_file = (log_dir / f"app.log.{log_date}").resolve()
         # Security: resolved path must stay inside the log directory
         try:
