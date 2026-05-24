@@ -3,7 +3,6 @@ import { Alert, Typography } from "@mui/material";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import { EmptyState, RunningStatusSkeleton } from "../components";
 import { motion } from "framer-motion";
-import React from "react";
 import { DateTimeField } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { useThemeContext } from "../theme/ThemeContext";
@@ -46,11 +45,7 @@ export default function RunningStatus() {
 
   if (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return (
-      <Alert severity="error">
-        Failed to fetch mission data: {errorMessage}
-      </Alert>
-    );
+    return <Alert severity="error">Failed to fetch mission data: {errorMessage}</Alert>;
   }
   if (!data) {
     return <RunningStatusSkeleton />;

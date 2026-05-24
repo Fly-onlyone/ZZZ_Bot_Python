@@ -6,7 +6,8 @@ Provides robust retry mechanisms for element interactions and visibility checks.
 import logging
 from typing import Literal, Optional
 
-from playwright.sync_api import Locator, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import Locator
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from .tracking import safe_track_locator
 
@@ -50,14 +51,10 @@ def retry_until_screen_appears(
                 logger.info(f"Target screen appeared on attempt {attempt}")
                 return True
 
-            logger.debug(
-                f"Attempt {attempt}/{max_retries}: Target screen not visible, retrying..."
-            )
+            logger.debug(f"Attempt {attempt}/{max_retries}: Target screen not visible, retrying...")
 
         except PlaywrightTimeoutError:
-            logger.warning(
-                f"Attempt {attempt}/{max_retries}: Timeout waiting for button or screen"
-            )
+            logger.warning(f"Attempt {attempt}/{max_retries}: Timeout waiting for button or screen")
         except Exception as e:
             logger.warning(f"Attempt {attempt}/{max_retries}: Unexpected error: {e}")
 
@@ -131,18 +128,14 @@ def retry_until_non_zero_count(
             count = locator.count()
 
             if count > 0:
-                logger.info(
-                    f"Non-zero count found: {count} (attempt {attempt}/{max_retries})"
-                )
+                logger.info(f"Non-zero count found: {count} (attempt {attempt}/{max_retries})")
                 safe_track_locator(locator, "RetryHelper", "count", True)
                 return count
 
             logger.debug(f"Attempt {attempt}/{max_retries}: Count is 0, retrying...")
 
         except Exception as e:
-            logger.error(
-                f"Attempt {attempt}/{max_retries}: Error counting elements: {e}"
-            )
+            logger.error(f"Attempt {attempt}/{max_retries}: Error counting elements: {e}")
 
         # Wait before next retry (skip on last attempt)
         if attempt < max_retries:
@@ -184,9 +177,7 @@ def wait_for_element(
         safe_track_locator(locator, "RetryHelper", "wait_for", True)
         return True
     except PlaywrightTimeoutError:
-        logger.warning(
-            f"{element_desc} did not reach state '{state}' within {timeout}ms"
-        )
+        logger.warning(f"{element_desc} did not reach state '{state}' within {timeout}ms")
         safe_track_locator(
             locator,
             "RetryHelper",
@@ -197,7 +188,5 @@ def wait_for_element(
         return False
     except Exception as e:
         logger.error(f"Error waiting for {element_desc}: {e}")
-        safe_track_locator(
-            locator, "RetryHelper", "wait_for", False, error_message=str(e)
-        )
+        safe_track_locator(locator, "RetryHelper", "wait_for", False, error_message=str(e))
         return False

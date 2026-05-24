@@ -48,8 +48,7 @@ const DEFAULT_PAGE_SIZE = 50;
 async function fetchLogs({ date, levels, search, page }) {
   const params = new URLSearchParams();
   if (date) params.set("date", date);
-  if (levels.length > 0 && levels.length < LEVELS.length)
-    params.set("level", levels.join(","));
+  if (levels.length > 0 && levels.length < LEVELS.length) params.set("level", levels.join(","));
   if (search) params.set("search", search);
   params.set("limit", String(DEFAULT_PAGE_SIZE));
   params.set("offset", String((page - 1) * DEFAULT_PAGE_SIZE));
@@ -88,13 +87,7 @@ export default function Logs() {
   }, [selectedFile, selectedLevels, debouncedSearch]);
 
   const { data, error, isLoading, refetch, isFetching } = useQuery({
-    queryKey: [
-      "logs",
-      selectedFile,
-      selectedLevels.join(","),
-      debouncedSearch,
-      page,
-    ],
+    queryKey: ["logs", selectedFile, selectedLevels.join(","), debouncedSearch, page],
     queryFn: () =>
       fetchLogs({
         date: selectedFile || null,
@@ -152,9 +145,7 @@ export default function Logs() {
         sx={{
           backgroundColor: active ? `${LEVEL_COLORS[lvl]}33` : "transparent",
           color: active ? LEVEL_COLORS[lvl] : COMMON_COLORS.text.muted,
-          border: `1px solid ${
-            active ? LEVEL_COLORS[lvl] : COMMON_COLORS.text.muted
-          }66`,
+          border: `1px solid ${active ? LEVEL_COLORS[lvl] : COMMON_COLORS.text.muted}66`,
           fontWeight: 600,
           fontSize: "0.7rem",
           cursor: "pointer",
@@ -250,9 +241,7 @@ export default function Logs() {
           </FormControl>
 
           {/* Level toggle chips */}
-          <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-            {levelFilterChips}
-          </Box>
+          <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>{levelFilterChips}</Box>
 
           {/* Search input */}
           <TextField
@@ -264,9 +253,7 @@ export default function Logs() {
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon
-                      sx={{ fontSize: 18, color: COMMON_COLORS.text.muted }}
-                    />
+                    <SearchIcon sx={{ fontSize: 18, color: COMMON_COLORS.text.muted }} />
                   </InputAdornment>
                 ),
               },
@@ -275,9 +262,7 @@ export default function Logs() {
           />
 
           {/* Auto-refresh toggle + manual refresh */}
-          <Box
-            sx={{ display: "flex", alignItems: "center", gap: 1, ml: "auto" }}
-          >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: "auto" }}>
             <FormControlLabel
               control={
                 <Switch
@@ -287,10 +272,7 @@ export default function Logs() {
                 />
               }
               label={
-                <Typography
-                  variant="caption"
-                  sx={{ color: COMMON_COLORS.text.muted }}
-                >
+                <Typography variant="caption" sx={{ color: COMMON_COLORS.text.muted }}>
                   Auto
                 </Typography>
               }
@@ -324,10 +306,7 @@ export default function Logs() {
           }}
         >
           {levelSummaryChips}
-          <Typography
-            variant="caption"
-            sx={{ color: COMMON_COLORS.text.muted, ml: 1 }}
-          >
+          <Typography variant="caption" sx={{ color: COMMON_COLORS.text.muted, ml: 1 }}>
             {total} total
           </Typography>
         </Box>
@@ -352,10 +331,7 @@ export default function Logs() {
             minHeight: 0,
           }}
         >
-          <Box
-            component="table"
-            sx={{ width: "100%", borderCollapse: "collapse" }}
-          >
+          <Box component="table" sx={{ width: "100%", borderCollapse: "collapse" }}>
             {/* Table head — sticky so columns stay visible while scrolling */}
             <Box
               component="thead"
@@ -436,10 +412,7 @@ export default function Logs() {
                     </Box>
 
                     {/* Level chip */}
-                    <Box
-                      component="td"
-                      sx={{ px: 2, py: 1.5, whiteSpace: "nowrap" }}
-                    >
+                    <Box component="td" sx={{ px: 2, py: 1.5, whiteSpace: "nowrap" }}>
                       <Chip
                         label={entry.level}
                         size="small"

@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import { memo } from "react";
 import { useThemeContext } from "../../theme/ThemeContext";
 
 /**
@@ -60,9 +60,7 @@ const AuroraBackground = memo(function AuroraBackground() {
             borderRadius: "50%",
             background: `radial-gradient(ellipse at center, ${aurora[0]}80 0%, ${aurora[0]}35 40%, transparent 70%)`,
             filter: "blur(40px)",
-            animation: prefersReducedMotion
-              ? "none"
-              : "auroraShift1 12s ease-in-out infinite",
+            animation: prefersReducedMotion ? "none" : "auroraShift1 12s ease-in-out infinite",
             willChange: "transform",
           }}
         />
@@ -77,9 +75,7 @@ const AuroraBackground = memo(function AuroraBackground() {
             borderRadius: "50%",
             background: `radial-gradient(ellipse at center, ${aurora[1]}70 0%, ${aurora[1]}2A 40%, transparent 70%)`,
             filter: "blur(45px)",
-            animation: prefersReducedMotion
-              ? "none"
-              : "auroraShift2 15s ease-in-out infinite",
+            animation: prefersReducedMotion ? "none" : "auroraShift2 15s ease-in-out infinite",
             willChange: "transform",
           }}
         />
@@ -94,9 +90,7 @@ const AuroraBackground = memo(function AuroraBackground() {
             borderRadius: "50%",
             background: `radial-gradient(ellipse at center, ${aurora[2]}65 0%, ${aurora[2]}25 40%, transparent 70%)`,
             filter: "blur(40px)",
-            animation: prefersReducedMotion
-              ? "none"
-              : "auroraShift3 18s ease-in-out infinite",
+            animation: prefersReducedMotion ? "none" : "auroraShift3 18s ease-in-out infinite",
             willChange: "transform",
           }}
         />
@@ -109,7 +103,9 @@ const AuroraBackground = memo(function AuroraBackground() {
             width: "45%",
             height: "40%",
             borderRadius: "50%",
-            background: `radial-gradient(ellipse at center, ${aurora[3] || aurora[0]}50 0%, transparent 65%)`,
+            background: `radial-gradient(ellipse at center, ${
+              aurora[3] || aurora[0]
+            }50 0%, transparent 65%)`,
             filter: "blur(50px)",
             animation: prefersReducedMotion
               ? "none"

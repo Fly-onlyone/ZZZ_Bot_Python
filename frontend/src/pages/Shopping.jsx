@@ -5,12 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import { DataLoader } from "../services";
-import {
-  EmptyState,
-  SaveButton,
-  ShoppingSkeleton,
-  SortableSelectedItems,
-} from "../components";
+import { EmptyState, SaveButton, ShoppingSkeleton, SortableSelectedItems } from "../components";
 import { useShoppingState } from "../hooks";
 import { logError, logInfo, logWarn } from "../services/sentryLogger.js";
 import { useThemeContext } from "../theme/ThemeContext";
@@ -79,9 +74,7 @@ function ShoppingItems() {
       return [];
     }
 
-    const priorityMap = new Map(
-      selectedRows.map((row) => [row.Name, row.Priority])
-    );
+    const priorityMap = new Map(selectedRows.map((row) => [row.Name, row.Priority]));
     return [
       ...purchasedItems.map((itemName) => ({
         id: itemName,
@@ -108,10 +101,7 @@ function ShoppingItems() {
     () => new Set(selectedRows.map((row) => row.Name)),
     [selectedRows]
   );
-  const rowSelectionModel = useMemo(
-    () => selectedRows.map((row) => row.Name),
-    [selectedRows]
-  );
+  const rowSelectionModel = useMemo(() => selectedRows.map((row) => row.Name), [selectedRows]);
   const columns = useMemo(
     () => [
       { field: "Name", headerName: "Name", flex: 2 },
@@ -133,8 +123,7 @@ function ShoppingItems() {
         flex: 0.8,
         type: "number",
         editable: true,
-        renderCell: (params) =>
-          selectedNamesSet.has(params.row.Name) ? params.value : "—",
+        renderCell: (params) => (selectedNamesSet.has(params.row.Name) ? params.value : "—"),
       },
       {
         field: "Hunt",
@@ -255,12 +244,7 @@ function ShoppingItems() {
   return (
     <Box sx={{ p: 4 }}>
       {/* Header Section */}
-      <Grid2
-        container
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
+      <Grid2 container justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Typography variant="h6">Point: {shopping.Point}</Typography>
         <Typography variant="h6">
           Duration: {durationStart} - {durationEnd}
@@ -286,9 +270,7 @@ function ShoppingItems() {
           rowSelectionModel={rowSelectionModel}
           onRowSelectionModelChange={handleRowSelectionChange}
           processRowUpdate={processRowUpdate}
-          onProcessRowUpdateError={(error) =>
-            logError("DataGrid row update failed", error)
-          }
+          onProcessRowUpdateError={(error) => logError("DataGrid row update failed", error)}
           isCellEditable={isCellEditable}
           getRowClassName={getRowClassName}
           rowBufferPx={60}

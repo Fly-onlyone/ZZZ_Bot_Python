@@ -9,9 +9,7 @@ from typing import Optional
 
 from playwright.sync_api import Locator, Page
 
-_LOCATOR_SELECTOR_RE = re.compile(
-    r" selector=(?P<selector>'(?:\\.|[^'])*'|\"(?:\\.|[^\"])*\")>$"
-)
+_LOCATOR_SELECTOR_RE = re.compile(r" selector=(?P<selector>'(?:\\.|[^'])*'|\"(?:\\.|[^\"])*\")>$")
 
 
 def extract_selector(locator: Locator) -> str:

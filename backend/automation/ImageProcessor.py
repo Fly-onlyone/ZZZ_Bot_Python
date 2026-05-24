@@ -7,23 +7,23 @@ using OpenCV for browser automation.
 import base64
 import logging
 import os
-from typing import Union, Optional
+from typing import Optional, Union
 from urllib.parse import urljoin
 
 import cv2
 import numpy as np
 import requests
-from playwright.sync_api import Locator, Page
-
-from core.GlobalVar import CONFIG, resource_path
 from core.constants import (
-    IMAGE_MATCH_THRESHOLD,
-    IMAGE_BINARY_THRESHOLD,
+    HTTP_MAX_RETRIES,
     HTTP_POOL_CONNECTIONS,
     HTTP_POOL_MAX_SIZE,
-    HTTP_MAX_RETRIES,
     HTTP_REQUEST_TIMEOUT,
+    IMAGE_BINARY_THRESHOLD,
+    IMAGE_MATCH_THRESHOLD,
 )
+from core.GlobalVar import CONFIG, resource_path
+from playwright.sync_api import Locator, Page
+
 from . import RetryHelper
 
 logger = logging.getLogger(__name__)
@@ -104,9 +104,7 @@ def compare_images(arg1: ImageType, arg2: ImageType) -> float:
     gray_diff = cv2.cvtColor(difference, cv2.COLOR_BGR2GRAY)
 
     # Apply binary threshold
-    _, threshold_diff = cv2.threshold(
-        gray_diff, IMAGE_BINARY_THRESHOLD, 255, cv2.THRESH_BINARY
-    )
+    _, threshold_diff = cv2.threshold(gray_diff, IMAGE_BINARY_THRESHOLD, 255, cv2.THRESH_BINARY)
 
     # Calculate difference percentage
     non_zero_count = np.count_nonzero(threshold_diff)
@@ -370,9 +368,7 @@ def find_correct_lottery_logo(page: Page):
 
     # Save diagnostics for reference update
     if best_img is not None:
-        logo_path = resource_path(
-            "screenshot/lottery_logo_mismatch.png", outside_path=True
-        )
+        logo_path = resource_path("screenshot/lottery_logo_mismatch.png", outside_path=True)
         cv2.imwrite(logo_path, best_img)
     if last_error is not None:
         logger.warning(
@@ -409,9 +405,7 @@ def detect_reward(page: Page, img_locator: Locator):
         target_img = fetch_image_from_locator(page, img_locator)
 
         # Get list of available reward images
-        reward_images = [
-            f for f in os.listdir(CONFIG["REWARD_FOLDER"]) if f.endswith(".png")
-        ]
+        reward_images = [f for f in os.listdir(CONFIG["REWARD_FOLDER"]) if f.endswith(".png")]
 
         if not reward_images:
             raise ValueError("No reward images found in the configured reward folder.")
@@ -419,9 +413,7 @@ def detect_reward(page: Page, img_locator: Locator):
         best_match_name = "Unknown reward"
         best_match_diff = float("inf")
 
-        logger.debug(
-            f"Comparing reward image against {len(reward_images)} reference images..."
-        )
+        logger.debug(f"Comparing reward image against {len(reward_images)} reference images...")
 
         for reward_img_name in reward_images:
             reward_img_path = os.path.join(CONFIG["REWARD_FOLDER"], reward_img_name)
@@ -437,9 +429,7 @@ def detect_reward(page: Page, img_locator: Locator):
 
         # Return best match if within 5% threshold (consistent with button detection)
         if best_match_diff < IMAGE_MATCH_THRESHOLD:
-            logger.info(
-                f"Reward detected: '{best_match_name}' ({best_match_diff:.2f}% difference)"
-            )
+            logger.info(f"Reward detected: '{best_match_name}' ({best_match_diff:.2f}% difference)")
             return best_match_name
         else:
             logger.warning(

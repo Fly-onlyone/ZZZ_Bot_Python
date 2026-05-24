@@ -8,7 +8,6 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-
 # ============================================================================
 # ENUMS
 # ============================================================================
@@ -159,9 +158,7 @@ class EventDuration:
         """Check if current time is within event duration."""
         try:
             current_year = datetime.now().year
-            start_date = datetime.strptime(self.start, "%d/%m").replace(
-                year=current_year
-            )
+            start_date = datetime.strptime(self.start, "%d/%m").replace(year=current_year)
             end_date = datetime.strptime(self.end, "%d/%m").replace(year=current_year)
             current_time = datetime.now()
             return start_date <= current_time <= end_date

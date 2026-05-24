@@ -17,7 +17,8 @@ IS_WINDOWS = platform.system() == "Windows"
 # Import appropriate notification library
 if IS_WINDOWS:
     try:
-        from winotify import Notification as WinNotification, audio
+        from winotify import Notification as WinNotification
+        from winotify import audio
 
         WINOTIFY_AVAILABLE = True
         logger.info("Using winotify for persistent Windows notifications")

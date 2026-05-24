@@ -49,8 +49,7 @@ export default function useTaskEvents({ enabled = false } = {}) {
         /** @param {MessageEvent<string>} messageEvent */ (messageEvent) => {
           let payload;
           try {
-            const eventData =
-              typeof messageEvent.data === "string" ? messageEvent.data : "{}";
+            const eventData = typeof messageEvent.data === "string" ? messageEvent.data : "{}";
             payload = JSON.parse(eventData);
           } catch {
             payload = {};
@@ -77,10 +76,7 @@ export default function useTaskEvents({ enabled = false } = {}) {
         });
 
         reconnectTimer = setTimeout(() => {
-          reconnectDelay.current = Math.min(
-            reconnectDelay.current * 2,
-            MAX_RECONNECT_DELAY
-          );
+          reconnectDelay.current = Math.min(reconnectDelay.current * 2, MAX_RECONNECT_DELAY);
           connect();
         }, reconnectDelay.current);
       };

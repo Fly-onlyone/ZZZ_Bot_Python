@@ -13,8 +13,7 @@
  * Backend API base URL
  * Uses environment variable if available, falls back to localhost
  */
-export const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000";
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000";
 
 // ============================================================================
 // CACHE/STALE TIME CONFIGURATION (milliseconds)
@@ -83,4 +82,3 @@ export const API_RETRY_COUNT = 2;
  * Keywords to detect password fields for special rendering
  */
 export const PASSWORD_FIELD_KEYWORDS = ["password"];
-

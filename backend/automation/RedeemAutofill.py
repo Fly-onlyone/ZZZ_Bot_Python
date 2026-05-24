@@ -1,13 +1,13 @@
+import logging
 from datetime import datetime
 from pathlib import Path
-import logging
-
-from playwright.sync_api import BrowserContext
 
 from core.GlobalVar import CONFIG, settings
+from playwright.sync_api import BrowserContext
 from utils import NotificationHelper
 from utils.DataHandler import save_redeem_data
 from utils.storage_state_store import save_context_storage_state
+
 from . import AutoLogin, RetryHelper
 
 logger = logging.getLogger(__name__)
@@ -155,15 +155,11 @@ def run(context: BrowserContext, code, item_name):
 
             if redeem_page.get_by_text("Please Log in to Redeem").is_visible():
                 logger.info("Redeem page requires login for '%s'", item_name)
-                login_screen = redeem_page.locator(
-                    "#hyv-account-frame"
-                ).content_frame.get_by_text("Account Log In")
-                server_select_button = redeem_page.locator(
-                    ".web-cdkey-form__select--toggle"
+                login_screen = redeem_page.locator("#hyv-account-frame").content_frame.get_by_text(
+                    "Account Log In"
                 )
-                if RetryHelper.retry_until_screen_appears(
-                    login_screen, server_select_button
-                ):
+                server_select_button = redeem_page.locator(".web-cdkey-form__select--toggle")
+                if RetryHelper.retry_until_screen_appears(login_screen, server_select_button):
                     logger.info("Attempting automatic redeem login for '%s'", item_name)
                     AutoLogin.run(redeem_page)
                     if _redeem_requires_manual_login(redeem_page):
@@ -180,12 +176,11 @@ def run(context: BrowserContext, code, item_name):
                         logger.info("Selected Asia server for '%s'", item_name)
                     elif any(
                         (
+                            _is_text_visible(redeem_page.get_by_text("Please Log in to Redeem")),
                             _is_text_visible(
-                                redeem_page.get_by_text("Please Log in to Redeem")
-                            ),
-                            _is_text_visible(
-                                redeem_page.locator("#hyv-account-frame")
-                                .content_frame.get_by_text("Account Log In")
+                                redeem_page.locator("#hyv-account-frame").content_frame.get_by_text(
+                                    "Account Log In"
+                                )
                             ),
                         )
                     ):

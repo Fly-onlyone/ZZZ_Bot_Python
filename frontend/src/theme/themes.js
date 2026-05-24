@@ -17,8 +17,7 @@ export const THEME_COLORS = {
     gradients: {
       primary: "linear-gradient(135deg, #7c3aed 0%, #d946ef 100%)",
       primaryLight: "linear-gradient(135deg, #8b5cf6 0%, #e879f9 100%)",
-      header:
-        "linear-gradient(135deg, rgba(124, 58, 237, 0.25) 0%, rgba(217, 70, 239, 0.25) 100%)", // Increased opacity
+      header: "linear-gradient(135deg, rgba(124, 58, 237, 0.25) 0%, rgba(217, 70, 239, 0.25) 100%)", // Increased opacity
       background: "linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)", // Slightly lighter start
       backgroundSubtle:
         "linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(217, 70, 239, 0.1) 100%)", // Increased opacity
@@ -47,8 +46,7 @@ export const THEME_COLORS = {
     gradients: {
       primary: "linear-gradient(135deg, #059669 0%, #84cc16 100%)",
       primaryLight: "linear-gradient(135deg, #34d399 0%, #a3e635 100%)",
-      header:
-        "linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(132, 204, 22, 0.2) 100%)", // Reduced opacity for balance
+      header: "linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(132, 204, 22, 0.2) 100%)", // Reduced opacity for balance
       background: "linear-gradient(180deg, #022c22 0%, #0f172a 100%)", // Deep pine (darker) to slate
       backgroundSubtle:
         "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(132, 204, 22, 0.05) 100%)", // Reduced opacity
@@ -77,8 +75,7 @@ export const THEME_COLORS = {
     gradients: {
       primary: "linear-gradient(135deg, #0284c7 0%, #6366f1 100%)",
       primaryLight: "linear-gradient(135deg, #38bdf8 0%, #818cf8 100%)",
-      header:
-        "linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(99, 102, 241, 0.25) 100%)", // Increased opacity
+      header: "linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(99, 102, 241, 0.25) 100%)", // Increased opacity
       background: "linear-gradient(180deg, #172554 0%, #0f172a 100%)", // Slightly lighter start
       backgroundSubtle:
         "linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%)", // Increased opacity
@@ -106,8 +103,7 @@ export const THEME_COLORS = {
     gradients: {
       primary: "linear-gradient(135deg, #d946ef 0%, #06b6d4 100%)",
       primaryLight: "linear-gradient(135deg, #f0abfc 0%, #67e8f9 100%)",
-      header:
-        "linear-gradient(135deg, rgba(217, 70, 239, 0.25) 0%, rgba(6, 182, 212, 0.25) 100%)", // Increased opacity
+      header: "linear-gradient(135deg, rgba(217, 70, 239, 0.25) 0%, rgba(6, 182, 212, 0.25) 100%)", // Increased opacity
       background: "linear-gradient(180deg, #2e1065 0%, #0f172a 100%)", // Slightly lighter start
       backgroundSubtle:
         "linear-gradient(135deg, rgba(217, 70, 239, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%)", // Increased opacity

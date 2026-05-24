@@ -1,11 +1,5 @@
 import React, { Suspense, useEffect, useRef, useState } from "react";
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-} from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import {
   Box,
   CircularProgress,
@@ -266,11 +260,7 @@ function PermanentDrawerContent() {
   }, [healthData?.status, isBackendReady]);
 
   useEffect(() => {
-    if (
-      !backendHealthError ||
-      isBackendHealthLoading ||
-      isBackendHealthFetching
-    ) {
+    if (!backendHealthError || isBackendHealthLoading || isBackendHealthFetching) {
       return;
     }
 
@@ -298,10 +288,7 @@ function PermanentDrawerContent() {
         }}
       >
         <CssBaseline />
-        <AppHeader
-          isMobile={isMobile}
-          onMenuClick={() => setMobileDrawerOpen(true)}
-        />
+        <AppHeader isMobile={isMobile} onMenuClick={() => setMobileDrawerOpen(true)} />
         <NavigationDrawer
           isMobile={isMobile}
           open={mobileDrawerOpen}

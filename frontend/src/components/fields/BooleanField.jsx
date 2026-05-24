@@ -1,4 +1,3 @@
-import React from "react";
 import { Switch } from "@mui/material";
 import { motion } from "framer-motion";
 import { useThemeContext } from "../../theme/ThemeContext";

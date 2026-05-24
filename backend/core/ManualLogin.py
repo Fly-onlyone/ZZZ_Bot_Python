@@ -5,10 +5,10 @@ from enum import Enum
 from typing import Optional
 from urllib.parse import urlparse
 
-from playwright.sync_api import sync_playwright, Browser, BrowserContext, Page
-
+from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 from utils import NotificationHelper
 from utils.storage_state_store import build_context_options, save_context_storage_state
+
 from .GlobalVar import CONFIG
 
 logger = logging.getLogger(__name__)
@@ -69,9 +69,7 @@ class ManualLoginManager:
             old_state = self._state
             self._state = value
             if old_state != value:
-                logger.info(
-                    f"Session state changed: {old_state.value} -> {value.value}"
-                )
+                logger.info(f"Session state changed: {old_state.value} -> {value.value}")
 
     @property
     def is_running(self) -> bool:
@@ -171,9 +169,7 @@ class ManualLoginManager:
         """
         import sentry_sdk
 
-        with sentry_sdk.start_transaction(
-            op="manual.login", name="manual-login-session"
-        ):
+        with sentry_sdk.start_transaction(op="manual.login", name="manual-login-session"):
             self._run_session(url)
 
     def _run_session(self, url: str):
@@ -219,9 +215,7 @@ class ManualLoginManager:
 
                         # Check if page is closed
                         if self._page.is_closed():
-                            logger.info(
-                                "✓ Detection method: page.is_closed() returned True"
-                            )
+                            logger.info("✓ Detection method: page.is_closed() returned True")
                             browser_closed_manually = True
                             break
 
@@ -252,9 +246,7 @@ class ManualLoginManager:
                 # Always try to save session (even if browser was closed manually)
                 # Playwright may still have the session data in memory
                 if browser_closed_manually:
-                    logger.info(
-                        "Browser closed manually, attempting to save session..."
-                    )
+                    logger.info("Browser closed manually, attempting to save session...")
                 else:
                     logger.info("Stop button clicked, saving session...")
 
@@ -320,5 +312,3 @@ def get_manager() -> ManualLoginManager:
 def run(url: str):
     """Legacy run function for backward compatibility."""
     _manager.run(url)
-
-

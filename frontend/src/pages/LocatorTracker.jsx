@@ -111,9 +111,7 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
     enabled: isExpanded,
   });
 
-  const childScanRoute = `locator-tracker/child-scan/${encodeURIComponent(
-    entry.id
-  )}`;
+  const childScanRoute = `locator-tracker/child-scan/${encodeURIComponent(entry.id)}`;
   const { data: childScanData } = useRouteData(childScanRoute, {
     queryKey: ["locator-tracker/child-scan", entry.id],
     enabled: isExpanded,
@@ -157,23 +155,15 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
       </Box>
 
       {/* Screenshots */}
-      {(entry.page_asset_id ||
-        entry.locator_asset_id ||
-        entry.dom_snapshot_asset_id) && (
+      {(entry.page_asset_id || entry.locator_asset_id || entry.dom_snapshot_asset_id) && (
         <Box>
-          <Typography
-            variant="subtitle2"
-            sx={{ color: COMMON_COLORS.text.muted, mb: 1 }}
-          >
+          <Typography variant="subtitle2" sx={{ color: COMMON_COLORS.text.muted, mb: 1 }}>
             Screenshots
           </Typography>
           <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
             {entry.page_asset_id && (
               <Tooltip title="Full page screenshot" arrow>
-                <IconButton
-                  size="small"
-                  onClick={() => onOpenScreenshot(entry.page_asset_id)}
-                >
+                <IconButton size="small" onClick={() => onOpenScreenshot(entry.page_asset_id)}>
                   <img
                     src={assetUrl(entry.page_asset_id)}
                     alt="Page"
@@ -191,10 +181,7 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
             )}
             {entry.locator_asset_id && (
               <Tooltip title="Element screenshot" arrow>
-                <IconButton
-                  size="small"
-                  onClick={() => onOpenScreenshot(entry.locator_asset_id)}
-                >
+                <IconButton size="small" onClick={() => onOpenScreenshot(entry.locator_asset_id)}>
                   <img
                     src={assetUrl(entry.locator_asset_id)}
                     alt="Element"
@@ -212,13 +199,8 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
             )}
             {entry.dom_snapshot_asset_id && (
               <Tooltip title="DOM snapshot" arrow>
-                <IconButton
-                  size="small"
-                  onClick={() => onOpenDom(entry.dom_snapshot_asset_id)}
-                >
-                  <DescriptionIcon
-                    sx={{ color: themeColors.primary.main, fontSize: 32 }}
-                  />
+                <IconButton size="small" onClick={() => onOpenDom(entry.dom_snapshot_asset_id)}>
+                  <DescriptionIcon sx={{ color: themeColors.primary.main, fontSize: 32 }} />
                 </IconButton>
               </Tooltip>
             )}
@@ -229,10 +211,7 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
       {/* Failure History */}
       {failureRows.length > 0 && (
         <Box>
-          <Typography
-            variant="subtitle2"
-            sx={{ color: COMMON_COLORS.text.muted, mb: 1 }}
-          >
+          <Typography variant="subtitle2" sx={{ color: COMMON_COLORS.text.muted, mb: 1 }}>
             Failure History ({failureRows.length})
           </Typography>
           <Box
@@ -256,13 +235,13 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
                   borderRadius: 1,
                   backgroundColor: "rgba(244, 67, 54, 0.05)",
                 }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{ minWidth: 60, color: COMMON_COLORS.text.muted }}
                 >
-                  <Typography
-                    variant="caption"
-                    sx={{ minWidth: 60, color: COMMON_COLORS.text.muted }}
-                  >
-                    {relativeTime(f.seen_at)}
-                  </Typography>
+                  {relativeTime(f.seen_at)}
+                </Typography>
                 <Chip
                   label={formatCaptureMode(f.capture_mode)}
                   size="small"
@@ -287,26 +266,17 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
                   </Typography>
                 </Tooltip>
                 {f.page_asset_id && (
-                  <Button
-                    size="small"
-                    onClick={() => onOpenScreenshot(f.page_asset_id)}
-                  >
+                  <Button size="small" onClick={() => onOpenScreenshot(f.page_asset_id)}>
                     Page
                   </Button>
                 )}
                 {f.locator_asset_id && (
-                  <Button
-                    size="small"
-                    onClick={() => onOpenScreenshot(f.locator_asset_id)}
-                  >
+                  <Button size="small" onClick={() => onOpenScreenshot(f.locator_asset_id)}>
                     Element
                   </Button>
                 )}
                 {f.dom_snapshot_asset_id && (
-                  <Button
-                    size="small"
-                    onClick={() => onOpenDom(f.dom_snapshot_asset_id)}
-                  >
+                  <Button size="small" onClick={() => onOpenDom(f.dom_snapshot_asset_id)}>
                     DOM
                   </Button>
                 )}
@@ -320,13 +290,8 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
       {childScan.length > 0 && (
         <Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-            <GridViewIcon
-              sx={{ color: COMMON_COLORS.text.muted, fontSize: 18 }}
-            />
-            <Typography
-              variant="subtitle2"
-              sx={{ color: COMMON_COLORS.text.muted }}
-            >
+            <GridViewIcon sx={{ color: COMMON_COLORS.text.muted, fontSize: 18 }} />
+            <Typography variant="subtitle2" sx={{ color: COMMON_COLORS.text.muted }}>
               Page Elements ({childScan.length})
             </Typography>
           </Box>
@@ -380,9 +345,7 @@ function DetailPanel({ entry, useRouteData, onOpenScreenshot, onOpenDom }) {
               sx={{ mt: 1, alignSelf: "flex-start" }}
               onClick={() => setShowAllChildren((value) => !value)}
             >
-              {showAllChildren
-                ? "Show fewer elements"
-                : `Show all ${childScan.length} elements`}
+              {showAllChildren ? "Show fewer elements" : `Show all ${childScan.length} elements`}
             </Button>
           )}
         </Box>
@@ -435,10 +398,8 @@ export default function LocatorTracker() {
 
   const filteredEntries = useMemo(() => {
     let result = entryRows;
-    if (handlerFilter)
-      result = result.filter((entry) => entry.handler === handlerFilter);
-    if (failuresOnly)
-      result = result.filter((entry) => entry.failure_count > 0);
+    if (handlerFilter) result = result.filter((entry) => entry.handler === handlerFilter);
+    if (failuresOnly) result = result.filter((entry) => entry.failure_count > 0);
 
     result = [...result].sort((a, b) => {
       let aVal = a[sortField];
@@ -492,10 +453,7 @@ export default function LocatorTracker() {
   }, [failuresOnly, handlerFilter, sortDir, sortField]);
 
   React.useEffect(() => {
-    if (
-      expandedId &&
-      !visibleEntries.some((entry) => entry.id === expandedId)
-    ) {
+    if (expandedId && !visibleEntries.some((entry) => entry.id === expandedId)) {
       setExpandedId("");
     }
   }, [expandedId, visibleEntries]);
@@ -503,17 +461,14 @@ export default function LocatorTracker() {
   if (error) {
     return (
       <Alert severity="error">
-        Failed to load locator data:{" "}
-        {error instanceof Error ? error.message : String(error)}
+        Failed to load locator data: {error instanceof Error ? error.message : String(error)}
       </Alert>
     );
   }
 
   if (isLoading || !entries) {
     return (
-      <Typography
-        sx={{ color: COMMON_COLORS.text.muted, textAlign: "center", mt: 4 }}
-      >
+      <Typography sx={{ color: COMMON_COLORS.text.muted, textAlign: "center", mt: 4 }}>
         Loading locator data...
       </Typography>
     );
@@ -521,9 +476,7 @@ export default function LocatorTracker() {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-      <Box
-        sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}
-      >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel>Handler</InputLabel>
           <Select
@@ -618,16 +571,10 @@ export default function LocatorTracker() {
                 return (
                   <React.Fragment key={entry.id}>
                     <TableRow
-                      onClick={() =>
-                        setExpandedId((cur) =>
-                          cur === entry.id ? "" : entry.id
-                        )
-                      }
+                      onClick={() => setExpandedId((cur) => (cur === entry.id ? "" : entry.id))}
                       sx={{
                         cursor: "pointer",
-                        backgroundColor: isOpen
-                          ? `${themeColors.primary.main}15`
-                          : "transparent",
+                        backgroundColor: isOpen ? `${themeColors.primary.main}15` : "transparent",
                         "&:hover": {
                           backgroundColor: `${themeColors.primary.main}10`,
                         },
@@ -639,9 +586,7 @@ export default function LocatorTracker() {
                             fontSize: 18,
                             color: COMMON_COLORS.text.muted,
                             transition: "transform 0.2s",
-                            transform: isOpen
-                              ? "rotate(180deg)"
-                              : "rotate(0deg)",
+                            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
                           }}
                         />
                       </TableCell>
@@ -700,9 +645,7 @@ export default function LocatorTracker() {
                           {entry.last_capture_mode && (
                             <Chip
                               label={
-                                entry.last_capture_mode === "recovery"
-                                  ? "RECOVERY"
-                                  : "CAPTURED"
+                                entry.last_capture_mode === "recovery" ? "RECOVERY" : "CAPTURED"
                               }
                               size="small"
                               sx={{
@@ -715,9 +658,7 @@ export default function LocatorTracker() {
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">
-                          {entry.hit_count}
-                        </Typography>
+                        <Typography variant="body2">{entry.hit_count}</Typography>
                       </TableCell>
                       <TableCell>
                         <Tooltip title={entry.last_error || "-"} arrow>
@@ -736,10 +677,7 @@ export default function LocatorTracker() {
                       </TableCell>
                       <TableCell>
                         <Tooltip title={entry.last_seen || "-"} arrow>
-                          <Typography
-                            variant="body2"
-                            sx={{ fontSize: "0.75rem" }}
-                          >
+                          <Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
                             {relativeTime(entry.last_seen)}
                           </Typography>
                         </Tooltip>
@@ -785,11 +723,7 @@ export default function LocatorTracker() {
         </Box>
       )}
 
-      <Dialog
-        open={!!screenshotDialog}
-        onClose={() => setScreenshotDialog(null)}
-        maxWidth="lg"
-      >
+      <Dialog open={!!screenshotDialog} onClose={() => setScreenshotDialog(null)} maxWidth="lg">
         <DialogContent sx={{ p: 1 }}>
           {screenshotDialog ? (
             <img

@@ -40,9 +40,7 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
       styleOverrides: {
         body: {
           overflowX: "hidden",
-          scrollbarColor: prefersDarkMode
-            ? "#334155 #0f172a"
-            : "#cbd5e1 #f1f5f9",
+          scrollbarColor: prefersDarkMode ? "#334155 #0f172a" : "#cbd5e1 #f1f5f9",
           "&::-webkit-scrollbar, & *::-webkit-scrollbar": {
             width: "8px",
             height: "0px",
@@ -180,9 +178,7 @@ function createComponentOverrides(prefersDarkMode, themeColors) {
           backgroundImage: "none",
           transition: TRANSITIONS.cubic,
           "&.MuiMenu-paper": {
-            background: prefersDarkMode
-              ? "rgba(30, 41, 59, 0.8)"
-              : "rgba(255, 255, 255, 0.9)",
+            background: prefersDarkMode ? "rgba(30, 41, 59, 0.8)" : "rgba(255, 255, 255, 0.9)",
             backdropFilter: "blur(16px)",
             border: `1px solid ${themeColors.alpha.divider}`,
             borderRadius: "16px",

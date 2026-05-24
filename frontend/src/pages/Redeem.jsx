@@ -55,9 +55,7 @@ export default function Redeem() {
       itemId: id,
     });
     setRows((prevRows) =>
-      prevRows.map((row) =>
-        row.id === id ? { ...row, state: !row.state } : row
-      )
+      prevRows.map((row) => (row.id === id ? { ...row, state: !row.state } : row))
     );
   };
 
@@ -75,8 +73,7 @@ export default function Redeem() {
       },
       onError: (saveError) => {
         logWarn("Redeem save failed in page handler", {
-          error:
-            saveError instanceof Error ? saveError.message : String(saveError),
+          error: saveError instanceof Error ? saveError.message : String(saveError),
           itemCount: rows.length,
         });
         setAlert({
@@ -100,9 +97,7 @@ export default function Redeem() {
         headerName: "State",
         flex: 0.5,
         renderCell: (params) => (
-          <div
-            style={{ display: "flex", alignItems: "center", marginTop: "13px" }}
-          >
+          <div style={{ display: "flex", alignItems: "center", marginTop: "13px" }}>
             {params.value ? <DoneIcon /> : <CloseIcon />}
           </div>
         ),

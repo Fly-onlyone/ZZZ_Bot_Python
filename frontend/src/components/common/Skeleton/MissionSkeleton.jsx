@@ -1,4 +1,3 @@
-import React from "react";
 import { Box, Paper, Skeleton } from "@mui/material";
 import { motion } from "framer-motion";
 import { useThemeContext } from "../../../theme/ThemeContext";
@@ -22,9 +21,7 @@ export default function MissionSkeleton() {
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVariants}>
       {/* Stats cards */}
-      <Box
-        sx={{ mb: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}
-      >
+      <Box sx={{ mb: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
         <Paper
           component={motion.div}
           variants={itemVariants}
@@ -38,12 +35,7 @@ export default function MissionSkeleton() {
             textAlign: "center",
           }}
         >
-          <Skeleton
-            variant="text"
-            width={80}
-            height={20}
-            sx={{ mx: "auto", mb: 1 }}
-          />
+          <Skeleton variant="text" width={80} height={20} sx={{ mx: "auto", mb: 1 }} />
           <Skeleton variant="text" width={60} height={40} sx={{ mx: "auto" }} />
         </Paper>
         <Paper
@@ -92,8 +84,7 @@ export default function MissionSkeleton() {
               p: 2,
               display: "flex",
               gap: 2,
-              borderBottom:
-                i !== 3 ? `1px solid ${themeColors.alpha.card}` : "none",
+              borderBottom: i !== 3 ? `1px solid ${themeColors.alpha.card}` : "none",
             }}
           >
             <Skeleton variant="text" width="60%" height={24} />

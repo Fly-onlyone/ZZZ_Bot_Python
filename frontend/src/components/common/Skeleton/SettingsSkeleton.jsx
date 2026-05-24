@@ -1,4 +1,3 @@
-import React from "react";
 import { Box, Skeleton } from "@mui/material";
 import { motion } from "framer-motion";
 import { useThemeContext } from "../../../theme/ThemeContext";
@@ -43,12 +42,7 @@ export default function SettingsSkeleton() {
         variants={itemVariants}
         sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}
       >
-        <Skeleton
-          variant="rounded"
-          width={32}
-          height={32}
-          sx={{ borderRadius: "8px" }}
-        />
+        <Skeleton variant="rounded" width={32} height={32} sx={{ borderRadius: "8px" }} />
         <Skeleton variant="text" width={120} height={32} />
       </Box>
 
@@ -65,10 +59,7 @@ export default function SettingsSkeleton() {
               gap: 2,
               p: 1,
               borderRadius: "8px",
-              background:
-                i % 2 === 0
-                  ? themeColors.gradients.backgroundSubtle
-                  : "transparent",
+              background: i % 2 === 0 ? themeColors.gradients.backgroundSubtle : "transparent",
             }}
           >
             <Skeleton variant="text" width="25%" height={28} />

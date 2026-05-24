@@ -10,36 +10,37 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
 
-from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
-
 from automation import EventNavigator, RedeemAutofill, RetryHelper
 from automation.ImageProcessor import find_correct_avatar
-from automation.tracking import safe_track
 from automation.Selectors import (
     AVATAR_SELECTOR,
-    SHOPPING_SCREEN,
-    SHOPPING_CURRENT_POINTS,
-    SHOPPING_ITEM,
-    SHOPPING_ITEM_NAME,
-    SHOPPING_ITEM_PRICE,
-    SHOPPING_ITEM_BUTTON,
-    SHOPPING_ITEM_COUNT,
-    SHOPPING_DURATION,
+    SHOPPING_CLOSE_BUTTON,
     SHOPPING_CONFIRM_DIALOG,
     SHOPPING_CONFIRM_OK,
-    SHOPPING_REDEEM_CODE,
     SHOPPING_COPY_BUTTON,
-    SHOPPING_CLOSE_BUTTON,
+    SHOPPING_CURRENT_POINTS,
+    SHOPPING_DURATION,
+    SHOPPING_ITEM,
+    SHOPPING_ITEM_BUTTON,
+    SHOPPING_ITEM_COUNT,
+    SHOPPING_ITEM_NAME,
+    SHOPPING_ITEM_PRICE,
+    SHOPPING_REDEEM_CODE,
+    SHOPPING_SCREEN,
 )
+from automation.tracking import safe_track
 from core.constants import PANEL_BACK_SELECTOR
 from core.GlobalVar import CONFIG, settings
+from playwright.sync_api import Locator, Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from utils.DataHandler import load_shopping_data, save_shopping_data
 from utils.screenshot_store import save_page_screenshot
 from utils.StringUtil import (
-    extract_number_from_string,
-    extract_and_convert_duration,
     calculate_return_time,
+    extract_and_convert_duration,
+    extract_number_from_string,
 )
+
 from . import HuntModeHandler as HuntMode
 
 logger = logging.getLogger(__name__)
@@ -170,7 +171,9 @@ def _shopping_diagnostics(page: Page) -> Dict[str, int]:
 def _record_shopping_open_failure(page: Page, last_error: Exception | None) -> None:
     """Emit one high-signal shopping-open failure instead of several shallow errors."""
     diagnostics = _shopping_diagnostics(page)
-    screenshot_name = f"{SHOPPING_OPEN_SCREENSHOT_PREFIX}{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    screenshot_name = (
+        f"{SHOPPING_OPEN_SCREENSHOT_PREFIX}{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    )
     screenshot_asset_id = None
 
     try:
@@ -219,7 +222,9 @@ def open_shopping_screen(page: Page, *, force_reopen: bool = False) -> bool:
 def _record_avatar_selection_failure(page: Page, last_error: Exception | None) -> None:
     """Capture one high-signal avatar selection failure with page diagnostics."""
     diagnostics = _shopping_diagnostics(page)
-    screenshot_name = f"{SHOPPING_AVATAR_SCREENSHOT_PREFIX}{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    screenshot_name = (
+        f"{SHOPPING_AVATAR_SCREENSHOT_PREFIX}{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    )
     screenshot_asset_id = None
 
     try:
@@ -260,9 +265,7 @@ def select_zzz_avatar(page: Page) -> bool:
             last_error = ValueError("ZZZ avatar not found")
         else:
             try:
-                zzz_avatar.wait_for(
-                    state="visible", timeout=SHOPPING_AVATAR_CLICK_TIMEOUT
-                )
+                zzz_avatar.wait_for(state="visible", timeout=SHOPPING_AVATAR_CLICK_TIMEOUT)
                 zzz_avatar.click(timeout=SHOPPING_AVATAR_CLICK_TIMEOUT)
                 logger.info("Selected ZZZ avatar")
                 # Wait for DOM to be loaded instead of networkidle for more reliability
@@ -290,9 +293,7 @@ def select_zzz_avatar(page: Page) -> bool:
 
         if attempt < SHOPPING_AVATAR_SELECTION_RETRIES:
             if not _refresh_shopping_avatar_selection(page):
-                last_error = RuntimeError(
-                    "Could not refresh shopping screen for avatar retry"
-                )
+                last_error = RuntimeError("Could not refresh shopping screen for avatar retry")
                 break
 
     _record_avatar_selection_failure(page, last_error)
@@ -622,9 +623,7 @@ def gather_data(page: Page, point: int) -> Dict:
 
     logger.info(f"Gathered data for {len(items)} items")
     if purchased_items:
-        logger.info(
-            f"Detected {len(purchased_items)} already purchased items: {purchased_items}"
-        )
+        logger.info(f"Detected {len(purchased_items)} already purchased items: {purchased_items}")
     return shopping_data
 
 
@@ -638,15 +637,11 @@ def run(page: Page) -> None:
 
     logger.info("Starting shopping automation...")
 
-    with sentry_sdk.start_span(
-        op="automation.shopping", name="shopping-handler"
-    ) as span:
+    with sentry_sdk.start_span(op="automation.shopping", name="shopping-handler") as span:
         span.set_data("workflow.phase", "shopping")
         try:
             # Open shopping screen
-            with sentry_sdk.start_span(
-                op="browser.navigate", name="Open shopping screen"
-            ):
+            with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
                 if not open_shopping_screen(page):
                     return
 
@@ -656,9 +651,7 @@ def run(page: Page) -> None:
                     return
 
             # Extract current points after selecting the game
-            with sentry_sdk.start_span(
-                op="browser.interact", name="Gather shopping data"
-            ):
+            with sentry_sdk.start_span(op="browser.interact", name="Gather shopping data"):
                 current_points = _extract_current_points(page)
                 shopping_data = load_or_gather_shopping_data(page, current_points)
 
@@ -670,9 +663,7 @@ def run(page: Page) -> None:
 
             # Execute shopping if enabled
             if settings.exchange_good:
-                with sentry_sdk.start_span(
-                    op="browser.interact", name="Run shopping exchanges"
-                ):
+                with sentry_sdk.start_span(op="browser.interact", name="Run shopping exchanges"):
                     run_shopping(page, shopping_data)
             else:
                 logger.info("Shopping disabled in settings, skipping redemption")
@@ -697,9 +688,7 @@ def _process_single_item(page: Page, item_name: str) -> bool:
     logger.info(f"Processing item: {item_name}")
 
     # Locate item on page
-    item_locator = page.locator(SHOPPING_ITEM).filter(
-        has=page.get_by_text(item_name, exact=True)
-    )
+    item_locator = page.locator(SHOPPING_ITEM).filter(has=page.get_by_text(item_name, exact=True))
 
     if item_locator.count() == 0:
         logger.warning(f"Item '{item_name}' not found on page, skipping")
@@ -719,9 +708,7 @@ def _process_single_item(page: Page, item_name: str) -> bool:
         button_text = exchange_button.inner_text()
 
         if button_text != EXCHANGE_BUTTON_TEXT:
-            logger.info(
-                f"Item '{item_name}' not available for exchange (status: {button_text})"
-            )
+            logger.info(f"Item '{item_name}' not available for exchange (status: {button_text})")
             return False
 
         # Click exchange
@@ -776,9 +763,7 @@ def run_shopping(page: Page, shopping_data: Dict) -> None:
 
     # Determine items to process based on settings
     items_to_process = selected_items if settings.buy_all else [selected_items[0]]
-    logger.info(
-        f"Processing {len(items_to_process)} item(s) " f"(buy_all: {settings.buy_all})"
-    )
+    logger.info(f"Processing {len(items_to_process)} item(s) (buy_all: {settings.buy_all})")
 
     successful_exchanges = 0
     failed_exchanges = 0
@@ -787,11 +772,7 @@ def run_shopping(page: Page, shopping_data: Dict) -> None:
     for item_name in items_to_process:
         # Find item data
         item_data = next(
-            (
-                item
-                for item in shopping_data["Item's list"].values()
-                if item["Name"] == item_name
-            ),
+            (item for item in shopping_data["Item's list"].values() if item["Name"] == item_name),
             None,
         )
 
@@ -827,8 +808,7 @@ def run_shopping(page: Page, shopping_data: Dict) -> None:
         page.wait_for_timeout(1000)
 
     logger.info(
-        f"Shopping exchange completed: {successful_exchanges} successful, "
-        f"{failed_exchanges} failed"
+        f"Shopping exchange completed: {successful_exchanges} successful, {failed_exchanges} failed"
     )
 
     # Update Purchased list and save
@@ -861,15 +841,11 @@ def execute_shopping_with_existing_data(page: Page) -> bool:
 
     logger.info("Starting shopping execution phase (before draw)...")
 
-    with sentry_sdk.start_span(
-        op="automation.shopping", name="shopping-execute"
-    ) as span:
+    with sentry_sdk.start_span(op="automation.shopping", name="shopping-execute") as span:
         span.set_data("workflow.phase", "shopping_execute")
         try:
             # Open shopping screen
-            with sentry_sdk.start_span(
-                op="browser.navigate", name="Open shopping screen"
-            ):
+            with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
                 if not open_shopping_screen(page, force_reopen=True):
                     return False
 
@@ -919,15 +895,11 @@ def gather_shopping_data_only(page: Page) -> bool:
 
     logger.info("Starting shopping data gathering phase (after draw)...")
 
-    with sentry_sdk.start_span(
-        op="automation.shopping", name="shopping-gather"
-    ) as span:
+    with sentry_sdk.start_span(op="automation.shopping", name="shopping-gather") as span:
         span.set_data("workflow.phase", "shopping_gather")
         try:
             # Open shopping screen
-            with sentry_sdk.start_span(
-                op="browser.navigate", name="Open shopping screen"
-            ):
+            with sentry_sdk.start_span(op="browser.navigate", name="Open shopping screen"):
                 if not open_shopping_screen(page):
                     return False
 
@@ -937,9 +909,7 @@ def gather_shopping_data_only(page: Page) -> bool:
                     return False
 
             # Extract current points and gather data
-            with sentry_sdk.start_span(
-                op="browser.interact", name="Gather shopping data"
-            ):
+            with sentry_sdk.start_span(op="browser.interact", name="Gather shopping data"):
                 current_points = _extract_current_points(page)
                 shopping_data = load_or_gather_shopping_data(page, current_points)
 

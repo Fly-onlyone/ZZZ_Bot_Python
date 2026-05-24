@@ -115,16 +115,12 @@ class BrowserSession:
 
         self._playwright = await async_playwright().start()
         self._browser = await self._playwright.firefox.launch(headless=headless)
-        self._context = await self._browser.new_context(
-            storage_state=self._storage_path
-        )
+        self._context = await self._browser.new_context(storage_state=self._storage_path)
         self._page = await self._context.new_page()
 
         logger.info("Browser session started successfully")
 
-    async def _navigate(
-        self, url: str, wait_strategy: str, wait_timeout_ms: int
-    ) -> None:
+    async def _navigate(self, url: str, wait_strategy: str, wait_timeout_ms: int) -> None:
         """Navigate to URL with specified wait strategy."""
         logger.info(f"Navigating to {url} (wait={wait_strategy})")
 

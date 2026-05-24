@@ -1,5 +1,5 @@
 import re
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 
 
 def extract_number_from_string(input_string):
@@ -33,9 +33,7 @@ def calculate_return_time(input_time_str):
     input_seconds = input_time_parts[2]
 
     # Create a timedelta from the input
-    time_delta = timedelta(
-        hours=input_hours, minutes=input_minutes, seconds=input_seconds
-    )
+    time_delta = timedelta(hours=input_hours, minutes=input_minutes, seconds=input_seconds)
 
     # Get the current time
     current_time = datetime.now()

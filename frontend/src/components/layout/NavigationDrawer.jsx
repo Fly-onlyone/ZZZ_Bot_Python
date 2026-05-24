@@ -146,9 +146,7 @@ const NavigationDrawer = memo(function NavigationDrawer({
 
   const getIconStyles = useMemo(
     () => (path) => ({
-      color: isActive(path)
-        ? themeColors.primary.light
-        : COMMON_COLORS.text.muted,
+      color: isActive(path) ? themeColors.primary.light : COMMON_COLORS.text.muted,
       minWidth: "40px",
       transition: TRANSITIONS.default,
       transform: isActive(path) ? "scale(1.1)" : "scale(1)",
@@ -160,9 +158,7 @@ const NavigationDrawer = memo(function NavigationDrawer({
     () => (path) => ({
       "& .MuiTypography-root": {
         fontWeight: isActive(path) ? 600 : 500,
-        color: isActive(path)
-          ? COMMON_COLORS.text.secondary
-          : COMMON_COLORS.text.tertiary,
+        color: isActive(path) ? COMMON_COLORS.text.secondary : COMMON_COLORS.text.tertiary,
         transition: TRANSITIONS.default,
       },
     }),

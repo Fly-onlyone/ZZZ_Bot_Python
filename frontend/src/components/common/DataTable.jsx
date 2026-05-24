@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import { memo } from "react";
 import { Box } from "@mui/material";
 import { motion } from "framer-motion";
 import { useThemeContext } from "../../theme/ThemeContext";
@@ -97,9 +97,7 @@ const DataTable = memo(function DataTable({
               animate="visible"
               role="row"
               sx={{
-                background: getRowBackground
-                  ? getRowBackground(row, index)
-                  : defaultRowBg,
+                background: getRowBackground ? getRowBackground(row, index) : defaultRowBg,
                 transition: "all 0.2s ease-in-out",
                 "&:hover": {
                   background: getRowHoverBackground
@@ -107,9 +105,7 @@ const DataTable = memo(function DataTable({
                     : defaultHoverBg,
                 },
                 borderBottom:
-                  index !== data.length - 1
-                    ? `1px solid ${themeColors.alpha.card}`
-                    : "none",
+                  index !== data.length - 1 ? `1px solid ${themeColors.alpha.card}` : "none",
               }}
             >
               {columns.map((col) => (

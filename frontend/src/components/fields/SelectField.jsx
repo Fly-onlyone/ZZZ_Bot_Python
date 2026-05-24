@@ -1,4 +1,3 @@
-import React from "react";
 import { FormControl, MenuItem, Select } from "@mui/material";
 import { motion } from "framer-motion";
 import { useThemeContext } from "../../theme/ThemeContext";
@@ -9,13 +8,7 @@ import { useThemeContext } from "../../theme/ThemeContext";
  * Renders a Material-UI Select dropdown with custom theming and animations.
  * Used for fields with predefined options (e.g., theme selection).
  */
-export default function SelectField({
-  id,
-  value,
-  options = [],
-  onChange,
-  sx = {},
-}) {
+export default function SelectField({ id, value, options = [], onChange, sx = {} }) {
   const { themeColors } = useThemeContext();
 
   // Animation variants

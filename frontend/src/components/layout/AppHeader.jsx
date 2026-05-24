@@ -1,20 +1,11 @@
-import React, { useMemo, useState } from "react";
-import {
-  AppBar,
-  Box,
-  Button,
-  Chip,
-  IconButton,
-  Popover,
-  Toolbar,
-  Typography,
-} from "@mui/material";
+import { useMemo, useState } from "react";
+import { AppBar, Box, Button, Chip, IconButton, Popover, Toolbar, Typography } from "@mui/material";
 import zIndex from "@mui/material/styles/zIndex";
 import { keyframes } from "@mui/system";
 import { motion } from "framer-motion";
 import MenuIcon from "@mui/icons-material/Menu";
 import { COMMON_COLORS } from "../../theme/colors";
-import { GLOW, TRANSITIONS } from "../../theme/styles";
+import { GLOW } from "../../theme/styles";
 import { useThemeContext } from "../../theme/ThemeContext";
 import { useZoom } from "../../hooks/useZoom.jsx";
 import ThemePicker from "./ThemePicker";
@@ -123,9 +114,7 @@ export default function AppHeader({ isMobile = false, onMenuClick }) {
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
-              animation: prefersReducedMotion
-                ? "none"
-                : `${iconGlow} 3s ease-in-out infinite`,
+              animation: prefersReducedMotion ? "none" : `${iconGlow} 3s ease-in-out infinite`,
               "&:hover": {
                 border: `1px solid ${themeColors.glow}60`,
               },
@@ -167,9 +156,7 @@ export default function AppHeader({ isMobile = false, onMenuClick }) {
             gap: 1,
           }}
         >
-          {zoomPercent !== 100 && (
-            <ZoomChip zoomPercent={zoomPercent} onRestore={resetZoom} />
-          )}
+          {zoomPercent !== 100 && <ZoomChip zoomPercent={zoomPercent} onRestore={resetZoom} />}
           <ThemePicker />
         </Box>
       </Toolbar>

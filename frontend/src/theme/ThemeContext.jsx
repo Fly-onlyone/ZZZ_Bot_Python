@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { getThemeColors } from "./themes";
 import { DataLoader } from "../services";
 
@@ -7,8 +7,7 @@ import { DataLoader } from "../services";
  */
 function useReducedMotionPreference() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(
-    () =>
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
+    () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
   );
 
   useEffect(() => {
@@ -62,9 +61,7 @@ export function ThemeContextProvider({ children }) {
   };
 
   return (
-    <ThemeContext.Provider
-      value={{ themeName, themeColors, prefersReducedMotion, changeTheme }}
-    >
+    <ThemeContext.Provider value={{ themeName, themeColors, prefersReducedMotion, changeTheme }}>
       {children}
     </ThemeContext.Provider>
   );

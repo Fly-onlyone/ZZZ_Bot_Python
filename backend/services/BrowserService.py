@@ -10,8 +10,7 @@ import os
 from contextlib import contextmanager
 from typing import Optional
 
-from playwright.sync_api import sync_playwright, BrowserContext, Page
-
+from playwright.sync_api import BrowserContext, Page, sync_playwright
 from utils.screenshot_store import save_page_screenshot
 from utils.storage_state_store import (
     build_context_options,
@@ -44,9 +43,7 @@ class BrowserService:
         self.browser_type = browser_type
 
     @contextmanager
-    def create_browser_session(
-        self, storage_path: Optional[str] = None, url: Optional[str] = None
-    ):
+    def create_browser_session(self, storage_path: Optional[str] = None, url: Optional[str] = None):
         """
         Context manager for browser session lifecycle.
 
@@ -72,9 +69,7 @@ class BrowserService:
                 browser = browser_launcher.launch(headless=self.headless)
 
                 # Create context with optional storage state (Mongo-first).
-                context_options = (
-                    build_context_options(storage_path) if storage_path else {}
-                )
+                context_options = build_context_options(storage_path) if storage_path else {}
 
                 context = browser.new_context(**context_options)
                 page = context.new_page()
@@ -122,9 +117,7 @@ class BrowserService:
         return load_storage_state(storage_path) is not None or os.path.exists(storage_path)
 
     @staticmethod
-    def click_element(
-        page: Page, selector: str, force: bool = False, timeout: int = 5000
-    ) -> bool:
+    def click_element(page: Page, selector: str, force: bool = False, timeout: int = 5000) -> bool:
         """
         Click an element with error handling.
 
@@ -193,9 +186,7 @@ class BrowserService:
         """
         for attempt in range(1, max_attempts + 1):
             try:
-                logger.info(
-                    f"Attempting to close overlay (attempt {attempt}/{max_attempts})"
-                )
+                logger.info(f"Attempting to close overlay (attempt {attempt}/{max_attempts})")
 
                 close_button = page.locator(close_button_selector)
                 if close_button.count() > 0 and close_button.is_visible(timeout=2000):

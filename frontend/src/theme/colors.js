@@ -2,7 +2,7 @@
 // NOTE: This file now re-exports from themes.js for backward compatibility
 // For new code, import directly from './themes'
 
-import { COMMON_COLORS, getThemeColors, THEME_COLORS } from "./themes";
+import { COMMON_COLORS, THEME_COLORS } from "./themes";
 
 // Export default nebula theme colors for backward compatibility
 const defaultTheme = THEME_COLORS.nebula;

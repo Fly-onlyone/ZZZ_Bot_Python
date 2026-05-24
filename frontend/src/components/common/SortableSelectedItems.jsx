@@ -1,4 +1,3 @@
-import React from "react";
 import {
   DndContext,
   closestCenter,
@@ -22,14 +21,9 @@ import { GLOW } from "../../theme/styles";
 
 function SortableItem({ item, index, huntItems, onHuntToggle }) {
   const { themeColors } = useThemeContext();
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.Name });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.Name,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -51,10 +45,10 @@ function SortableItem({ item, index, huntItems, onHuntToggle }) {
         py: 1.5,
         mb: 0.5,
         borderRadius: "10px",
-        background: isDragging
-          ? themeColors.gradients.backgroundSubtle
-          : "transparent",
-        border: `1px solid ${isDragging ? themeColors.primary.main + "60" : themeColors.alpha.divider}`,
+        background: isDragging ? themeColors.gradients.backgroundSubtle : "transparent",
+        border: `1px solid ${
+          isDragging ? themeColors.primary.main + "60" : themeColors.alpha.divider
+        }`,
         boxShadow: isDragging ? GLOW.strong(themeColors.glow) : "none",
         cursor: "default",
         "&:hover": {
@@ -156,10 +150,7 @@ export default function SortableSelectedItems({
         >
           Selected Items (drag to reorder priority)
         </Typography>
-        <Typography
-          variant="caption"
-          sx={{ color: COMMON_COLORS.text.muted }}
-        >
+        <Typography variant="caption" sx={{ color: COMMON_COLORS.text.muted }}>
           Hunt
         </Typography>
       </Box>
@@ -172,11 +163,7 @@ export default function SortableSelectedItems({
           p: 1,
         }}
       >
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={onDragEnd}
-        >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext
             items={selectedRows.map((r) => r.Name)}
             strategy={verticalListSortingStrategy}

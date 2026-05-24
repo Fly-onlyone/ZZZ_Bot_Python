@@ -90,6 +90,12 @@ if is_exe:
     mcp = _DisabledMCP()
 else:
     from fastmcp import FastMCP
+
+    from mcp_tools.image_helpers import (
+        compare_images_sync,
+        fetch_image_from_locator_async,
+        scan_folder_for_best_match,
+    )
     from mcp_tools.locator_factory import (
         SelectorType,
         analyze_selector_stability,
@@ -97,11 +103,6 @@ else:
         suggest_alternative_selectors,
     )
     from mcp_tools.session_manager import BrowserSession
-    from mcp_tools.image_helpers import (
-        fetch_image_from_locator_async,
-        compare_images_sync,
-        scan_folder_for_best_match,
-    )
 
     mcp = FastMCP("ZZZ Bot Inspector")
 
@@ -958,9 +959,7 @@ async def inspect_iframe(
 
     try:
         # Get iframe
-        iframe_locator = create_locator(
-            page, iframe_selector, SelectorType(iframe_selector_type)
-        )
+        iframe_locator = create_locator(page, iframe_selector, SelectorType(iframe_selector_type))
         iframe_elem = iframe_locator.first
 
         if await iframe_elem.count() == 0:
@@ -972,9 +971,7 @@ async def inspect_iframe(
             return {"error": "Could not access iframe content"}
 
         # Find element inside iframe
-        inner_locator = create_locator(
-            frame, inner_selector, SelectorType(inner_selector_type)
-        )
+        inner_locator = create_locator(frame, inner_selector, SelectorType(inner_selector_type))
         count = await inner_locator.count()
 
         elements = []
@@ -985,9 +982,7 @@ async def inspect_iframe(
                     {
                         "index": i,
                         "visible": await elem.is_visible(),
-                        "tag_name": await elem.evaluate(
-                            "el => el.tagName.toLowerCase()"
-                        ),
+                        "tag_name": await elem.evaluate("el => el.tagName.toLowerCase()"),
                         "outer_html": (await elem.evaluate("el => el.outerHTML"))[:500],
                     }
                 )
@@ -1117,7 +1112,7 @@ async def compare_image(
             return {
                 "success": False,
                 "error": "reference_not_found",
-                "message": f"reference_path is a directory. Set scan_folder=True to scan folder.",
+                "message": "reference_path is a directory. Set scan_folder=True to scan folder.",
             }
 
         try:

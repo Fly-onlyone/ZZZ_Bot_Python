@@ -17,8 +17,4 @@ ADVANCED_SETTINGS_KEYS = (
 def extract_advanced_settings(settings_payload: dict[str, Any]) -> dict[str, Any]:
     """Return only the advanced settings fields exposed on the advanced page."""
 
-    return {
-        key: settings_payload[key]
-        for key in ADVANCED_SETTINGS_KEYS
-        if key in settings_payload
-    }
+    return {key: settings_payload[key] for key in ADVANCED_SETTINGS_KEYS if key in settings_payload}

@@ -1,4 +1,3 @@
-import React from "react";
 import { Alert, Box, Chip, Paper, Typography } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL, DataLoader } from "../services/DataLoader";
@@ -66,11 +65,7 @@ export default function Mission() {
   // Use the DataLoader's useRouteData hook
   const { data: mission, error } = useRouteData("overview/mission");
   if (error) {
-    return (
-      <Alert severity="error">
-        Failed to fetch mission data: {error.message}
-      </Alert>
-    );
+    return <Alert severity="error">Failed to fetch mission data: {error.message}</Alert>;
   }
 
   if (!mission) {
@@ -118,10 +113,7 @@ export default function Mission() {
           >
             Current Day
           </Typography>
-          <Typography
-            variant="h4"
-            sx={{ fontWeight: 700, color: themeColors.primary.light }}
-          >
+          <Typography variant="h4" sx={{ fontWeight: 700, color: themeColors.primary.light }}>
             {day}
           </Typography>
         </Paper>
@@ -150,9 +142,7 @@ export default function Mission() {
           }}
         >
           {check_in === "Login Success" ? (
-            <CheckCircleIcon
-              sx={{ color: COMMON_COLORS.success.main, fontSize: 32 }}
-            />
+            <CheckCircleIcon sx={{ color: COMMON_COLORS.success.main, fontSize: 32 }} />
           ) : (
             <ErrorIcon sx={{ color: COMMON_COLORS.error.main, fontSize: 32 }} />
           )}
@@ -291,9 +281,7 @@ export default function Mission() {
                     boxShadow: `inset 3px 0 10px ${themeColors.glow}15`,
                   },
                   borderBottom:
-                    index !== missions.length - 1
-                      ? `1px solid ${themeColors.alpha.card}`
-                      : "none",
+                    index !== missions.length - 1 ? `1px solid ${themeColors.alpha.card}` : "none",
                 }}
               >
                 <Box

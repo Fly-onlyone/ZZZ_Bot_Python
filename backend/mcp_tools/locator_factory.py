@@ -21,7 +21,6 @@ Usage:
 
 import re
 from enum import Enum
-from typing import Optional
 
 from playwright.async_api import Locator, Page
 
@@ -121,12 +120,8 @@ def analyze_selector_stability(selector: str) -> dict:
     hashed_pattern = r"\.[a-zA-Z]+-[A-Za-z0-9]{5,8}"
     hashed_matches = re.findall(hashed_pattern, selector)
     if hashed_matches:
-        warnings.append(
-            f"Contains hashed class names that may change: {hashed_matches}"
-        )
-        suggestions.append(
-            "Consider using [class*='gainPrizeImage'] for partial match"
-        )
+        warnings.append(f"Contains hashed class names that may change: {hashed_matches}")
+        suggestions.append("Consider using [class*='gainPrizeImage'] for partial match")
 
     # Pattern 2: Very specific nth-child selectors
     nth_pattern = r":nth-child\(\d+\)"
@@ -153,9 +148,7 @@ def analyze_selector_stability(selector: str) -> dict:
     # Pattern 6: Attribute contains selector with partial match
     contains_pattern = r"\[class\*='[^']+'\]"
     if re.search(contains_pattern, selector):
-        suggestions.append(
-            "Partial class match is more resilient to hash changes"
-        )
+        suggestions.append("Partial class match is more resilient to hash changes")
 
     is_stable = len(warnings) == 0
 
@@ -195,46 +188,56 @@ def suggest_alternative_selectors(element_info: dict) -> list[dict]:
 
     # ID selector (most stable)
     if elem_id:
-        suggestions.append({
-            "selector": f"#{elem_id}",
-            "type": "css",
-            "stability": "high",
-            "reason": "ID selectors are unique and stable",
-        })
+        suggestions.append(
+            {
+                "selector": f"#{elem_id}",
+                "type": "css",
+                "stability": "high",
+                "reason": "ID selectors are unique and stable",
+            }
+        )
 
     # Data attribute selectors
     for attr, value in data_attrs.items():
-        suggestions.append({
-            "selector": f"[{attr}='{value}']",
-            "type": "css",
-            "stability": "high",
-            "reason": "Data attributes are typically intentional and stable",
-        })
+        suggestions.append(
+            {
+                "selector": f"[{attr}='{value}']",
+                "type": "css",
+                "stability": "high",
+                "reason": "Data attributes are typically intentional and stable",
+            }
+        )
 
     # ARIA role + name
     if role and aria_label:
-        suggestions.append({
-            "selector": f"{role}:{aria_label}",
-            "type": "role",
-            "stability": "high",
-            "reason": "ARIA roles and labels are semantic and stable",
-        })
+        suggestions.append(
+            {
+                "selector": f"{role}:{aria_label}",
+                "type": "role",
+                "stability": "high",
+                "reason": "ARIA roles and labels are semantic and stable",
+            }
+        )
     elif role:
-        suggestions.append({
-            "selector": role,
-            "type": "role",
-            "stability": "medium",
-            "reason": "ARIA role without name may match multiple elements",
-        })
+        suggestions.append(
+            {
+                "selector": role,
+                "type": "role",
+                "stability": "medium",
+                "reason": "ARIA role without name may match multiple elements",
+            }
+        )
 
     # Text content
     if text and len(text) < 50:
-        suggestions.append({
-            "selector": text.strip(),
-            "type": "text_exact",
-            "stability": "medium",
-            "reason": "Text content may change with localization",
-        })
+        suggestions.append(
+            {
+                "selector": text.strip(),
+                "type": "text_exact",
+                "stability": "medium",
+                "reason": "Text content may change with localization",
+            }
+        )
 
     # Class partial match (for hashed classes)
     for cls in classes:
@@ -242,22 +245,26 @@ def suggest_alternative_selectors(element_info: dict) -> list[dict]:
         match = re.match(r"^([a-zA-Z]+)-[A-Za-z0-9]{5,8}$", cls)
         if match:
             base_name = match.group(1)
-            suggestions.append({
-                "selector": f"[class*='{base_name}']",
-                "type": "css",
-                "stability": "medium",
-                "reason": f"Partial match for hashed class '{cls}'",
-            })
+            suggestions.append(
+                {
+                    "selector": f"[class*='{base_name}']",
+                    "type": "css",
+                    "stability": "medium",
+                    "reason": f"Partial match for hashed class '{cls}'",
+                }
+            )
 
     # Tag + stable class combination
     stable_classes = [c for c in classes if not re.match(r".*-[A-Za-z0-9]{5,8}$", c)]
     if stable_classes:
-        suggestions.append({
-            "selector": f"{tag}.{stable_classes[0]}",
-            "type": "css",
-            "stability": "medium",
-            "reason": "Class without hash suffix is likely stable",
-        })
+        suggestions.append(
+            {
+                "selector": f"{tag}.{stable_classes[0]}",
+                "type": "css",
+                "stability": "medium",
+                "reason": "Class without hash suffix is likely stable",
+            }
+        )
 
     return suggestions
 

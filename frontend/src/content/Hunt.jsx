@@ -1,4 +1,3 @@
-import React from "react";
 import { Alert, Box, Chip, Paper, Typography } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import { DataLoader } from "../services";
@@ -70,9 +69,7 @@ export default function Hunt() {
   const { data: huntInfo, error } = useRouteData("overview/hunt");
 
   if (error) {
-    return (
-      <Alert severity="error">Failed to fetch hunt data: {error.message}</Alert>
-    );
+    return <Alert severity="error">Failed to fetch hunt data: {error.message}</Alert>;
   }
 
   if (!huntInfo) {
@@ -127,13 +124,8 @@ export default function Hunt() {
             backdropFilter: "blur(8px)",
           }}
         >
-          <CheckCircleIcon
-            sx={{ color: COMMON_COLORS.success.main, fontSize: 32 }}
-          />
-          <Typography
-            variant="body1"
-            sx={{ fontWeight: 600, color: COMMON_COLORS.success.light }}
-          >
+          <CheckCircleIcon sx={{ color: COMMON_COLORS.success.main, fontSize: 32 }} />
+          <Typography variant="body1" sx={{ fontWeight: 600, color: COMMON_COLORS.success.light }}>
             Hunt Mode Active
           </Typography>
         </Paper>
@@ -161,10 +153,7 @@ export default function Hunt() {
           >
             Items Hunting
           </Typography>
-          <Typography
-            variant="h4"
-            sx={{ fontWeight: 700, color: COMMON_COLORS.warning.light }}
-          >
+          <Typography variant="h4" sx={{ fontWeight: 700, color: COMMON_COLORS.warning.light }}>
             {hunt_items.length}
           </Typography>
         </Paper>
@@ -190,16 +179,9 @@ export default function Hunt() {
               gap: 2,
             }}
           >
-            <AccessTimeIcon
-              sx={{ color: themeColors.primary.main, fontSize: 28 }}
-            />
-            <Box
-              sx={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}
-            >
-              <Typography
-                variant="h6"
-                sx={{ fontWeight: 600, color: COMMON_COLORS.text.tertiary }}
-              >
+            <AccessTimeIcon sx={{ color: themeColors.primary.main, fontSize: 28 }} />
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: COMMON_COLORS.text.tertiary }}>
                 Next Hunt Scheduled:
               </Typography>
               <DateTimeField

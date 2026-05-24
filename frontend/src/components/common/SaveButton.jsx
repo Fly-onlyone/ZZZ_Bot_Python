@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { Alert, Button, CircularProgress, Snackbar } from "@mui/material";
 import { keyframes } from "@mui/system";
 import { motion } from "framer-motion";
@@ -63,9 +63,7 @@ const SaveButton = ({ onSave, alert, setAlert, loading = false }) => {
       0 0 4px ${themeColors.primary.main}60,
       0 0 8px ${themeColors.primary.main}40
     `,
-    animation: prefersReducedMotion
-      ? "none"
-      : `${neonPulse} 3s ease-in-out infinite`,
+    animation: prefersReducedMotion ? "none" : `${neonPulse} 3s ease-in-out infinite`,
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     "&:hover": {
       background: `${themeColors.primary.main}15`,
@@ -88,15 +86,8 @@ const SaveButton = ({ onSave, alert, setAlert, loading = false }) => {
 
   return (
     <>
-      <div
-        style={{ display: "flex", justifyContent: "center", marginTop: "2rem" }}
-      >
-        <motion.div
-          variants={buttonVariants}
-          initial="initial"
-          whileHover="hover"
-          whileTap="tap"
-        >
+      <div style={{ display: "flex", justifyContent: "center", marginTop: "2rem" }}>
+        <motion.div variants={buttonVariants} initial="initial" whileHover="hover" whileTap="tap">
           <Button
             variant="contained"
             onClick={onSave}

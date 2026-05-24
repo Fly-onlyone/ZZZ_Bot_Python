@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { IconButton, TextField as MuiTextField } from "@mui/material";
 import { motion } from "framer-motion";
 import { ContentCopy, Visibility, VisibilityOff } from "@mui/icons-material";
@@ -12,13 +12,7 @@ import { useThemeContext } from "../../theme/ThemeContext";
  * Enhanced text field with optional password visibility toggle and copy-to-clipboard functionality.
  * Automatically handles password fields with show/hide toggle.
  */
-export default function TextField({
-  id,
-  value,
-  onChange,
-  isPassword = false,
-  sx = {},
-}) {
+export default function TextField({ id, value, onChange, isPassword = false, sx = {} }) {
   const { themeColors } = useThemeContext();
   const [passwordVisible, setPasswordVisible] = useState(false);
 
@@ -62,13 +56,7 @@ export default function TextField({
       <MuiTextField
         className={isPassword ? "" : "pr-12"}
         id={id}
-        type={
-          isPassword && passwordVisible
-            ? "text"
-            : isPassword
-            ? "password"
-            : "text"
-        }
+        type={isPassword && passwordVisible ? "text" : isPassword ? "password" : "text"}
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         fullWidth

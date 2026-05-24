@@ -3,9 +3,9 @@ from datetime import datetime
 
 import apprise
 from jinja2 import Template
+from utils.screenshot_store import get_screenshot_bytes
 
 from .GlobalVar import CONFIG, accounts, ensure_accounts_loaded, settings
-from utils.screenshot_store import get_screenshot_bytes
 
 
 def send_mission_data_via_email_html(todays_data):
@@ -30,11 +30,7 @@ def send_mission_data_via_email_html(todays_data):
             except FileNotFoundError:
                 image_bytes = b""
 
-        encoded_image = (
-            base64.b64encode(image_bytes).decode("utf-8")
-            if image_bytes
-            else ""
-        )
+        encoded_image = base64.b64encode(image_bytes).decode("utf-8") if image_bytes else ""
 
         mission_summary_html = template.render(
             day=todays_data["day"],

@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import logging
+import time
 from contextlib import suppress
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Callable, Iterable
 
-from playwright.sync_api import Error as PlaywrightError, Locator, Page
-
-from .Selectors import MISSION_DIALOG_CLOSE, SHOPPING_CLOSE_BUTTON
-from .tracking import safe_track_locator
 from core.constants import (
     DEFAULT_EVENT_URL,
     EVENT_PAGE_GOTO_MAX_ATTEMPTS,
@@ -19,7 +17,12 @@ from core.constants import (
     EVENT_PAGE_WAIT_UNTIL,
     PANEL_BACK_SELECTOR,
 )
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Locator, Page
 from utils.screenshot_store import save_page_screenshot
+
+from .Selectors import MISSION_DIALOG_CLOSE, SHOPPING_CLOSE_BUTTON
+from .tracking import safe_track_locator
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +30,12 @@ DEFAULT_LAUNCH_TIMEOUT = 5000
 DEFAULT_PANEL_CLOSE_TIMEOUT = 2000
 DEFAULT_RESET_ATTEMPTS = 3
 DEFAULT_RETRY_WAIT_MS = 1000
+EVENT_PAGE_AUTH_TIMEOUT_MS = 10000
+EVENT_PAGE_AUTH_POLL_INTERVAL_MS = 500
+EVENT_PAGE_LOGIN_TEXT = "Log In"
+EVENT_PAGE_MISSION_HINT_TEXT = "Carry out missions to earn"
+EVENT_PAGE_LOGIN_FRAME_SELECTOR = "#hyv-account-frame"
+EVENT_PAGE_AUTH_SCREENSHOT_PREFIX = "event_page_auth_required_"
 
 LauncherCandidate = tuple[str, Callable[[], Locator]]
 
@@ -38,6 +47,16 @@ class PanelOpenResult:
     opened: bool
     candidate_name: str | None = None
     last_error: Exception | None = None
+
+
+@dataclass
+class EventPageAuthResult:
+    """Outcome for validating the event page before panel automation starts."""
+
+    ready: bool
+    auth_required: bool
+    reason: str
+    screenshot_asset_id: str | None = None
 
 
 def is_locator_visible(locator: Locator, timeout: int = 1000) -> bool:
@@ -169,6 +188,127 @@ def ensure_event_home(
         if not changed:
             return not has_blocking_ui(page)
     return not has_blocking_ui(page)
+
+
+def _collect_event_page_auth_indicators(page: Page) -> dict[str, object]:
+    """Collect lightweight signals that distinguish guest vs ready event page state."""
+    login_link_visible = is_locator_visible(
+        page.get_by_role("link", name=EVENT_PAGE_LOGIN_TEXT).first,
+        timeout=250,
+    )
+    login_button_visible = is_locator_visible(
+        page.get_by_role("button", name=EVENT_PAGE_LOGIN_TEXT).first,
+        timeout=250,
+    )
+    login_frame_visible = is_locator_visible(
+        page.locator(EVENT_PAGE_LOGIN_FRAME_SELECTOR).first,
+        timeout=250,
+    )
+    mission_hint_visible = is_locator_visible(
+        page.get_by_text(EVENT_PAGE_MISSION_HINT_TEXT, exact=False).first,
+        timeout=250,
+    )
+
+    launcher_image_count = 0
+    with suppress(Exception):
+        launcher_image_count = page.get_by_role("img").count()
+
+    return {
+        "login_link_visible": login_link_visible,
+        "login_button_visible": login_button_visible,
+        "login_frame_visible": login_frame_visible,
+        "mission_hint_visible": mission_hint_visible,
+        "launcher_image_count": launcher_image_count,
+        # Home content alone is not enough; the auth-ready decision also requires
+        # the login controls to be absent.
+        "home_signal_visible": mission_hint_visible or launcher_image_count >= 2,
+    }
+
+
+def _capture_event_page_auth_screenshot(page: Page) -> str | None:
+    """Capture the current event page when auth validation fails."""
+    screenshot_name = (
+        f"{EVENT_PAGE_AUTH_SCREENSHOT_PREFIX}{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    )
+    try:
+        return save_page_screenshot(page, screenshot_name)
+    except Exception as exc:
+        logger.warning("Could not save event-page auth failure screenshot: %s", exc)
+        return None
+
+
+def wait_for_authenticated_event_home(
+    page: Page,
+    *,
+    context: str,
+    timeout_ms: int = EVENT_PAGE_AUTH_TIMEOUT_MS,
+    poll_interval_ms: int = EVENT_PAGE_AUTH_POLL_INTERVAL_MS,
+) -> EventPageAuthResult:
+    """Verify the event page is usable before mission/shopping/draw automation starts."""
+    import sentry_sdk
+
+    deadline = time.monotonic() + (timeout_ms / 1000)
+    last_indicators = _collect_event_page_auth_indicators(page)
+    reason = "event_home_not_ready"
+
+    while time.monotonic() < deadline:
+        last_indicators = _collect_event_page_auth_indicators(page)
+        login_visible = any(
+            (
+                last_indicators["login_link_visible"],
+                last_indicators["login_button_visible"],
+                last_indicators["login_frame_visible"],
+            )
+        )
+        home_signal_visible = bool(last_indicators["home_signal_visible"])
+
+        if home_signal_visible and not login_visible:
+            logger.info("Event page ready while %s", context)
+            return EventPageAuthResult(
+                ready=True,
+                auth_required=False,
+                reason="event_home_ready",
+            )
+
+        if login_visible:
+            reason = "login_prompt_visible"
+            break
+
+        page.wait_for_timeout(poll_interval_ms)
+
+    screenshot_asset_id = _capture_event_page_auth_screenshot(page)
+    current_url = getattr(page, "url", None)
+    logger.warning(
+        "Event page requires manual login while %s: reason=%s, screenshot_asset_id=%s",
+        context,
+        reason,
+        screenshot_asset_id or "unavailable",
+    )
+
+    with sentry_sdk.isolation_scope():
+        sentry_sdk.set_tag("event_page.issue", "manual_login_required")
+        sentry_sdk.set_tag("event_page.auth_required", "true")
+        sentry_sdk.set_tag("event_page.reason", reason)
+        sentry_sdk.set_context(
+            "event_page_auth",
+            {
+                "context": context,
+                "reason": reason,
+                "timeout_ms": timeout_ms,
+                "poll_interval_ms": poll_interval_ms,
+                "current_url": current_url,
+                "screenshot_asset_id": screenshot_asset_id,
+                **last_indicators,
+            },
+        )
+        sentry_sdk.capture_message("Event page requires manual login", level="warning")
+
+    return EventPageAuthResult(
+        ready=False,
+        auth_required=True,
+        reason=reason,
+        screenshot_asset_id=screenshot_asset_id,
+    )
 
 
 def open_panel(

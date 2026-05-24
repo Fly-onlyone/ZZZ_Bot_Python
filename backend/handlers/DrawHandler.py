@@ -10,15 +10,15 @@ from contextlib import suppress
 from datetime import datetime
 from typing import Optional
 
-from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, Locator
-
 from automation import EventNavigator, RedeemAutofill
-from automation.ImageProcessor import find_correct_lottery_logo, detect_reward
+from automation.ImageProcessor import detect_reward, find_correct_lottery_logo
 from automation.tracking import safe_track
-from core.GlobalVar import CONFIG, resource_path, is_exe
+from core.GlobalVar import CONFIG, is_exe, resource_path
+from playwright.sync_api import Locator, Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from utils import NotificationHelper
 from utils.screenshot_store import save_page_screenshot
-from utils.StringUtil import extract_price, extract_number
+from utils.StringUtil import extract_number, extract_price
 
 logger = logging.getLogger(__name__)
 
@@ -52,16 +52,12 @@ DRAW_COST_SELECTOR = ".lotteryCost-D-QGTv"
 DRAW_LIMIT_SELECTOR = ".lotteryLimitCount-fqLQOi"
 DRAW_BUTTON_SELECTOR = ".lotteryBtnCover-xI-MlR"
 SUCCESS_DIALOG_TEXT = "Congratulations, you've"
-REWARD_IMAGE_CONTAINER_SELECTOR = (
-    "[class^='gainPrizeImage-'], [class*=' gainPrizeImage-']"
-)
+REWARD_IMAGE_CONTAINER_SELECTOR = "[class^='gainPrizeImage-'], [class*=' gainPrizeImage-']"
 REWARD_IMAGE_SELECTOR = (
     f":is({REWARD_IMAGE_CONTAINER_SELECTOR}) img"  # Preferred: concrete image node
 )
 REWARD_IMAGE_SELECTOR_ALT = REWARD_IMAGE_CONTAINER_SELECTOR
-REWARD_CODE_IMAGE_CONTAINER_SELECTOR = (
-    "[class^='gainCodeImage-'], [class*=' gainCodeImage-']"
-)
+REWARD_CODE_IMAGE_CONTAINER_SELECTOR = "[class^='gainCodeImage-'], [class*=' gainCodeImage-']"
 REWARD_CODE_IMAGE_SELECTOR = f":is({REWARD_CODE_IMAGE_CONTAINER_SELECTOR}) img"
 REWARD_IMAGE_TRACK_SELECTOR = (
     f"{REWARD_IMAGE_CONTAINER_SELECTOR}, {REWARD_CODE_IMAGE_CONTAINER_SELECTOR}"
@@ -122,9 +118,7 @@ def _wait_for_success_dialog(page: Page, draw_number: int) -> Optional[Locator]:
     reward_image = page.locator(REWARD_IMAGE_SELECTOR).first
     reward_image_alt = page.locator(REWARD_IMAGE_SELECTOR_ALT).first
     code_reward_image = page.locator(REWARD_CODE_IMAGE_SELECTOR).first
-    code_reward_image_container = page.locator(
-        REWARD_CODE_IMAGE_CONTAINER_SELECTOR
-    ).first
+    code_reward_image_container = page.locator(REWARD_CODE_IMAGE_CONTAINER_SELECTOR).first
     redeem_code = page.locator(REDEEM_CODE_SELECTOR_ALT).first
     close_button = page.locator(CLOSE_DIALOG_SELECTOR).first
     page_root = page.locator("body").first
@@ -260,9 +254,7 @@ def _find_reward_image(success_dialog: Locator, draw_number: int) -> Optional[Lo
     return None
 
 
-def _save_debug_artifacts(
-    page: Page, draw_number: int
-) -> tuple[Optional[str], Optional[str]]:
+def _save_debug_artifacts(page: Page, draw_number: int) -> tuple[Optional[str], Optional[str]]:
     """Save screenshot and DOM snapshot for debugging draw failures."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if is_exe:
@@ -332,9 +324,7 @@ def _capture_missing_draw_result_event(
         )
 
 
-def _extract_redemption_code(
-    success_dialog: Locator, draw_number: int
-) -> Optional[str]:
+def _extract_redemption_code(success_dialog: Locator, draw_number: int) -> Optional[str]:
     """Extract redemption code from the reward dialog.
 
     Args:
@@ -378,14 +368,10 @@ def _extract_redemption_code(
 
                 # Validate the code
                 if redeem_code and len(redeem_code.strip()) > 0:
-                    logger.info(
-                        f"Draw {draw_number}: Successfully extracted code: {redeem_code}"
-                    )
+                    logger.info(f"Draw {draw_number}: Successfully extracted code: {redeem_code}")
                     return redeem_code.strip()
                 else:
-                    logger.warning(
-                        f"Draw {draw_number}: Code element found but text is empty"
-                    )
+                    logger.warning(f"Draw {draw_number}: Code element found but text is empty")
 
             except PlaywrightTimeoutError:
                 logger.warning(
@@ -466,9 +452,7 @@ def _calculate_available_draws(page: Page) -> Optional[int]:
         # Get current points
         current_point_text = page.locator(POINT_VALUE_SELECTOR).inner_text()
         current_points = int(current_point_text.replace(",", ""))
-        logger.debug(
-            f"Current points: {current_points} (raw text: '{current_point_text}')"
-        )
+        logger.debug(f"Current points: {current_points} (raw text: '{current_point_text}')")
 
         # Get draw cost
         draw_cost_text = page.locator(DRAW_COST_SELECTOR).inner_text()
@@ -594,9 +578,7 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
             reward_name = detect_reward(page, reward_image)
 
         if reward_name == UNKNOWN_REWARD:
-            logger.warning(
-                f"Draw {draw_number}: Unknown reward detected, skipping redemption"
-            )
+            logger.warning(f"Draw {draw_number}: Unknown reward detected, skipping redemption")
         else:
             logger.info(f"Draw {draw_number}: Received '{reward_name}'")
 
@@ -604,9 +586,7 @@ def _perform_single_draw(page: Page, draw_number: int, total_draws: int) -> bool
             redeem_code = _extract_redemption_code(success_dialog, draw_number)
             if redeem_code:
                 try:
-                    redeem_result = RedeemAutofill.run(
-                        page.context, redeem_code, reward_name
-                    )
+                    redeem_result = RedeemAutofill.run(page.context, redeem_code, reward_name)
                     if redeem_result["ok"]:
                         logger.info(
                             "Processed redemption code for '%s': %s",
@@ -746,19 +726,14 @@ def run(page: Page) -> dict[str, int | bool]:
 
                     # If first draw fails, page data was likely stale - log for user
                     if i == 1:
-                        logger.warning(
-                            f"First draw failed - page may have shown stale data"
-                        )
+                        logger.warning("First draw failed - page may have shown stale data")
                         logger.info(
                             f"Page showed {available_draws} draws available, but none could be performed"
                         )
                         # Re-check actual draw count
                         page.wait_for_timeout(1000)
                         actual_available = _calculate_available_draws(page)
-                        if (
-                            actual_available is not None
-                            and actual_available != available_draws
-                        ):
+                        if actual_available is not None and actual_available != available_draws:
                             logger.info(
                                 f"After refresh: actually {actual_available} draws available (was showing {available_draws})"
                             )

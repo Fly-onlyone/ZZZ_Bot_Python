@@ -1,4 +1,3 @@
-import React from "react";
 import { motion } from "framer-motion";
 import Mission from "../content/Mission";
 import CompactRunningStatus from "../content/CompactRunningStatus";
@@ -24,12 +23,7 @@ export default function Overview() {
     <div className="space-y-6">
       <CompactRunningStatus />
 
-      <motion.div
-        custom={0}
-        variants={cardVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <motion.div custom={0} variants={cardVariants} initial="hidden" animate="visible">
         <SectionCard
           title="Mission Report"
           icon={<IconReportAnalytics size={24} color="#ffffff" />}

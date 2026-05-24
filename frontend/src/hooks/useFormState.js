@@ -56,8 +56,7 @@ export function useFormState(routeOverride) {
       onError: (saveError) => {
         logWarn("Form save failed in hook handler", {
           route,
-          error:
-            saveError instanceof Error ? saveError.message : String(saveError),
+          error: saveError instanceof Error ? saveError.message : String(saveError),
         });
         setAlert({
           open: true,

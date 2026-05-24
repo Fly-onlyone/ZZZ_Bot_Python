@@ -11,8 +11,7 @@ from typing import Union
 
 import cv2
 import numpy as np
-
-from core.constants import IMAGE_MATCH_THRESHOLD, IMAGE_BINARY_THRESHOLD
+from core.constants import IMAGE_BINARY_THRESHOLD, IMAGE_MATCH_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +79,7 @@ class IImageComparisonStrategy(ABC):
         elif isinstance(image, np.ndarray):
             return image
         else:
-            raise ValueError(
-                f"Image must be file path (str) or numpy.ndarray, got {type(image)}"
-            )
+            raise ValueError(f"Image must be file path (str) or numpy.ndarray, got {type(image)}")
 
 
 class PixelDifferenceStrategy(IImageComparisonStrategy):
@@ -130,9 +127,7 @@ class PixelDifferenceStrategy(IImageComparisonStrategy):
         gray_diff = cv2.cvtColor(difference, cv2.COLOR_BGR2GRAY)
 
         # Apply binary threshold
-        _, threshold_diff = cv2.threshold(
-            gray_diff, self.binary_threshold, 255, cv2.THRESH_BINARY
-        )
+        _, threshold_diff = cv2.threshold(gray_diff, self.binary_threshold, 255, cv2.THRESH_BINARY)
 
         # Calculate difference percentage
         non_zero_count = np.count_nonzero(threshold_diff)
@@ -158,9 +153,7 @@ class PixelDifferenceStrategy(IImageComparisonStrategy):
         """
         diff = self.compare(img1, img2)
         is_match = diff < threshold
-        logger.debug(
-            f"Match result: {is_match} (diff: {diff:.2f}%, threshold: {threshold}%)"
-        )
+        logger.debug(f"Match result: {is_match} (diff: {diff:.2f}%, threshold: {threshold}%)")
         return is_match
 
 
@@ -217,9 +210,7 @@ class TemplateMatchingStrategy(IImageComparisonStrategy):
         logger.debug(f"Template matching confidence: {confidence:.4f}")
         return confidence
 
-    def is_match(
-        self, img1: ImageType, img2: ImageType, threshold: float = 0.8
-    ) -> bool:
+    def is_match(self, img1: ImageType, img2: ImageType, threshold: float = 0.8) -> bool:
         """
         Check if template matches based on confidence threshold.
 
@@ -290,9 +281,7 @@ class StructuralSimilarityStrategy(IImageComparisonStrategy):
         logger.debug(f"SSIM score: {score:.4f}")
         return score
 
-    def is_match(
-        self, img1: ImageType, img2: ImageType, threshold: float = 0.95
-    ) -> bool:
+    def is_match(self, img1: ImageType, img2: ImageType, threshold: float = 0.95) -> bool:
         """
         Check if images match based on SSIM threshold.
 
@@ -306,9 +295,7 @@ class StructuralSimilarityStrategy(IImageComparisonStrategy):
         """
         score = self.compare(img1, img2)
         is_match = score >= threshold
-        logger.debug(
-            f"SSIM match: {is_match} (score: {score:.4f}, threshold: {threshold})"
-        )
+        logger.debug(f"SSIM match: {is_match} (score: {score:.4f}, threshold: {threshold})")
         return is_match
 
 
@@ -351,9 +338,7 @@ class ImageComparator:
         """
         return self.strategy.compare(img1, img2)
 
-    def is_match(
-        self, img1: ImageType, img2: ImageType, threshold: float = None
-    ) -> bool:
+    def is_match(self, img1: ImageType, img2: ImageType, threshold: float = None) -> bool:
         """
         Check if images match using current strategy.
 

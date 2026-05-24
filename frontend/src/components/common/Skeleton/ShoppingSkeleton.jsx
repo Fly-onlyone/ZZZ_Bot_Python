@@ -1,4 +1,3 @@
-import React from "react";
 import { Box, Paper, Skeleton } from "@mui/material";
 import { motion } from "framer-motion";
 import { useThemeContext } from "../../../theme/ThemeContext";
@@ -59,8 +58,7 @@ export default function ShoppingSkeleton() {
                 alignItems: "center",
                 gap: 2,
                 py: 1,
-                borderBottom:
-                  i !== 3 ? `1px solid ${themeColors.alpha.divider}` : "none",
+                borderBottom: i !== 3 ? `1px solid ${themeColors.alpha.divider}` : "none",
               }}
             >
               <Skeleton variant="circular" width={24} height={24} />
@@ -100,8 +98,7 @@ export default function ShoppingSkeleton() {
                 p: 2,
                 display: "flex",
                 gap: 2,
-                borderBottom:
-                  i !== 5 ? `1px solid ${themeColors.alpha.card}` : "none",
+                borderBottom: i !== 5 ? `1px solid ${themeColors.alpha.card}` : "none",
               }}
             >
               <Skeleton variant="rounded" width={20} height={20} />

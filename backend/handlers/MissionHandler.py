@@ -10,12 +10,12 @@ from contextlib import suppress
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
-
 from automation import RetryHelper
 from automation.ImageProcessor import ImageProcessor, find_correct_avatar
 from automation.tracking import safe_track
 from core.constants import PANEL_BACK_SELECTOR
+from playwright.sync_api import Locator, Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from utils.DataHandler import maintain_mission_data
 from utils.NotificationHelper import NotificationModule
 from utils.screenshot_store import save_locator_screenshot, save_page_screenshot
@@ -179,9 +179,7 @@ def _capture_check_in_screenshot(page: Page, prefix: str) -> Optional[str]:
     filename = f"{prefix}_{timestamp}.png"
     try:
         asset_id = save_page_screenshot(page, filename)
-        logger.info(
-            "Saved check-in diagnostic screenshot to MongoDB asset: %s", asset_id
-        )
+        logger.info("Saved check-in diagnostic screenshot to MongoDB asset: %s", asset_id)
         return asset_id
     except Exception as exc:
         logger.warning("Failed to capture check-in diagnostic screenshot: %s", exc)
@@ -286,9 +284,7 @@ def handle_check_in(new_page: Page, todays_data: Dict) -> None:
         try:
             new_page.wait_for_load_state("domcontentloaded", timeout=3000)
         except PlaywrightTimeoutError:
-            logger.debug(
-                "Check-in popup did not report domcontentloaded before locator wait"
-            )
+            logger.debug("Check-in popup did not report domcontentloaded before locator wait")
         new_page.wait_for_timeout(500)
 
         _close_dialog_if_visible(new_page)
@@ -490,9 +486,7 @@ class Mission:
             try:
                 if mission_button.is_enabled(timeout=1000):
                     mission_button.click()
-                    logger.info(
-                        f"Mission button clicked (attempt {attempt}/{max_retries})"
-                    )
+                    logger.info(f"Mission button clicked (attempt {attempt}/{max_retries})")
                     self.page.wait_for_timeout(MISSION_CLICK_WAIT)
 
                 popup_outcome = self.process_pending_popups()
@@ -508,9 +502,7 @@ class Mission:
                     return True
 
                 if popup_outcome == POPUP_OUTCOME_FAILED:
-                    logger.warning(
-                        "Mission popup completed without a successful check-in"
-                    )
+                    logger.warning("Mission popup completed without a successful check-in")
                     return False
 
             except PlaywrightTimeoutError:
@@ -653,9 +645,7 @@ def count_mission(page: Page) -> int:
     return count
 
 
-def _get_or_create_mission_record(
-    todays_data: Dict, mission_name: str
-) -> Optional[Dict]:
+def _get_or_create_mission_record(todays_data: Dict, mission_name: str) -> Optional[Dict]:
     """Get existing mission record or create a new one.
 
     Args:
@@ -748,9 +738,7 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
 
         if button_state == "Finished":
             mission_done = True
-            logger.info(
-                f"Mission '{mission_name}' already finished (detected via image)"
-            )
+            logger.info(f"Mission '{mission_name}' already finished (detected via image)")
         else:
             if button_state == "Reward":
                 logger.info(
@@ -774,9 +762,7 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
         if existing_record:
             existing_record["state"] = status
         else:
-            todays_data.setdefault("missions", []).append(
-                {"name": mission_name, "state": status}
-            )
+            todays_data.setdefault("missions", []).append({"name": mission_name, "state": status})
 
     # Remove popup listener to prevent interference with other handlers (e.g., ShoppingHandler)
     if listener_attached:
@@ -790,9 +776,7 @@ def doing_mission(mission_count: int, page: Page, todays_data: Dict) -> None:
     logger.info(f"Check-in status: {check_in_status}")
 
 
-def run(
-    output_file: str, page: Page, previous_data: List[Dict], todays_data: Dict
-) -> bool:
+def run(output_file: str, page: Page, previous_data: List[Dict], todays_data: Dict) -> bool:
     """Main entry point for mission automation.
 
     Args:
@@ -812,17 +796,13 @@ def run(
         span.set_data("workflow.phase", "mission")
         try:
             # Navigate to mission screen
-            with sentry_sdk.start_span(
-                op="browser.navigate", name="Open mission screen"
-            ):
+            with sentry_sdk.start_span(op="browser.navigate", name="Open mission screen"):
                 if not open_mission_screen(page):
                     logger.error("Failed to open mission screen, aborting")
                     return False
 
             # Count and execute missions
-            with sentry_sdk.start_span(
-                op="browser.interact", name="Count and execute missions"
-            ):
+            with sentry_sdk.start_span(op="browser.interact", name="Count and execute missions"):
                 mission_count = count_mission(page)
                 doing_mission(mission_count, page, todays_data)
 

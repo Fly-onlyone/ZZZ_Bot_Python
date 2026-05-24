@@ -1,4 +1,3 @@
-import React from "react";
 import { Box, Skeleton } from "@mui/material";
 import { motion } from "framer-motion";
 import { useThemeContext } from "../../../theme/ThemeContext";
@@ -55,8 +54,7 @@ export default function RedeemSkeleton() {
               p: 2,
               display: "flex",
               gap: 2,
-              borderBottom:
-                i !== 4 ? `1px solid ${themeColors.alpha.card}` : "none",
+              borderBottom: i !== 4 ? `1px solid ${themeColors.alpha.card}` : "none",
             }}
           >
             <Skeleton variant="text" width="8%" height={24} />

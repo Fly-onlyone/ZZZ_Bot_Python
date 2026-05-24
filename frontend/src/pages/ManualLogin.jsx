@@ -1,11 +1,5 @@
 import { useState, useRef } from "react";
-import {
-  FormControl,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
-} from "@mui/material";
+import { FormControl, IconButton, InputLabel, MenuItem, Select } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
 import * as Sentry from "@sentry/react";
@@ -15,8 +9,7 @@ import { useThemeContext } from "../theme/ThemeContext";
 import { GLOW } from "../theme/styles";
 
 export default function ManualLogin() {
-  const MINO_URL =
-    "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...";
+  const MINO_URL = "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?...";
   const REDEEM_URL = "https://zenless.hoyoverse.com/redemption";
   const CHECK_IN_URL =
     "https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091&hyl_auth_required=true";
@@ -56,36 +49,32 @@ export default function ManualLogin() {
 
         // Periodically check the backend playState
         if (updatedPlayState) {
-          Sentry.startSpan(
-            { op: "ui.manual_login", name: "manual-login-polling" },
-            (span) => {
-              spanFinishRef.current = () => span.end();
-              const intervalId = setInterval(async () => {
-                try {
-                  const stateResponse = await fetch(`${BACKEND_URL}/playstate`);
-                  const { playState: backendPlayState } =
-                    await stateResponse.json();
-                  if (!backendPlayState) {
-                    setPlayState(false);
-                    clearInterval(intervalId);
-                    spanFinishRef.current?.();
-                    spanFinishRef.current = null;
-                    logInfo("Manual browser session ended", {
-                      url,
-                    });
-                  }
-                } catch (error) {
-                  logError("Manual login polling failed", error, {
-                    url,
-                  });
+          Sentry.startSpan({ op: "ui.manual_login", name: "manual-login-polling" }, (span) => {
+            spanFinishRef.current = () => span.end();
+            const intervalId = setInterval(async () => {
+              try {
+                const stateResponse = await fetch(`${BACKEND_URL}/playstate`);
+                const { playState: backendPlayState } = await stateResponse.json();
+                if (!backendPlayState) {
                   setPlayState(false);
                   clearInterval(intervalId);
                   spanFinishRef.current?.();
                   spanFinishRef.current = null;
+                  logInfo("Manual browser session ended", {
+                    url,
+                  });
                 }
-              }, 500);
-            }
-          );
+              } catch (error) {
+                logError("Manual login polling failed", error, {
+                  url,
+                });
+                setPlayState(false);
+                clearInterval(intervalId);
+                spanFinishRef.current?.();
+                spanFinishRef.current = null;
+              }
+            }, 500);
+          });
         }
       } else {
         logWarn("Manual login request rejected", {
@@ -131,9 +120,7 @@ export default function ManualLogin() {
         sx={{
           transition: "all 0.3s ease-in-out",
           "&:hover": {
-            boxShadow: playState
-              ? GLOW.subtle("#ef4444")
-              : GLOW.subtle(themeColors.glow),
+            boxShadow: playState ? GLOW.subtle("#ef4444") : GLOW.subtle(themeColors.glow),
           },
         }}
       >

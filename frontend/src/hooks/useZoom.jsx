@@ -1,18 +1,11 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 const ZOOM_KEY = "zzz-bot-zoom";
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.1;
 
-const clamp = (value) =>
-  Math.round(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value)) * 10) / 10;
+const clamp = (value) => Math.round(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value)) * 10) / 10;
 
 const ZoomContext = createContext({
   zoomLevel: 1.0,
@@ -31,14 +24,8 @@ export function ZoomProvider({ children, containerRef }) {
     localStorage.setItem(ZOOM_KEY, String(zoomLevel));
   }, [zoomLevel]);
 
-  const zoomIn = useCallback(
-    () => setZoomLevel((z) => clamp(z + ZOOM_STEP)),
-    []
-  );
-  const zoomOut = useCallback(
-    () => setZoomLevel((z) => clamp(z - ZOOM_STEP)),
-    []
-  );
+  const zoomIn = useCallback(() => setZoomLevel((z) => clamp(z + ZOOM_STEP)), []);
+  const zoomOut = useCallback(() => setZoomLevel((z) => clamp(z - ZOOM_STEP)), []);
   const resetZoom = useCallback(() => setZoomLevel(1.0), []);
 
   // Ctrl + scroll wheel to zoom

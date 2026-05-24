@@ -14,9 +14,8 @@ from urllib.parse import urljoin
 import aiohttp
 import cv2
 import numpy as np
-from playwright.async_api import Page, Locator
-
 from core.constants import IMAGE_BINARY_THRESHOLD, IMAGE_MATCH_THRESHOLD
+from playwright.async_api import Locator, Page
 
 logger = logging.getLogger(__name__)
 
@@ -88,9 +87,7 @@ async def fetch_image_from_locator_async(page: Page, locator: Locator) -> np.nda
             if start > 4 and end > start:
                 image_url = style[start:end]
         else:
-            computed = await locator.evaluate(
-                "(el) => window.getComputedStyle(el).backgroundImage"
-            )
+            computed = await locator.evaluate("(el) => window.getComputedStyle(el).backgroundImage")
             if computed and computed.startswith("url("):
                 start = computed.find('url("') + len('url("')
                 end = computed.find('")', start)
@@ -98,7 +95,7 @@ async def fetch_image_from_locator_async(page: Page, locator: Locator) -> np.nda
                     image_url = computed[start:end]
 
     if not image_url:
-        raise ValueError(f"Image URL not found for locator")
+        raise ValueError("Image URL not found for locator")
 
     # 4. Handle data URIs
     if image_url.startswith("data:image/"):
@@ -159,9 +156,7 @@ def compare_images_sync(
     elif isinstance(img1, np.ndarray):
         loaded_img1 = img1
     else:
-        raise ValueError(
-            f"img1 must be file path (str) or numpy array, got {type(img1)}"
-        )
+        raise ValueError(f"img1 must be file path (str) or numpy array, got {type(img1)}")
 
     # Load second image
     if isinstance(img2, str):
@@ -171,15 +166,11 @@ def compare_images_sync(
     elif isinstance(img2, np.ndarray):
         loaded_img2 = img2
     else:
-        raise ValueError(
-            f"img2 must be file path (str) or numpy array, got {type(img2)}"
-        )
+        raise ValueError(f"img2 must be file path (str) or numpy array, got {type(img2)}")
 
     # Resize to match dimensions
     if loaded_img1.shape != loaded_img2.shape:
-        loaded_img2 = cv2.resize(
-            loaded_img2, (loaded_img1.shape[1], loaded_img1.shape[0])
-        )
+        loaded_img2 = cv2.resize(loaded_img2, (loaded_img1.shape[1], loaded_img1.shape[0]))
 
     # Compute absolute difference
     difference = cv2.absdiff(loaded_img1, loaded_img2)
@@ -188,9 +179,7 @@ def compare_images_sync(
     gray_diff = cv2.cvtColor(difference, cv2.COLOR_BGR2GRAY)
 
     # Apply binary threshold
-    _, threshold_diff = cv2.threshold(
-        gray_diff, binary_threshold, 255, cv2.THRESH_BINARY
-    )
+    _, threshold_diff = cv2.threshold(gray_diff, binary_threshold, 255, cv2.THRESH_BINARY)
 
     # Calculate difference percentage
     non_zero_count = np.count_nonzero(threshold_diff)
@@ -224,9 +213,7 @@ def scan_folder_for_best_match(
 
     # Get image files from folder
     image_files = [
-        f
-        for f in os.listdir(folder_path)
-        if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
+        f for f in os.listdir(folder_path) if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
     ]
 
     if not image_files:

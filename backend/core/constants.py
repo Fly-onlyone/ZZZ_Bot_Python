@@ -82,9 +82,7 @@ CHECK_IN_URL_WITH_AUTH = (
 )
 
 # Default event URL (for browser automation entry point)
-DEFAULT_EVENT_URL = (
-    "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
-)
+DEFAULT_EVENT_URL = "https://act.hoyolab.com/bbs/event/bbs-event-20230908mimo/index.html?..."
 EVENT_PAGE_WAIT_UNTIL = "domcontentloaded"
 EVENT_PAGE_GOTO_TIMEOUT = 45000
 EVENT_PAGE_GOTO_MAX_ATTEMPTS = 3

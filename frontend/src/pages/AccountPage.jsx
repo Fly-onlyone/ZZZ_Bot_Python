@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Box, Tab, Tabs } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
 import PersonIcon from "@mui/icons-material/Person";

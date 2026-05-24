@@ -5,8 +5,8 @@ Browser automation helpers and utilities.
 Provides image processing, retry logic, and element selection.
 """
 
-from .AutoLogin import *
 from . import EventNavigator
+from .AutoLogin import *
 from .EventNavigator import *
 from .ImageProcessor import *
 from .RedeemAutofill import *

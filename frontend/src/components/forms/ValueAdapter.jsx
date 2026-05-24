@@ -25,16 +25,13 @@ export default function ValueAdapter({
   route,
 }) {
   const { themeColors } = useThemeContext();
-  const { value, error, handleChange, handleSubmit, alert, setAlert } =
-    useFormState(route);
+  const { value, error, handleChange, handleSubmit, alert, setAlert } = useFormState(route);
   const { renderField } = useFieldRenderer(typeConfig);
   const [actionLoading, setActionLoading] = React.useState({});
   /** @type {{key: string, label: string, onClick: Function, successMessage?: string | Function, errorMessage?: string}[]} */
   const actions = Array.isArray(extraActions) ? extraActions : [];
   const resolvedSections =
-    typeof customSections === "function"
-      ? customSections(value)
-      : customSections;
+    typeof customSections === "function" ? customSections(value) : customSections;
 
   if (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -49,38 +46,20 @@ export default function ValueAdapter({
     const isThemeField = fieldKey === "theme";
 
     return (
-      <div
-        key={fieldKey}
-        className={isArrayField ? "" : "flex items-center gap-4"}
-      >
+      <div key={fieldKey} className={isArrayField ? "" : "flex items-center gap-4"}>
         <label
-          className={`flex gap-4 text-lg font-medium capitalize ${
-            isArrayField ? "mb-4" : "w-1/4"
-          }`}
+          className={`flex gap-4 text-lg font-medium capitalize ${isArrayField ? "mb-4" : "w-1/4"}`}
           style={{ color: COMMON_COLORS.text.secondary }}
         >
           {customIcons[fieldKey] && (
-            <div
-              className="flex items-center"
-              style={{ color: themeColors.secondary.main }}
-            >
+            <div className="flex items-center" style={{ color: themeColors.secondary.main }}>
               {customIcons[fieldKey]}
             </div>
           )}
           {typeConfig[fieldKey]?.label || fieldKey.replace(/_/g, " ")}:
         </label>
-        <div
-          className={
-            isArrayField
-              ? ""
-              : isThemeField
-              ? "flex w-3/4 justify-end"
-              : "flex w-3/4"
-          }
-        >
-          {renderField(fieldKey, value[fieldKey], (newValue) =>
-            handleChange(fieldKey, newValue)
-          )}
+        <div className={isArrayField ? "" : isThemeField ? "flex w-3/4 justify-end" : "flex w-3/4"}>
+          {renderField(fieldKey, value[fieldKey], (newValue) => handleChange(fieldKey, newValue))}
         </div>
       </div>
     );
@@ -122,14 +101,10 @@ export default function ValueAdapter({
         </div>
 
         {/* Section fields */}
-        <div className="space-y-6">
-          {fields.map((fieldKey) => renderFieldRow(fieldKey))}
-        </div>
+        <div className="space-y-6">{fields.map((fieldKey) => renderFieldRow(fieldKey))}</div>
 
         {/* Section divider */}
-        {!isLastSection && (
-          <Divider sx={{ borderColor: themeColors.alpha.divider, mt: 3 }} />
-        )}
+        {!isLastSection && <Divider sx={{ borderColor: themeColors.alpha.divider, mt: 3 }} />}
       </div>
     );
   };
@@ -138,9 +113,7 @@ export default function ValueAdapter({
    * Renders standalone fields (no sections)
    */
   const renderStandaloneFields = () => (
-    <div className="space-y-6">
-      {Object.keys(value).map((key) => renderFieldRow(key))}
-    </div>
+    <div className="space-y-6">{Object.keys(value).map((key) => renderFieldRow(key))}</div>
   );
 
   const handleExtraAction = async (action) => {
@@ -161,8 +134,7 @@ export default function ValueAdapter({
         message: successMessage,
       });
     } catch (error) {
-      const fallbackMessage =
-        error instanceof Error ? error.message : "Action failed.";
+      const fallbackMessage = error instanceof Error ? error.message : "Action failed.";
       setAlert({
         open: true,
         type: "error",

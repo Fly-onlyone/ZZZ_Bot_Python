@@ -1,4 +1,3 @@
-import React from "react";
 import { Box, Button, Paper, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import { useThemeContext } from "../../theme/ThemeContext";
@@ -28,13 +27,7 @@ const iconVariants = {
   },
 };
 
-export default function EmptyState({
-  icon,
-  title,
-  subtitle,
-  action,
-  actionLabel,
-}) {
+export default function EmptyState({ icon, title, subtitle, action, actionLabel }) {
   const { themeColors } = useThemeContext();
 
   return (

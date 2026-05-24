@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Box, Tab, Tabs } from "@mui/material";
 import { FormControlLabel, Switch } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
@@ -130,13 +130,7 @@ function AutostartToggle() {
   return (
     <Box sx={{ mt: 2, px: 1 }}>
       <FormControlLabel
-        control={
-          <Switch
-            checked={enabled}
-            disabled={!loaded || saving}
-            onChange={handleChange}
-          />
-        }
+        control={<Switch checked={enabled} disabled={!loaded || saving} onChange={handleChange} />}
         label="Auto-start on Login"
       />
     </Box>
@@ -202,9 +196,7 @@ export default function SettingsPage() {
   const resolvedSettings = settings || {};
   const isAutomationOff = resolvedSettings.run_task === false;
   const isAffectedTab = activeTab === 1 || activeTab === 2;
-  const panelVariants = prefersReducedMotion
-    ? reducedMotionPanelVariants
-    : auroraPanelVariants;
+  const panelVariants = prefersReducedMotion ? reducedMotionPanelVariants : auroraPanelVariants;
 
   const handleTabChange = (_, newValue) => {
     setTabDirection(newValue >= activeTab ? 1 : -1);
@@ -218,9 +210,7 @@ export default function SettingsPage() {
   const tabConfig = TAB_CONFIGS[activeTab];
 
   /** @type {import("react").ReactNode[]} */
-  const tabItems = TAB_CONFIGS.map((tab) => (
-    <Tab key={tab.label} label={tab.label} />
-  ));
+  const tabItems = TAB_CONFIGS.map((tab) => <Tab key={tab.label} label={tab.label} />);
 
   return (
     <Box>
@@ -245,15 +235,13 @@ export default function SettingsPage() {
         >
           {isAutomationOff && isAffectedTab && (
             <Alert severity="info" sx={{ mb: 2, borderRadius: "12px" }}>
-              Automatic runs are disabled. These settings will apply when you
-              re-enable automation in the General tab.
+              Automatic runs are disabled. These settings will apply when you re-enable automation
+              in the General tab.
             </Alert>
           )}
           <Box
             sx={
-              isAutomationOff && isAffectedTab
-                ? { opacity: 0.5, pointerEvents: "none" }
-                : undefined
+              isAutomationOff && isAffectedTab ? { opacity: 0.5, pointerEvents: "none" } : undefined
             }
           >
             <ValueAdapter

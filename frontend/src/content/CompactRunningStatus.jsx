@@ -1,4 +1,3 @@
-import React from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import ScheduleIcon from "@mui/icons-material/Schedule";
@@ -50,9 +49,7 @@ export default function CompactRunningStatus() {
   }
 
   const { last_run, next_run } = runStatus;
-  const huntItems = Array.isArray(huntInfo?.["hunt_items"])
-    ? huntInfo["hunt_items"]
-    : [];
+  const huntItems = Array.isArray(huntInfo?.["hunt_items"]) ? huntInfo["hunt_items"] : [];
   const huntActive = huntInfo?.enabled && huntItems.length > 0;
 
   const statCardSx = {
@@ -128,80 +125,40 @@ export default function CompactRunningStatus() {
           gap: 2,
         }}
       >
-        <Paper
-          component={motion.div}
-          variants={cardVariants}
-          elevation={2}
-          sx={statCardSx}
-        >
-          <ScheduleIcon
-            sx={{ color: themeColors.primary.main, fontSize: 32 }}
-          />
-          <Typography
-            variant="body2"
-            sx={{ color: COMMON_COLORS.text.muted, fontWeight: 600 }}
-          >
+        <Paper component={motion.div} variants={cardVariants} elevation={2} sx={statCardSx}>
+          <ScheduleIcon sx={{ color: themeColors.primary.main, fontSize: 32 }} />
+          <Typography variant="body2" sx={{ color: COMMON_COLORS.text.muted, fontWeight: 600 }}>
             Last Run
           </Typography>
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 700, color: themeColors.primary.light }}
-          >
+          <Typography variant="h6" sx={{ fontWeight: 700, color: themeColors.primary.light }}>
             {last_run || "—"}
           </Typography>
         </Paper>
 
-        <Paper
-          component={motion.div}
-          variants={cardVariants}
-          elevation={2}
-          sx={statCardSx}
-        >
-          <ScheduleIcon
-            sx={{ color: themeColors.secondary.main, fontSize: 32 }}
-          />
-          <Typography
-            variant="body2"
-            sx={{ color: COMMON_COLORS.text.muted, fontWeight: 600 }}
-          >
+        <Paper component={motion.div} variants={cardVariants} elevation={2} sx={statCardSx}>
+          <ScheduleIcon sx={{ color: themeColors.secondary.main, fontSize: 32 }} />
+          <Typography variant="body2" sx={{ color: COMMON_COLORS.text.muted, fontWeight: 600 }}>
             Next Run
           </Typography>
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 700, color: themeColors.secondary.light }}
-          >
+          <Typography variant="h6" sx={{ fontWeight: 700, color: themeColors.secondary.light }}>
             {next_run || "—"}
           </Typography>
         </Paper>
 
-        <Paper
-          component={motion.div}
-          variants={cardVariants}
-          elevation={2}
-          sx={statCardSx}
-        >
+        <Paper component={motion.div} variants={cardVariants} elevation={2} sx={statCardSx}>
           {huntActive ? (
-            <CheckCircleIcon
-              sx={{ color: COMMON_COLORS.success.main, fontSize: 32 }}
-            />
+            <CheckCircleIcon sx={{ color: COMMON_COLORS.success.main, fontSize: 32 }} />
           ) : (
-            <PauseCircleOutlineIcon
-              sx={{ color: COMMON_COLORS.text.muted, fontSize: 32 }}
-            />
+            <PauseCircleOutlineIcon sx={{ color: COMMON_COLORS.text.muted, fontSize: 32 }} />
           )}
-          <Typography
-            variant="body2"
-            sx={{ color: COMMON_COLORS.text.muted, fontWeight: 600 }}
-          >
+          <Typography variant="body2" sx={{ color: COMMON_COLORS.text.muted, fontWeight: 600 }}>
             Hunt Status
           </Typography>
           <Typography
             variant="h6"
             sx={{
               fontWeight: 700,
-              color: huntActive
-                ? COMMON_COLORS.success.light
-                : COMMON_COLORS.text.muted,
+              color: huntActive ? COMMON_COLORS.success.light : COMMON_COLORS.text.muted,
             }}
           >
             {huntActive ? `${huntItems.length} Items` : "Disabled"}

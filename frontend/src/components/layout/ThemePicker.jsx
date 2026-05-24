@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Box,
   IconButton,
@@ -79,11 +79,7 @@ export default function ThemePicker() {
         }}
       >
         {THEMES.map(({ value, label }) => (
-          <MenuItem
-            key={value}
-            selected={value === themeName}
-            onClick={() => handleSelect(value)}
-          >
+          <MenuItem key={value} selected={value === themeName} onClick={() => handleSelect(value)}>
             <ListItemIcon>
               <Box
                 sx={{
@@ -92,21 +88,14 @@ export default function ThemePicker() {
                   borderRadius: "50%",
                   background: THEME_COLORS[value].primary.main,
                   border: "2px solid",
-                  borderColor:
-                    value === themeName
-                      ? COMMON_COLORS.text.primary
-                      : "transparent",
+                  borderColor: value === themeName ? COMMON_COLORS.text.primary : "transparent",
                   boxShadow:
-                    value === themeName
-                      ? GLOW.border(THEME_COLORS[value].primary.main)
-                      : "none",
+                    value === themeName ? GLOW.border(THEME_COLORS[value].primary.main) : "none",
                 }}
               />
             </ListItemIcon>
             <ListItemText>{label}</ListItemText>
-            {value === themeName && (
-              <CheckIcon fontSize="small" sx={{ ml: 1, opacity: 0.7 }} />
-            )}
+            {value === themeName && <CheckIcon fontSize="small" sx={{ ml: 1, opacity: 0.7 }} />}
           </MenuItem>
         ))}
       </Menu>

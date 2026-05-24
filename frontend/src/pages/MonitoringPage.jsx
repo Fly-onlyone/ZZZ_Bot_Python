@@ -1,4 +1,3 @@
-import React from "react";
 import { IconCards } from "@tabler/icons-react";
 import { ValueAdapter } from "../components";
 

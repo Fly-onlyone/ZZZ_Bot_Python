@@ -58,9 +58,7 @@ export function useShoppingState(shopping) {
       const existing = selectedRows.find((row) => row.Name === name);
       return {
         Name: name,
-        Priority: existing
-          ? existing.Priority
-          : index + DEFAULT_PRIORITY_OFFSET,
+        Priority: existing ? existing.Priority : index + DEFAULT_PRIORITY_OFFSET,
       };
     });
 
@@ -100,10 +98,7 @@ export function useShoppingState(shopping) {
       const currentIndex = prev.findIndex((row) => row.Name === itemName);
       if (currentIndex === -1) return prev;
 
-      const clampedPriority = Math.max(
-        1,
-        Math.min(newPriority, prev.length)
-      );
+      const clampedPriority = Math.max(1, Math.min(newPriority, prev.length));
       const targetIndex = clampedPriority - DEFAULT_PRIORITY_OFFSET;
 
       if (currentIndex === targetIndex) return prev;

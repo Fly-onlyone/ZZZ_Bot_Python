@@ -7,10 +7,10 @@ Strategies enable runtime algorithm selection and easy addition of new implement
 
 from .ImageComparisonStrategy import (
     IImageComparisonStrategy,
-    PixelDifferenceStrategy,
-    TemplateMatchingStrategy,
-    StructuralSimilarityStrategy,
     ImageComparator,
+    PixelDifferenceStrategy,
+    StructuralSimilarityStrategy,
+    TemplateMatchingStrategy,
 )
 
 __all__ = [

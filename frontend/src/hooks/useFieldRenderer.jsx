@@ -1,11 +1,5 @@
-import React from "react";
 import { PASSWORD_FIELD_KEYWORDS } from "../config";
-import {
-  ArrayField,
-  BooleanField,
-  SelectField,
-  TextField,
-} from "../components";
+import { ArrayField, BooleanField, SelectField, TextField } from "../components";
 
 /**
  * useFieldRenderer Hook
@@ -21,9 +15,7 @@ export function useFieldRenderer(typeConfig = {}) {
    * Determines if a field is a password field based on keywords
    */
   const isPasswordField = (key) => {
-    return PASSWORD_FIELD_KEYWORDS.some((keyword) =>
-      key.toLowerCase().includes(keyword)
-    );
+    return PASSWORD_FIELD_KEYWORDS.some((keyword) => key.toLowerCase().includes(keyword));
   };
 
   /**
@@ -41,12 +33,7 @@ export function useFieldRenderer(typeConfig = {}) {
     // Custom select field
     if (fieldConfig?.type === "select" && fieldConfig?.options) {
       return (
-        <SelectField
-          id={key}
-          value={value}
-          options={fieldConfig.options}
-          onChange={onChange}
-        />
+        <SelectField id={key} value={value} options={fieldConfig.options} onChange={onChange} />
       );
     }
 
@@ -61,14 +48,7 @@ export function useFieldRenderer(typeConfig = {}) {
     }
 
     // Text/Password field (default)
-    return (
-      <TextField
-        id={key}
-        value={value}
-        onChange={onChange}
-        isPassword={isPassword}
-      />
-    );
+    return <TextField id={key} value={value} onChange={onChange} isPassword={isPassword} />;
   };
 
   return { renderField, isPasswordField };

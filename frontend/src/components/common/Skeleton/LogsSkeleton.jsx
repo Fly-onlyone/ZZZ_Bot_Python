@@ -1,4 +1,3 @@
-import React from "react";
 import { Box, Paper, Skeleton } from "@mui/material";
 import { motion } from "framer-motion";
 import { useThemeContext } from "../../../theme/ThemeContext";
@@ -67,12 +66,7 @@ export default function LogsSkeleton() {
                 <Skeleton key={i} variant="rounded" width={60} height={24} />
               ))}
             </Box>
-            <Skeleton
-              variant="rounded"
-              width={200}
-              height={40}
-              sx={{ ml: "auto" }}
-            />
+            <Skeleton variant="rounded" width={200} height={40} sx={{ ml: "auto" }} />
           </Box>
 
           {/* Stats chips */}
@@ -114,8 +108,7 @@ export default function LogsSkeleton() {
                   p: 2,
                   display: "flex",
                   gap: 2,
-                  borderBottom:
-                    i !== 5 ? `1px solid ${themeColors.alpha.card}` : "none",
+                  borderBottom: i !== 5 ? `1px solid ${themeColors.alpha.card}` : "none",
                 }}
               >
                 <Skeleton variant="text" width="20%" height={20} />

@@ -10,7 +10,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import asdict
 from pathlib import Path
-from typing import TypeVar, Generic, Dict, Any, Optional, List
+from typing import Any, Dict, Generic, List, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
 

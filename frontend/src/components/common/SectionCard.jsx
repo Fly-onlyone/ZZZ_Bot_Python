@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import { memo } from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import { useThemeContext } from "../../theme/ThemeContext";
@@ -116,11 +116,7 @@ export default function SectionCard({
           gap: 2,
         }}
       >
-        <IconBadge
-          icon={icon}
-          gradient={iconGradient}
-          themeColors={themeColors}
-        />
+        <IconBadge icon={icon} gradient={iconGradient} themeColors={themeColors} />
         <Typography
           variant="h5"
           sx={{
