@@ -1,9 +1,9 @@
 """Repository package.
 
-MongoRepository is the runtime storage backend.
-Legacy JSON repository classes remain in DataRepository.py for migration/compat tools.
+DataStore is the runtime storage backend (embedded SQLite).
+Legacy JSON repository classes remain in DataRepository.py for test fixtures.
 """
 
-from . import MongoRepository
+from . import DataStore
 
-__all__ = ["MongoRepository"]
+__all__ = ["DataStore"]

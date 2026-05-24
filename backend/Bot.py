@@ -16,30 +16,28 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import schedule
 import uvicorn
-from playwright.sync_api import Error as PlaywrightError, sync_playwright
-from starlette.staticfiles import StaticFiles
-
+from api.routes import router
 from automation import EventNavigator
+from core import GlobalVar, Notification
+from core.frontend_env import resolve_frontend_sentry_dsn
+from core.GlobalVar import CONFIG, app, is_exe, settings
+from core.mission_email import schedule_mission_email_delivery
 from handlers import DrawHandler, ShoppingHandler
-from handlers import MissionHandler as Mission
 from handlers import HuntModeHandler as HuntMode
+from handlers import MissionHandler as Mission
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import sync_playwright
+from starlette.staticfiles import StaticFiles
 from utils.DataHandler import (
     prepare_mission_data,
 )
-from core.GlobalVar import app, CONFIG, settings, is_exe
-from core import GlobalVar
-from core.frontend_env import resolve_frontend_sentry_dsn
-from utils.Logger import StreamToLogger, NoImportFilter
+from utils.Logger import NoImportFilter, StreamToLogger
 from utils.NotificationHelper import NotificationModule
 from utils.screenshot_store import save_page_screenshot
 from utils.storage_state_store import (
     build_context_options,
-    load_storage_state,
     save_context_storage_state,
 )
-from core import Notification
-from core.mission_email import schedule_mission_email_delivery
-from api.routes import router
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -73,9 +71,9 @@ def _build_asyncio_exception_handler(fallback_handler):
 
     def handler(loop: asyncio.AbstractEventLoop, context: dict[str, object]) -> None:
         exception = context.get("exception")
-        if isinstance(
-            exception, BaseException
-        ) and _should_ignore_windows_transport_reset(exception, context):
+        if isinstance(exception, BaseException) and _should_ignore_windows_transport_reset(
+            exception, context
+        ):
             logger.debug(
                 "Ignoring benign Windows asyncio transport reset during connection cleanup"
             )
@@ -98,9 +96,7 @@ def _configure_windows_asyncio_exception_handler(
     if getattr(loop, "_zzz_asyncio_exception_handler_installed", False):
         return
 
-    loop.set_exception_handler(
-        _build_asyncio_exception_handler(loop.get_exception_handler())
-    )
+    loop.set_exception_handler(_build_asyncio_exception_handler(loop.get_exception_handler()))
     setattr(loop, "_zzz_asyncio_exception_handler_installed", True)
 
 
@@ -108,11 +104,7 @@ def _build_runner_loop_factory(base_loop_factory):
     """Create the loop factory used by the backend server runner."""
 
     def runner_loop_factory() -> asyncio.AbstractEventLoop:
-        loop = (
-            base_loop_factory()
-            if base_loop_factory is not None
-            else asyncio.new_event_loop()
-        )
+        loop = base_loop_factory() if base_loop_factory is not None else asyncio.new_event_loop()
         _configure_windows_asyncio_exception_handler(loop)
         return loop
 
@@ -174,19 +166,6 @@ def _resolve_log_dir() -> str:
     return os.path.abspath(os.path.join("backend", "logs"))
 
 
-def _configure_external_log_levels() -> None:
-    """Reduce noisy third-party debug logs in packaged production runs."""
-    if not is_exe:
-        return
-
-    if os.getenv("ZZZ_VERBOSE_EXTERNAL_LOGS", "0").lower() in {"1", "true", "yes"}:
-        return
-
-    logging.getLogger("pymongo").setLevel(logging.WARNING)
-    logging.getLogger("pymongo.serverSelection").setLevel(logging.WARNING)
-    logging.getLogger("pymongo.topology").setLevel(logging.WARNING)
-
-
 # Include API routes from separate module
 app.include_router(router)
 
@@ -215,6 +194,7 @@ def _close_shopping_screen_helper(page):
     Args:
         page: Playwright Page instance
     """
+
     def _shopping_panel_closed() -> bool:
         """Treat shopping as closed only when shopping-specific UI is gone."""
         if ShoppingHandler._shopping_ready(page):
@@ -258,11 +238,11 @@ def _close_shopping_screen_helper(page):
                 logger.warning(f"Shopping screen still visible after attempt {attempt}")
                 # Take screenshot for debugging
                 if attempt == max_close_attempts:
-                    screenshot_name = f"shopping_wont_close_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                    asset_id = save_page_screenshot(page, screenshot_name)
-                    logger.error(
-                        "Final screenshot saved to MongoDB asset: %s", asset_id
+                    screenshot_name = (
+                        f"shopping_wont_close_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
                     )
+                    asset_id = save_page_screenshot(page, screenshot_name)
+                    logger.error("Final screenshot saved as asset: %s", asset_id)
 
         except Exception as e:
             logger.warning(f"Error during close attempt {attempt}: {e}")
@@ -276,9 +256,7 @@ def _send_mission_email(payload: dict) -> None:
 
     import sentry_sdk
 
-    with sentry_sdk.start_span(
-        op="notification.email", name="send_mission_email"
-    ) as span:
+    with sentry_sdk.start_span(op="notification.email", name="send_mission_email") as span:
         try:
             Notification.send_mission_data_via_email_html(payload)
         except Exception as exc:
@@ -288,9 +266,7 @@ def _send_mission_email(payload: dict) -> None:
 
 def _close_mission_panel_if_open(page) -> bool:
     """Close the mission panel only when its back button is actually visible."""
-    closed = EventNavigator.close_panel_back(
-        page, context="closing mission panel", timeout=5000
-    )
+    closed = EventNavigator.close_panel_back(page, context="closing mission panel", timeout=5000)
     if not closed:
         logger.info("Mission panel is not open; skipping close button click")
     return closed
@@ -353,12 +329,11 @@ def playwright_task(*, manual_run: bool = False):
                     mino_page = context.new_page()
 
                     EventNavigator.open_event_page(mino_page)
-
-                    # Handle manual login only when neither MongoDB nor file has auth state.
-                    has_auth_state = load_storage_state(
-                        CONFIG["STORAGE_PATH"]
-                    ) is not None or os.path.exists(CONFIG["STORAGE_PATH"])
-                    if not has_auth_state:
+                    auth_status = EventNavigator.wait_for_authenticated_event_home(
+                        mino_page,
+                        context="starting scheduled automation",
+                    )
+                    if not auth_status.ready:
                         NotificationModule.notify(
                             title="ZZZ Bot",
                             message="Please log in manually",
@@ -394,34 +369,24 @@ def playwright_task(*, manual_run: bool = False):
                         _close_shopping_screen_helper(mino_page)
 
                         if not shopping_execution_success:
-                            logger.warning(
-                                "Shopping execution phase failed, continuing anyway"
-                            )
+                            logger.warning("Shopping execution phase failed, continuing anyway")
 
                 if settings.draw_item:
                     with sentry_sdk.start_span(op="automation.phase", name="draw_phase"):
                         draw_result = DrawHandler.run(mino_page)
                         if not draw_result.get("cleanup_ok", True):
-                            logger.warning(
-                                "Draw phase left residual UI state before returning"
-                            )
+                            logger.warning("Draw phase left residual UI state before returning")
 
                         if not DrawHandler.close_draw_screen(mino_page):
-                            logger.warning(
-                                "Could not fully leave draw screen after draw phase"
-                            )
+                            logger.warning("Could not fully leave draw screen after draw phase")
                 else:
                     logger.info("Draw data cancelled due to setting.")
 
                 # Phase 2: Gather shopping data (after draw)
                 if settings.gather_shopping_data:
                     logger.info("=== PHASE 2: Shopping Data Gathering (After Draw) ===")
-                    with sentry_sdk.start_span(
-                        op="automation.phase", name="shopping_gather_phase"
-                    ):
-                        gathering_success = ShoppingHandler.gather_shopping_data_only(
-                            mino_page
-                        )
+                    with sentry_sdk.start_span(op="automation.phase", name="shopping_gather_phase"):
+                        gathering_success = ShoppingHandler.gather_shopping_data_only(mino_page)
 
                         # Always close shopping screen whether gathering succeeded or failed
                         # to ensure browser state is clean for future operations
@@ -450,9 +415,7 @@ def playwright_task(*, manual_run: bool = False):
                     app_icon=CONFIG["ICON_PATH"],
                 )
 
-                with sentry_sdk.start_span(
-                    op="auth.storage_state", name="save_storage_state"
-                ):
+                with sentry_sdk.start_span(op="auth.storage_state", name="save_storage_state"):
                     save_context_storage_state(context, CONFIG["STORAGE_PATH"])
 
                 if not is_exe:
@@ -471,9 +434,7 @@ def playwright_task(*, manual_run: bool = False):
                 {"source": "playwright_task", "status": "failed", "error": str(exc)},
             )
         except Exception:
-            logger.debug(
-                "SSE emit after failed playwright_task skipped", exc_info=True
-            )
+            logger.debug("SSE emit after failed playwright_task skipped", exc_info=True)
         NotificationModule.notify(
             title="ZZZ Bot",
             message="Task finished",
@@ -514,11 +475,11 @@ def calculate_next_run() -> datetime:
 
 def save_last_run():
     """Save the current time as last run and calculate the next run."""
-    import repositories.MongoRepository as mongo
+    from repositories import DataStore
 
     now = datetime.now()
     next_run = calculate_next_run()
-    mongo.save_last_run(
+    DataStore.save_last_run(
         {
             "last_run": now.strftime("%H:%M %d/%m/%y"),
             "next_run": next_run.strftime("%H:%M %d/%m/%y"),
@@ -529,8 +490,7 @@ def save_last_run():
 def check_missed_runs():
     """Check if any scheduled runs were missed."""
     import sentry_sdk
-
-    import repositories.MongoRepository as mongo
+    from repositories import DataStore
 
     if not automatic_runs_enabled():
         logger.info("Automatic automation is disabled, skipping missed-run check")
@@ -538,7 +498,7 @@ def check_missed_runs():
 
     with sentry_sdk.start_span(op="scheduler.check_missed", name="check-missed-runs"):
         last_run = datetime.min
-        data = mongo.get_last_run()
+        data = DataStore.get_last_run()
         if data and data.get("last_run"):
             last_run = datetime.strptime(data["last_run"], "%H:%M %d/%m/%y")
 
@@ -588,9 +548,7 @@ def schedule_hunt_tasks():
 
         # Schedule EARLIER to allow buffer time for opening shopping screen
         # Subtract buffer time (2 minutes by default)
-        schedule_datetime = hunt_datetime - timedelta(
-            seconds=HuntMode.WAIT_BUFFER_SECONDS
-        )
+        schedule_datetime = hunt_datetime - timedelta(seconds=HuntMode.WAIT_BUFFER_SECONDS)
         now = datetime.now()
 
         # Only schedule if the schedule time is in the future
@@ -680,9 +638,7 @@ def resolve_playwright_browsers_path() -> str | None:
             GlobalVar.resource_path("./playwright-browsers"),
             GlobalVar.resource_path("./backend/playwright-browsers"),
             os.path.join(os.path.dirname(sys.executable), "playwright-browsers"),
-            os.path.join(
-                os.path.dirname(sys.executable), "backend", "playwright-browsers"
-            ),
+            os.path.join(os.path.dirname(sys.executable), "backend", "playwright-browsers"),
         ]
     )
 
@@ -708,7 +664,6 @@ def configure_sentry_runtime(
         import sentry_sdk
         from sentry_sdk.integrations.fastapi import FastApiIntegration
         from sentry_sdk.integrations.logging import LoggingIntegration
-        from sentry_sdk.integrations.pymongo import PyMongoIntegration
     except ImportError:
         return {
             "active": False,
@@ -755,13 +710,11 @@ def configure_sentry_runtime(
         send_sentry_test_event = False
         sentry_test_event_source = f"{sentry_test_event_source}:ignored_in_production"
 
-    traces_sample_rate, traces_sample_rate_source = (
-        GlobalVar.resolve_sentry_sample_rate(
-            env_name="SENTRY_TRACES_SAMPLE_RATE",
-            settings_name="settings.sentry_traces_sample_rate",
-            settings_value=getattr(settings, "sentry_traces_sample_rate", 1.0),
-            fallback_value=1.0,
-        )
+    traces_sample_rate, traces_sample_rate_source = GlobalVar.resolve_sentry_sample_rate(
+        env_name="SENTRY_TRACES_SAMPLE_RATE",
+        settings_name="settings.sentry_traces_sample_rate",
+        settings_value=getattr(settings, "sentry_traces_sample_rate", 1.0),
+        fallback_value=1.0,
     )
 
     if send_sentry_test_event:
@@ -782,10 +735,7 @@ def configure_sentry_runtime(
                     environment="production" if is_exe else "development",
                     integrations=[
                         FastApiIntegration(),
-                        LoggingIntegration(
-                            level=logging.INFO, event_level=logging.ERROR
-                        ),
-                        PyMongoIntegration(),
+                        LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
                     ],
                     auto_enabling_integrations=False,
                     traces_sample_rate=traces_sample_rate,
@@ -819,9 +769,7 @@ def configure_sentry_runtime(
 
                 sentry_test_logger = logging.getLogger("zzz_bot.sentry_test")
                 sentry_test_logger.info("ZZZ Bot startup info log integration test")
-                sentry_test_logger.warning(
-                    "ZZZ Bot startup warning log integration test"
-                )
+                sentry_test_logger.warning("ZZZ Bot startup warning log integration test")
                 sentry_test_logger.error("ZZZ Bot startup error log integration test")
 
                 sentry_sdk.flush(timeout=5.0)
@@ -878,7 +826,6 @@ if __name__ == "__main__":
     # === 1. Setup Log Path and Initialize Logger (only in EXE mode) ===
     log_dir = _resolve_log_dir()
     os.makedirs(log_dir, exist_ok=True)
-    _configure_external_log_levels()
 
     if is_exe:
         root = logging.getLogger()
@@ -948,11 +895,9 @@ if __name__ == "__main__":
             dev_backend_url = f"http://127.0.0.1:{args.port}"
             frontend_env = os.environ.copy()
             frontend_env["VITE_BACKEND_URL"] = dev_backend_url
-            frontend_sentry_dsn, frontend_sentry_dsn_source = (
-                resolve_frontend_sentry_dsn(
-                    frontend_env,
-                    settings.sentry_frontend_dsn,
-                )
+            frontend_sentry_dsn, frontend_sentry_dsn_source = resolve_frontend_sentry_dsn(
+                frontend_env,
+                settings.sentry_frontend_dsn,
             )
             if frontend_sentry_dsn:
                 frontend_env["VITE_SENTRY_DSN"] = frontend_sentry_dsn
@@ -976,9 +921,7 @@ if __name__ == "__main__":
     # === 3. Mount Frontend (exe mode) ===
     elif is_exe:
         if args.no_frontend or hosted_by_tauri:
-            logger.info(
-                "Skipping frontend mount for Tauri sidecar or --no-frontend mode"
-            )
+            logger.info("Skipping frontend mount for Tauri sidecar or --no-frontend mode")
         else:
             try:
                 logger.info("Mounting frontend build...")

@@ -12,10 +12,8 @@ from typing import Literal, Optional
 from uuid import uuid4
 
 from PIL import Image
-
 from playwright.sync_api import Locator, Page
-
-import repositories.MongoRepository as MongoRepository
+from repositories import DataStore
 from utils.screenshot_store import (
     save_locator_screenshot,
     save_screenshot_bytes,
@@ -44,7 +42,7 @@ def _asset_metadata(
     summary_id: str,
 ) -> dict[str, str]:
     return {
-        "owner": MongoRepository.LOCATOR_TRACKER_ASSET_OWNER,
+        "owner": DataStore.LOCATOR_TRACKER_ASSET_OWNER,
         "kind": kind,
         "handler": handler,
         "action": action,
@@ -169,9 +167,7 @@ def _scan_child_elements(
     timestamp: str,
 ) -> list[dict]:
     """Scan visible children inside the page wrapper, crop each from the full-page screenshot."""
-    scan_result = page.evaluate(
-        _CHILD_SCAN_JS % (_CHILD_SCAN_MIN_AREA, _CHILD_SCAN_MAX_ELEMENTS)
-    )
+    scan_result = page.evaluate(_CHILD_SCAN_JS % (_CHILD_SCAN_MIN_AREA, _CHILD_SCAN_MAX_ELEMENTS))
     if not scan_result or not scan_result.get("children"):
         return []
 
@@ -297,11 +293,7 @@ def _capture_artifacts(
         except Exception as exc:
             logger.debug("Locator tracker DOM snapshot failed: %s", exc)
 
-    if (
-        capture_mode == "failure"
-        and page_png_bytes is not None
-        and _CHILD_SCAN_MAX_ELEMENTS > 0
-    ):
+    if capture_mode == "failure" and page_png_bytes is not None and _CHILD_SCAN_MAX_ELEMENTS > 0:
         try:
             child_scan = _scan_child_elements(
                 page,
@@ -352,17 +344,11 @@ def track_locator(
 
     existing = None
     with suppress(Exception):
-        existing = MongoRepository.get_db().locator_tracker.find_one(
-            {"_id": summary_id}
-        )
+        existing = DataStore.get_locator_entry(summary_id)
 
     hit_count = (existing.get("hit_count", 0) if existing else 0) + 1
-    success_count = (existing.get("success_count", 0) if existing else 0) + (
-        1 if success else 0
-    )
-    failure_count = (existing.get("failure_count", 0) if existing else 0) + (
-        0 if success else 1
-    )
+    success_count = (existing.get("success_count", 0) if existing else 0) + (1 if success else 0)
+    failure_count = (existing.get("failure_count", 0) if existing else 0) + (0 if success else 1)
     first_seen = existing.get("first_seen", now) if existing else now
     capture_mode = _capture_mode(summary_id, success, existing)
 
@@ -416,7 +402,7 @@ def track_locator(
     }
 
     with suppress(Exception):
-        MongoRepository.upsert_locator_entry(entry)
+        DataStore.upsert_locator_entry(entry)
 
     if not success:
         failure_entry = {
@@ -435,22 +421,20 @@ def track_locator(
             "child_scan": current_child_scan,
         }
         with suppress(Exception):
-            MongoRepository.save_locator_failure_event(failure_entry)
+            DataStore.save_locator_failure_event(failure_entry)
 
 
 def get_all_entries() -> list[dict]:
     """Return all tracked locator summary entries."""
-    return MongoRepository.get_locator_entries()
+    return DataStore.get_locator_entries()
 
 
 def get_failure_events(limit: int = 100, summary_id: str | None = None) -> list[dict]:
     """Return recent locator tracker failure events."""
-    return MongoRepository.get_locator_failure_events(
-        limit=limit, summary_id=summary_id
-    )
+    return DataStore.get_locator_failure_events(limit=limit, summary_id=summary_id)
 
 
 def clear_entries() -> None:
     """Remove all tracked locator entries and reset capture throttling."""
     _failure_capture_cache.clear()
-    MongoRepository.clear_locator_entries()
+    DataStore.clear_locator_entries()

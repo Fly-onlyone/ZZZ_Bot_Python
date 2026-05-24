@@ -14,7 +14,7 @@ tags: [moc, backend]
 - [[01-Backend/handlers/_index|handlers]] — Mission, Shopping, Draw, Hunt orchestrators
 - [[01-Backend/automation/_index|automation]] — Playwright wrappers + OpenCV + locator tracking
 - [[01-Backend/services/_index|services]] — browser session manager
-- [[01-Backend/repositories/_index|repositories]] — MongoDB primary + legacy JSON
+- [[01-Backend/repositories/_index|repositories]] — embedded SQLite primary + legacy JSON
 - [[01-Backend/domain/_index|domain]] — typed models, enums
 - [[01-Backend/api/_index|api]] — 35+ FastAPI endpoints grouped by feature
 - [[01-Backend/utils/_index|utils]] — data, logging, screenshots, notifications, migration

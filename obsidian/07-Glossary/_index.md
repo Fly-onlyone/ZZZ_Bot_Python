@@ -19,7 +19,7 @@ tags: [moc, glossary]
 - [[Sidecar Term]] — Tauri's name for a managed child process (the Python backend here)
 - [[Locator Term]] — Playwright's selector wrapper object
 - [[Target Triple Term]] — Rust's `arch-vendor-os-env` triple used in sidecar filename
-- [[TTL Term]] — MongoDB time-to-live index
+- [[TTL Term]] — time-to-live retention window (app-driven purge in SQLite)
 - [[SSE Term]] — Server-Sent Events
 - [[NSIS Term]] — Nullsoft Scriptable Install System
 - [[PyInstaller Term]] — Python → standalone exe bundler

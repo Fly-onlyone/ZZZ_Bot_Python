@@ -15,19 +15,18 @@ tags: [backend, repositories]
 3. `SettingsRepository` — subclass with `get_settings()` factory (default schedule times, hunt-mode flags, theme) and an `update_settings()` patcher.
 4. `ShoppingRepository` — subclass with `get_shopping_data()`, `update_selected_items()`, `update_hunt_items()`.
 
-The class lattice predates the move to Mongo and is preserved for test fixtures and migration tooling.
+The class lattice predates the move to a database backend and is preserved for test fixtures and migration tooling.
 
 ## Depends on
 - *(stdlib only — json, pathlib, dataclasses)*
 
 ## Used by
-- [[Migrate JSON To Mongo]] — reads legacy JSON before insertion
 - *(legacy tests and migration scripts)*
 
 ## Gotchas
-- **Deprecated for runtime persistence** — all live reads/writes go through [[MongoRepository]]; do not introduce new callers.
+- **Deprecated for runtime persistence** — all live reads/writes go through [[DataStore]]; do not introduce new callers.
 
 ## See also
 - [[_index]]
-- [[MongoRepository]]
+- [[DataStore]]
 - [[Serializable Data Pattern]]

@@ -30,7 +30,7 @@ sequenceDiagram
     BS->>PW: browser.close()
 ```
 
-Storage state is loaded via [[Storage State Store]] so Mongo is consulted first with a JSON file fallback. `save_session_state()` writes through the same helper. Static helpers (`click_element`, `wait_for_element`, `close_overlay`, `take_screenshot`) wrap their Playwright counterparts with logging and exception suppression.
+Storage state is loaded via [[Storage State Store]] so the SQLite `binary_assets` table is consulted first with a JSON file fallback. `save_session_state()` writes through the same helper. Static helpers (`click_element`, `wait_for_element`, `close_overlay`, `take_screenshot`) wrap their Playwright counterparts with logging and exception suppression.
 
 ## Depends on
 
@@ -45,7 +45,7 @@ Storage state is loaded via [[Storage State Store]] so Mongo is consulted first 
 ## Gotchas
 
 - The main automation in [[Bot Entry Point]] does **not** route through this service; expect divergence between the two paths.
-- `take_screenshot` ignores the on-disk `path` and saves to MongoDB instead, keying by `basename(path)`.
+- `take_screenshot` ignores the on-disk `path` and saves to the SQLite `binary_assets` table instead, keying by `basename(path)`.
 
 ## See also
 

@@ -10,9 +10,9 @@ tags: [moc, backend, utils]
 - [[NotificationHelper]] — cross-platform desktop notifications (winotify / plyer)
 - [[StringUtil]] — number/price extraction, mm/dd parsing, return-time calculation
 - [[Logger]] — `StreamToLogger`, `NoImportFilter`; stdout/stderr redirection
-- [[Screenshot Store]] — save page + locator screenshots to MongoDB assets with TTL
+- [[Screenshot Store]] — save page + locator screenshots to the SQLite `binary_assets` table
 - [[Storage State Store]] — load/save Playwright auth state; context options builder
-- [[Migrate JSON To Mongo]] — one-time migration tool (settings.json → MongoDB)
+- [[Migrate Mongo To SQLite]] — one-time CLI tool (legacy MongoDB → SQLite)
 
 ## See also
 

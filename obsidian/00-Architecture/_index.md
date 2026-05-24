@@ -16,12 +16,12 @@ tags: [moc, architecture]
 
 - [[Hunt Mode Lifecycle]] — timed item purchase with three-phase execution
 - [[Manual Login Flow]] — SessionState machine for user-initiated browser login
-- [[Settings Persistence Flow]] — settings.json + MongoDB hybrid + frontend sync
+- [[Settings Persistence Flow]] — SQLite + settings.json mirror + frontend sync
 
 ## Cross-cutting pipelines
 
 - [[Image Recognition Pipeline]] — OpenCV template matching for UI state detection
-- [[Locator Telemetry Pipeline]] — Playwright selector instrumentation → MongoDB
+- [[Locator Telemetry Pipeline]] — Playwright selector instrumentation → SQLite
 - [[Notification Pipeline]] — Jinja2 templates → SMTP/Apprise → frontend SSE
 
 ## Desktop integration

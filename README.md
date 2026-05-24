@@ -82,47 +82,42 @@ flowchart TD
 
 ## Installation (Windows)
 
-### 1. Install MongoDB (required)
+ZZZ Bot stores all data in an embedded **SQLite** database — there is **no separate database
+to install**. The database file is created automatically on first launch under `data/` and
+persists across app updates.
 
-ZZZ Bot stores settings, missions, redemptions, and shopping data in a local MongoDB instance. You must have MongoDB
-running on the default port **27017** before launching the app.
-
-**Option A — MongoDB Community Server (recommended):**
-
-1. Download the Windows MSI installer from
-   [mongodb.com/try/download/community](https://www.mongodb.com/try/download/community).
-2. Run the installer; choose the **Complete** setup.
-3. Keep the default option **"Install MongoDB as a Service"** checked — this makes MongoDB start automatically with
-   Windows.
-4. Installing MongoDB Compass (the GUI) is optional but useful for inspecting data.
-5. After install, verify the service is running: open **Services** (`services.msc`) and confirm **MongoDB Server** is
-   set to *Running / Automatic*.
-
-**Option B — Docker (if you already use Docker Desktop):**
-
-```powershell
-docker run -d --name zzz-mongo -p 27017:27017 --restart unless-stopped mongo:7
-```
-
-ZZZ Bot connects to `mongodb://localhost:27017/zzz_bot` by default. No additional configuration is needed if MongoDB
-is reachable on that URI. You can change the URI later from the in-app **Settings** page.
-
-### 2. Install ZZZ Bot
+### 1. Install ZZZ Bot
 
 1. Download the latest `.exe` installer from the repository's **Releases** page.
 2. Run the installer and follow the NSIS wizard.
 3. Launch **ZZZ Bot** from the Start menu or desktop shortcut.
 
-### 3. First-run setup
+### 2. First-run setup
 
 1. Open **Manual Login** from the app and sign in to HoYoLab — the session is saved for future automated runs.
 2. Open **Account** to enter notification credentials (optional).
 3. Adjust schedule and per-task toggles under **Settings**.
 
+### Upgrading from a MongoDB-based version
+
+Earlier releases stored data in a local MongoDB instance. If you are upgrading and want to
+keep that data:
+
+1. Make sure your existing MongoDB is still running on `mongodb://localhost:27017`.
+2. Launch the new ZZZ Bot, open **Backup** → **Maintenance** → **Migrate from MongoDB**.
+3. The card reports per-collection counts; settings, account, and shopping hot-load into
+   the running app without a restart.
+
+Afterwards MongoDB is no longer used and can be uninstalled.
+
+The same migration is available as a CLI script for headless / scripted use:
+
+```powershell
+uv run python backend/utils/migrate_mongo_to_sqlite.py
+```
+
 ### Troubleshooting
 
-- **App can't connect to MongoDB** — confirm the MongoDB service is running (`services.msc` → MongoDB Server) and that
-  nothing else is using port 27017. On Docker, check `docker ps` shows `zzz-mongo` as up.
 - **Manual login keeps being required** — your HoYoLab session may have expired; re-run Manual Login.
 
 ## In-App Features

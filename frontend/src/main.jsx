@@ -16,10 +16,11 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { ThemeContextProvider, useThemeContext } from "./theme/ThemeContext";
 import { createMuiTheme } from "./theme/muiTheme";
 import ErrorFallback from "./components/common/ErrorFallback";
+import NotificationProvider from "./components/common/NotificationProvider";
+import MutationToastWatcher from "./components/common/MutationToastWatcher";
 
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
-const DEFAULT_SAMPLE_RATE =
-  import.meta.env.MODE === "development" ? "1.0" : "0.1";
+const DEFAULT_SAMPLE_RATE = import.meta.env.MODE === "development" ? "1.0" : "0.1";
 const SENTRY_INIT_KEY = "__ZZZ_BOT_SENTRY_INITIALIZED__";
 const SENTRY_BOOT_LOG_KEY = "__ZZZ_BOT_SENTRY_BOOT_LOGGED__";
 
@@ -62,7 +63,10 @@ function ThemedApp() {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <ThemeProvider theme={theme}>
-        <PermanentDrawer />
+        <NotificationProvider>
+          <MutationToastWatcher />
+          <PermanentDrawer />
+        </NotificationProvider>
       </ThemeProvider>
     </LocalizationProvider>
   );
@@ -112,9 +116,7 @@ window[ROOT_KEY] = root;
 root.render(
   <React.StrictMode>
     <Sentry.ErrorBoundary
-      fallback={({ error, resetError }) => (
-        <ErrorFallback error={error} resetError={resetError} />
-      )}
+      fallback={({ error, resetError }) => <ErrorFallback error={error} resetError={resetError} />}
     >
       <App />
     </Sentry.ErrorBoundary>

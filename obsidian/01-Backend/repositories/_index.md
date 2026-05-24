@@ -4,18 +4,18 @@ tags: [moc, backend, repositories]
 
 # Backend / repositories — Map of Content
 
-> Data persistence layer. MongoDB is the single runtime backend; legacy JSON
-> implementation remains for migration only.
+> Data persistence layer. An embedded SQLite database is the single runtime
+> backend; the legacy JSON implementation remains for migration tooling only.
 
-- [[MongoRepository]] — single-doc + multi-doc collection sets, TTL indexes, backup export/import
+- [[DataStore]] — single-doc + multi-doc collection sets, schema + TTL purge, backup export/import
 - [[DataRepository]] — abstract `IRepository<T>` interface; legacy JSON impl
-- [[Mongo Connection]] — connection pool management
+- [[SQLite Connection]] — shared connection + process-wide lock
 
 ## See also
 
 - [[_HOME]]
 - [[01-Backend/_index|Backend]]
-- [[MongoDB]]
+- [[SQLite]]
 - [[Settings Persistence Flow]]
 - [[Backup Collection Registration Pattern]]
 - [[Backup Endpoints]]

@@ -12,7 +12,7 @@ tags: [moc, patterns]
 
 - [[Serializable Data Pattern]] — JSON dataclass mixin with `resource_path()`
 - [[Resource Path Resolution Pattern]] — dev vs exe path handling
-- [[Backup Collection Registration Pattern]] — register new Mongo collections in backup sets
+- [[Backup Collection Registration Pattern]] — register new SQLite collections in backup sets
 
 ## Handler & automation
 

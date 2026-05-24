@@ -21,17 +21,17 @@ Startup runs in three phases:
 ```mermaid
 stateDiagram-v2
     [*] --> booting
-    booting --> warming: initialize_runtime_state()\nloads env, Sentry, Mongo, settings
-    warming --> ready: deferred thread\nensures indexes, syncs logs
+    booting --> warming: initialize_runtime_state()\nloads env, Sentry, SQLite, settings
+    warming --> ready: deferred thread\nensures schema, archives artifacts
     booting --> error: bootstrap failed
 ```
 
-`AppSettings` holds 30+ fields including schedule, hunt polling, Sentry knobs, theme. `Account` holds HoYo and Gmail credentials. Both are `Serializable` dataclasses persisted in MongoDB.
+`AppSettings` holds 30+ fields including schedule, hunt polling, Sentry knobs, theme. `Account` holds HoYo and Gmail credentials. Both are `Serializable` dataclasses persisted in SQLite.
 
 ## Depends on
 
-- [[MongoRepository]] — `get_settings`, `get_account`, `save_settings`
-- [[Mongo Connection]] — runtime URI switching via `settings.mongodb_uri`
+- [[DataStore]] — `get_settings`, `get_account`, `save_settings`
+- [[SQLite Connection]] — embedded database file under `data/`
 - [[FastAPI]] — `app` instance also serves `/images` and `/screenshot` mounts
 - [[Sentry]] — early init when `SENTRY_DSN` is present
 
@@ -43,8 +43,8 @@ stateDiagram-v2
 ## Gotchas
 
 - `SIMULATE_EXE=1` forces exe-style path resolution in dev for testing packaged behavior.
-- `settings.mongodb_uri` triggers a live runtime DB switch during `_load_settings`.
-- Account loading is lazy via `ensure_accounts_loaded()` to avoid Mongo dependency at import time.
+- The SQLite database file is selected by runtime mode (`zzz_bot_dev.db` vs `zzz_bot.db`); there is no configurable connection URI — the old `mongodb_uri` setting field is gone.
+- Account loading is lazy via `ensure_accounts_loaded()` to avoid a database dependency at import time.
 
 ## See also
 

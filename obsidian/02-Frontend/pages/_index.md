@@ -12,7 +12,7 @@ tags: [moc, frontend, pages]
 - [[Redeem Page]] — redemption codes table
 - [[Manual Login Page]] — start/stop browser login UI
 - [[Locator Tracker Page]] — telemetry table with screenshot thumbnails
-- [[Backup Page]] — selective export/import for MongoDB collections
+- [[Backup Page]] — selective export/import for SQLite tables
 - [[Settings Page]] — multi-tab settings via ValueAdapter
 - [[Account Page]] — account info, password, announcements tabs
 - [[Tools Page]] — tab container for nested tools

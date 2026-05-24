@@ -29,7 +29,7 @@ flowchart LR
 
 `_calculate_available_draws` takes `min(points // cost, remaining)` — `is_enabled()` is unreliable because the button stays enabled even when nothing is left. Result dialog detection accepts the modal selector OR a fallback signal (reward image, code image, redeem code element, close button), since the success copy has drifted historically.
 
-Failures save a screenshot to MongoDB plus a DOM snapshot to `logs/errors/` and emit a structured Sentry message tagged `draw.issue=missing_result_dialog`.
+Failures save a screenshot to the SQLite `binary_assets` table plus a DOM snapshot to `logs/errors/` and emit a structured Sentry message tagged `draw.issue=missing_result_dialog`.
 
 ## Depends on
 

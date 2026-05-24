@@ -4,7 +4,7 @@ tags: [backend, api]
 
 # Asset Endpoints
 
-> Serves binary screenshot assets stored in MongoDB to the frontend.
+> Serves binary screenshot assets stored in the SQLite `binary_assets` table to the frontend.
 
 ## Source
 - `backend/api/routes.py` — primary

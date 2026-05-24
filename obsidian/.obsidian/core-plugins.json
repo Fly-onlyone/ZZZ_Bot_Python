@@ -28,5 +28,6 @@
   "publish": false,
   "sync": false,
   "bases": false,
-  "webviewer": false
+  "webviewer": false,
+  "slash-command": false
 }

@@ -4,24 +4,38 @@ tags: [backend, api]
 
 # Maintenance Endpoints
 
-> On-demand legacy JSON import and local artifact cleanup, both invoked from the Tools page.
+> On-demand maintenance actions, invoked from the Backup page's Maintenance section.
 
 ## Source
 - `backend/api/routes.py` — primary
 
 ## How it works
-- `POST /maintenance/legacy-migration` runs [[Migrate JSON To Mongo]] (`migrate_if_needed(...)`) against `CONFIG["OUTPUT_FOLDER"]`, `STORAGE_PATH`, and `SCREENSHOT_FOLDER`. It then derives which collections were actually rehydrated (`_collect_migrated_collections_from_report`) and calls `_refresh_runtime_state_after_restore()` so live `settings`/`accounts` singletons and the scheduler pick up the new data. Response status is `completed` or `completed_with_warnings` depending on partial / invalid artifacts.
-- `POST /maintenance/local-cleanup` calls `cleanup_local_artifacts_once(...)` from `utils/local_artifact_maintenance.py`, returning a structured cleanup report. Used to prune legacy files now that MongoDB is authoritative.
+- `POST /maintenance/local-cleanup` — calls `cleanup_local_artifacts_once(...)` from
+  `utils/local_artifact_maintenance.py`, returning a structured cleanup report. It archives
+  stale local artifacts (logs, screenshots, DOM snapshots) into a ZIP and deletes the
+  originals, since SQLite is the authoritative store.
+- `POST /maintenance/mongo-migration` — calls `migrate(uri, db_name)` from
+  [[Migrate Mongo To SQLite]] and returns the structured report (`status`, `message`,
+  `summary`, `db_path`). Accepts optional `mongo_uri` / `mongo_db` in the JSON body;
+  defaults are `mongodb://localhost:27017` and "try `zzz_bot` then `zzz_bot_dev`". When
+  `status == "completed"` the endpoint also calls `_refresh_runtime_state_after_restore({"settings", "account", "shopping"})`
+  so the migrated documents hot-load into the running app without a backend restart;
+  any refresh warnings are merged into `report["errors"]`.
 
-Both endpoints open Sentry spans so cleanup work is traced.
+Both endpoints open a Sentry span so the work is traced.
+
+> The former `POST /maintenance/legacy-migration` endpoint (which imported old JSON files
+> into MongoDB) is permanently removed.
 
 ## Depends on
-- [[Migrate JSON To Mongo]] — migration logic
-- [[MongoRepository]] — runtime state refresh
+- `utils/local_artifact_maintenance.py` — cleanup logic
+- [[Migrate Mongo To SQLite]] — migration function (returns a dict report)
+- `_refresh_runtime_state_after_restore` (same module) — hot-loads restored settings /
+  account / shopping into the running app
 - [[Sentry]] — span tracing
 
 ## Used by
-- [[Tools Page]] — manual buttons
+- [[Backup Page]] — Maintenance section cards ("Migrate from MongoDB", "Local Cleanup")
 
 ## See also
 - [[_index]]

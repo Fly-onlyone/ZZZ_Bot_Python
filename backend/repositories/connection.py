@@ -1,32 +1,27 @@
-"""MongoDB connection factory for ZZZ Bot."""
+"""SQLite connection manager for ZZZ Bot.
+
+A single shared sqlite3.Connection backs all repository access. The backend is
+multi-threaded (uvicorn request workers + the schedule loop + the
+deferred-startup thread), so the connection is opened with
+``check_same_thread=False`` and every DataStore function serializes its work
+through ``get_lock()``.
+"""
 
 import logging
 import os
+import sqlite3
 import sys
-from urllib.parse import urlsplit, urlunsplit
-
-from pymongo import MongoClient
-from pymongo.database import Database
-from pymongo.errors import ConfigurationError
+import threading
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_DATABASE_NAME_DEV = "zzz_bot_dev"
-DEFAULT_DATABASE_NAME_EXE = "zzz_bot"
-DEFAULT_MONGODB_URI_DEV = f"mongodb://localhost:27017/{DEFAULT_DATABASE_NAME_DEV}"
-DEFAULT_MONGODB_URI_EXE = f"mongodb://localhost:27017/{DEFAULT_DATABASE_NAME_EXE}"
+# Dev and exe modes use different filenames so dev data never overwrites the
+# packaged database.
+DEFAULT_DB_NAME_DEV = "zzz_bot_dev.db"
+DEFAULT_DB_NAME_EXE = "zzz_bot.db"
 
-_client: MongoClient | None = None
-_db: Database | None = None
-_runtime_uri_override: str | None = None
-
-
-def _normalize_uri(uri: str | None) -> str | None:
-    """Normalize URI values so empty strings behave as unset."""
-    if uri is None:
-        return None
-    normalized = uri.strip()
-    return normalized or None
+_connection: sqlite3.Connection | None = None
+_lock = threading.RLock()
 
 
 def get_runtime_mode() -> str:
@@ -38,124 +33,75 @@ def get_runtime_mode() -> str:
     return "dev"
 
 
-def _default_database_name() -> str:
-    """Choose default database name based on runtime mode."""
-    if get_runtime_mode() == "exe":
-        return DEFAULT_DATABASE_NAME_EXE
-    return DEFAULT_DATABASE_NAME_DEV
+def _db_filename() -> str:
+    """Choose the SQLite filename based on runtime mode."""
+    return DEFAULT_DB_NAME_EXE if get_runtime_mode() == "exe" else DEFAULT_DB_NAME_DEV
 
 
-def _default_mongodb_uri() -> str:
-    """Choose default MongoDB URI based on runtime mode."""
-    if get_runtime_mode() == "exe":
-        return DEFAULT_MONGODB_URI_EXE
-    return DEFAULT_MONGODB_URI_DEV
+def get_db_path() -> str:
+    """Resolve the SQLite file path.
+
+    Stored under ``data/`` with ``outside_path=True`` so the database persists
+    across app updates (next to the exe in packaged mode).
+    """
+    # Lazy import avoids a circular import (GlobalVar -> DataStore -> connection).
+    from core.GlobalVar import resource_path
+
+    return resource_path(os.path.join("data", _db_filename()), outside_path=True)
 
 
-def _mode_uri_env_var() -> str:
-    """Return mode-specific MongoDB URI env var name."""
-    return "MONGODB_URI_EXE" if get_runtime_mode() == "exe" else "MONGODB_URI_DEV"
+def get_lock() -> threading.RLock:
+    """Return the lock that serializes all DataStore reads and writes."""
+    return _lock
 
 
-def _masked_uri(uri: str) -> str:
-    """Mask credentials in URI while preserving host and database path."""
-    parsed = urlsplit(uri)
-    host = parsed.hostname or ""
-    if parsed.port:
-        host = f"{host}:{parsed.port}"
-    return urlunsplit((parsed.scheme, host, parsed.path, parsed.query, parsed.fragment))
+def get_connection() -> sqlite3.Connection:
+    """Get or lazily open the shared SQLite connection."""
+    global _connection
+    if _connection is not None:
+        return _connection
 
+    with _lock:
+        if _connection is not None:
+            return _connection
 
-def get_uri_source() -> str:
-    """Describe which source currently provides the MongoDB URI."""
-    if _normalize_uri(_runtime_uri_override):
-        return "settings.mongodb_uri"
-    mode_env_var = _mode_uri_env_var()
-    if _normalize_uri(os.getenv(mode_env_var)):
-        return f"env:{mode_env_var}"
-    if _normalize_uri(os.getenv("MONGODB_URI")):
-        return "env:MONGODB_URI"
-    return f"default:{get_runtime_mode()}"
+        db_path = get_db_path()
+        parent = os.path.dirname(db_path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
 
+        conn = sqlite3.connect(db_path, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        # WAL keeps reads and writes from blocking each other; NORMAL is the
+        # recommended durability level under WAL; busy_timeout is a safety net.
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        _connection = conn
+        logger.info("Opened SQLite database at %s", db_path)
 
-def get_effective_mongodb_uri() -> str:
-    """Resolve MongoDB URI from runtime override, env var, then default."""
-    uri = _normalize_uri(_runtime_uri_override)
-    if uri:
-        return uri
-
-    mode_env_var = _mode_uri_env_var()
-    mode_uri = _normalize_uri(os.getenv(mode_env_var))
-    if mode_uri:
-        return mode_uri
-
-    env_uri = _normalize_uri(os.getenv("MONGODB_URI"))
-    if env_uri:
-        return env_uri
-
-    return _default_mongodb_uri()
-
-
-def get_connection_debug_info() -> dict[str, str | None]:
-    """Return non-sensitive Mongo connection metadata for diagnostics."""
-    uri = get_effective_mongodb_uri()
-    return {
-        "runtime_mode": get_runtime_mode(),
-        "uri_source": get_uri_source(),
-        "uri_masked": _masked_uri(uri),
-        "db_name": _db.name if _db is not None else None,
-    }
-
-
-def _select_database(client: MongoClient) -> Database:
-    """Select default DB from URI, or fallback to project default DB name."""
-    try:
-        return client.get_default_database()
-    except ConfigurationError:
-        return client[_default_database_name()]
+    return _connection
 
 
 def reset_connection() -> None:
-    """Close and reset cached MongoDB client/database."""
-    global _client, _db
+    """Close and reset the cached SQLite connection."""
+    global _connection
 
-    if _client is not None:
-        try:
-            _client.close()
-        except Exception as exc:
-            logger.debug("Ignoring MongoDB close error: %s", exc)
-
-    _client = None
-    _db = None
-
-
-def set_runtime_uri(uri: str | None) -> None:
-    """Set runtime URI override and force reconnection on next access."""
-    global _runtime_uri_override
-
-    normalized = _normalize_uri(uri)
-    if normalized == _runtime_uri_override:
-        return
-
-    _runtime_uri_override = normalized
-    reset_connection()
+    with _lock:
+        if _connection is not None:
+            try:
+                _connection.close()
+            except Exception as exc:
+                logger.debug("Ignoring SQLite close error: %s", exc)
+        _connection = None
 
 
-def get_db() -> Database:
-    """Get or lazily create the MongoDB database connection."""
-    global _client, _db
-    if _db is not None:
-        return _db
-
-    uri = get_effective_mongodb_uri()
-    try:
-        _client = MongoClient(uri, serverSelectionTimeoutMS=5000)
-        _client.admin.command("ping")  # Verify reachability
-        _db = _select_database(_client)
-        logger.info("Connected to MongoDB")
-    except Exception as exc:
-        logger.error("MongoDB connection failed: %s", exc)
-        reset_connection()
-        raise
-
-    return _db
+def get_connection_debug_info() -> dict[str, object]:
+    """Return non-sensitive storage metadata for diagnostics."""
+    db_path = get_db_path()
+    return {
+        "runtime_mode": get_runtime_mode(),
+        "storage": "sqlite",
+        "db_path": db_path,
+        "db_exists": os.path.exists(db_path),
+    }

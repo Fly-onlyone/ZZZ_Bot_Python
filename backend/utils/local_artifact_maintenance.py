@@ -1,32 +1,21 @@
-"""Local artifact migration and cleanup for Mongo-first runtime.
+"""Local artifact cleanup.
 
-Migrates local log files into MongoDB and cleans legacy local artifacts after migration.
+Archives runtime artifacts (logs, screenshots, debug images, output JSON,
+Playwright auth state) into a timestamped ZIP, then removes the local copies.
 """
 
 import hashlib
 import json
 import logging
-import re
 from datetime import datetime, timezone
 from pathlib import Path
-from zipfile import ZIP_DEFLATED, ZipFile
-
 from typing import Any
-
-from pymongo import ASCENDING, UpdateOne
-from pymongo.database import Database
+from zipfile import ZIP_DEFLATED, ZipFile
 
 logger = logging.getLogger(__name__)
 
-LOG_BATCH_SIZE = 1000
-LOG_TTL_SECONDS = 30 * 24 * 60 * 60
 BACKUP_RETENTION_COUNT = 5
 BACKUP_FILENAME_PREFIX = "local-artifacts"
-
-_LOG_LINE_PATTERN = re.compile(
-    r"^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - "
-    r"(?P<logger>.*?) - (?P<level>[A-Z]+) - (?P<message>.*)$"
-)
 
 
 def _iter_files(root: Path, pattern: str) -> list[Path]:
@@ -39,112 +28,6 @@ def _iter_files_recursive(root: Path) -> list[Path]:
     if not root.exists() or not root.is_dir():
         return []
     return sorted(path for path in root.rglob("*") if path.is_file())
-
-
-def _parse_log_line(raw_line: str) -> tuple[datetime | None, str | None]:
-    match = _LOG_LINE_PATTERN.match(raw_line.rstrip("\n"))
-    if not match:
-        return None, None
-
-    try:
-        parsed_ts = datetime.strptime(match.group("ts"), "%Y-%m-%d %H:%M:%S,%f")
-        parsed_ts = parsed_ts.replace(tzinfo=timezone.utc)
-    except ValueError:
-        parsed_ts = None
-
-    return parsed_ts, match.group("level")
-
-
-def _build_line_id(source_mode: str, source_file: str, line_number: int, raw_line: str) -> str:
-    payload = f"{source_mode}|{source_file}|{line_number}|{raw_line}".encode(
-        "utf-8", errors="replace"
-    )
-    return hashlib.sha256(payload).hexdigest()
-
-
-def _ensure_log_indexes(db: Database) -> None:
-    collection = db.log_lines
-    collection.create_index(
-        [("ingested_at", ASCENDING)],
-        expireAfterSeconds=LOG_TTL_SECONDS,
-        name="log_lines_ttl_30d",
-    )
-    collection.create_index(
-        [("source_mode", ASCENDING), ("source_file", ASCENDING), ("line_number", ASCENDING)],
-        name="log_lines_source_lookup",
-    )
-    collection.create_index([("parsed_ts", ASCENDING)], name="log_lines_parsed_ts")
-
-
-def _flush_operations(db: Database, operations: list[UpdateOne]) -> int:
-    if not operations:
-        return 0
-    result = db.log_lines.bulk_write(operations, ordered=False)
-    operations.clear()
-    return result.upserted_count
-
-
-def migrate_logs_to_mongo(
-    db: Database,
-    log_files: list[Path],
-    source_mode: str,
-) -> dict:
-    """Migrate log files into MongoDB as one document per line."""
-    _ensure_log_indexes(db)
-
-    report = {
-        "files_scanned": len(log_files),
-        "files_migrated": 0,
-        "lines_scanned": 0,
-        "lines_upserted": 0,
-        "migrated_files": [],
-        "failures": [],
-    }
-
-    for log_file in log_files:
-        operations: list[UpdateOne] = []
-        line_count = 0
-
-        try:
-            with open(log_file, "r", encoding="utf-8", errors="replace") as handle:
-                for line_number, raw_line in enumerate(handle, start=1):
-                    line_count += 1
-                    parsed_ts, level = _parse_log_line(raw_line)
-                    source_file = str(log_file)
-                    line_id = _build_line_id(source_mode, source_file, line_number, raw_line)
-
-                    operations.append(
-                        UpdateOne(
-                            {"_id": line_id},
-                            {
-                                "$setOnInsert": {
-                                    "_id": line_id,
-                                    "source_mode": source_mode,
-                                    "source_file": source_file,
-                                    "line_number": line_number,
-                                    "raw_line": raw_line.rstrip("\n"),
-                                    "parsed_ts": parsed_ts,
-                                    "level": level,
-                                    "ingested_at": datetime.now(tz=timezone.utc),
-                                }
-                            },
-                            upsert=True,
-                        )
-                    )
-
-                    if len(operations) >= LOG_BATCH_SIZE:
-                        report["lines_upserted"] += _flush_operations(db, operations)
-
-            report["lines_upserted"] += _flush_operations(db, operations)
-            report["lines_scanned"] += line_count
-            report["files_migrated"] += 1
-            report["migrated_files"].append(str(log_file))
-
-        except Exception as exc:
-            report["failures"].append({"path": str(log_file), "error": str(exc)})
-            logger.error("Log migration failed for %s: %s", log_file, exc)
-
-    return report
 
 
 def _delete_files(files: list[Path]) -> tuple[int, list[dict[str, str]]]:
@@ -252,7 +135,6 @@ def _create_backup_archive(
     runtime_mode: str,
     cleanup_id: str,
     entries: list[tuple[Path, str]],
-    migration_report: dict[str, Any],
 ) -> dict[str, Any]:
     """Create a timestamped ZIP backup before deleting local artifacts."""
     if not entries:
@@ -288,10 +170,6 @@ def _create_backup_archive(
             "runtime_mode": runtime_mode,
             "cleanup_id": cleanup_id,
             "files": manifest_files,
-            "migration_summary": {
-                "migrated": migration_report.get("migrated", []),
-                "artifact_status": migration_report.get("artifact_status", {}),
-            },
         }
         archive.writestr("manifest.json", json.dumps(manifest, indent=2, sort_keys=True))
 
@@ -328,7 +206,7 @@ def _try_prune_empty_dirs(root: Path) -> None:
 
 
 def collect_targets(config: dict, is_exe_mode: bool, exe_base_dir: str | None = None) -> dict:
-    """Collect local artifact targets for migration and cleanup."""
+    """Collect local artifact targets for cleanup."""
     output_dir = Path(config["OUTPUT_FOLDER"])
     screenshot_dir = Path(config["SCREENSHOT_FOLDER"])
 
@@ -351,38 +229,21 @@ def collect_targets(config: dict, is_exe_mode: bool, exe_base_dir: str | None = 
     }
 
 
-def sync_logs_to_mongo_once(
-    db: Database,
-    config: dict,
-    is_exe_mode: bool,
-    runtime_mode: str,
-    exe_base_dir: str | None = None,
-) -> dict:
-    """Mirror runtime logs into MongoDB without deleting local files."""
-    targets = collect_targets(config, is_exe_mode, exe_base_dir)
-    return migrate_logs_to_mongo(db, targets["log_files"], runtime_mode)
-
-
 def cleanup_local_artifacts_once(
-    db: Database,
     config: dict,
     is_exe_mode: bool,
     runtime_mode: str,
-    migration_report: dict[str, Any],
+    migration_report: dict[str, Any] | None = None,
     exe_base_dir: str | None = None,
 ) -> dict:
-    """Migrate logs and cleanup local artifacts on demand."""
-    cleanup_id = (
-        f"cleanup:{runtime_mode}:{datetime.now(tz=timezone.utc).strftime('%Y%m%d_%H%M%S')}"
-    )
+    """Archive local artifacts into a ZIP, then delete the local copies."""
+    migration_report = migration_report or {}
+    cleanup_id = f"cleanup:{runtime_mode}:{datetime.now(tz=timezone.utc).strftime('%Y%m%d_%H%M%S')}"
 
     targets = collect_targets(config, is_exe_mode, exe_base_dir)
     safe_json_files, skipped_unsafe_json = _collect_json_deletion_targets(
         targets["json_files"], migration_report
     )
-
-    log_report = migrate_logs_to_mongo(db, targets["log_files"], runtime_mode)
-    migrated_log_paths = [Path(path) for path in log_report["migrated_files"]]
 
     backup_entries = _build_backup_entries(
         screenshot_dir=targets["screenshot_dir"],
@@ -390,7 +251,7 @@ def cleanup_local_artifacts_once(
         json_files=safe_json_files,
         screenshot_files=targets["screenshot_files"],
         debug_png_files=targets["debug_png_files"],
-        log_files=migrated_log_paths,
+        log_files=targets["log_files"],
         storage_state_file=targets["storage_state_file"],
     )
 
@@ -400,7 +261,6 @@ def cleanup_local_artifacts_once(
             runtime_mode=runtime_mode,
             cleanup_id=cleanup_id,
             entries=backup_entries,
-            migration_report=migration_report,
         )
     except Exception as exc:
         logger.error("Backup creation failed before cleanup: %s", exc)
@@ -408,7 +268,6 @@ def cleanup_local_artifacts_once(
             "status": "skipped_backup_failed",
             "cleanup_id": cleanup_id,
             "runtime_mode": runtime_mode,
-            "log_report": log_report,
             "backups": {
                 "status": "failed",
                 "error": str(exc),
@@ -429,7 +288,6 @@ def cleanup_local_artifacts_once(
                 "debug_png": [],
                 "log_delete": [],
                 "auth_storage": [],
-                "log_migration": log_report["failures"],
                 "backup_prune": [],
             },
         }
@@ -437,22 +295,17 @@ def cleanup_local_artifacts_once(
     json_deleted, json_failures = _delete_files(safe_json_files)
     screenshot_deleted, screenshot_failures = _delete_files(targets["screenshot_files"])
     debug_deleted, debug_failures = _delete_files(targets["debug_png_files"])
-    log_deleted, log_delete_failures = _delete_files(migrated_log_paths)
-    auth_storage_deleted, auth_storage_failures = _delete_files(
-        [targets["storage_state_file"]]
-    )
+    log_deleted, log_delete_failures = _delete_files(targets["log_files"])
+    auth_storage_deleted, auth_storage_failures = _delete_files([targets["storage_state_file"]])
 
     _try_prune_empty_dirs(targets["screenshot_dir"])
     _try_prune_empty_dirs(targets["debug_dir"])
-    backup_deleted, backup_delete_failures = _prune_old_backups(
-        targets["output_dir"] / "backups"
-    )
+    backup_deleted, backup_delete_failures = _prune_old_backups(targets["output_dir"] / "backups")
 
-    report = {
+    return {
         "status": "completed",
         "cleanup_id": cleanup_id,
         "runtime_mode": runtime_mode,
-        "log_report": log_report,
         "backups": {
             **backup_report,
             "retention_keep_count": BACKUP_RETENTION_COUNT,
@@ -472,9 +325,6 @@ def cleanup_local_artifacts_once(
             "debug_png": debug_failures,
             "log_delete": log_delete_failures,
             "auth_storage": auth_storage_failures,
-            "log_migration": log_report["failures"],
             "backup_prune": backup_delete_failures,
         },
     }
-
-    return report

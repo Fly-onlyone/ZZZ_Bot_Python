@@ -11,6 +11,9 @@ export { default as SaveButton } from "./common/SaveButton.jsx";
 export { default as SectionCard } from "./common/SectionCard.jsx";
 export { default as SortableSelectedItems } from "./common/SortableSelectedItems.jsx";
 export { default as DataTable } from "./common/DataTable.jsx";
+export { default as NotificationProvider } from "./common/NotificationProvider.jsx";
+export { default as MutationToastWatcher } from "./common/MutationToastWatcher.jsx";
+export { useNotification } from "./common/NotificationContext.js";
 
 // Skeleton Components
 export {

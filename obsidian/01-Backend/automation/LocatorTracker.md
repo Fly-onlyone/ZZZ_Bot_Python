@@ -24,11 +24,11 @@ flowchart TD
     H --> J[insert failure event row]
 ```
 
-Summary docs live in `locator_tracker` (7-day TTL); failure events live in `locator_tracker_failures`. Element-level crops are saved when the `Locator` argument is visible; the JS-driven child scan crops up to six visible boxes from the full-page screenshot.
+Summary rows live in the `locator_tracker` table (7-day retention via `expires_at`); failure events live in `locator_tracker_failures`. Element-level crops are saved when the `Locator` argument is visible; the JS-driven child scan crops up to six visible boxes from the full-page screenshot.
 
 ## Depends on
-- [[MongoRepository]] — upsert + failure event writes
-- [[Screenshot Store]] — binary asset persistence with TTL metadata
+- [[DataStore]] — `upsert_locator_entry`, `save_locator_failure_event`, `get_locator_child_scan`
+- [[Screenshot Store]] — binary asset persistence with retention metadata
 - [[Playwright]] — locator + page APIs
 
 ## Used by
@@ -38,7 +38,8 @@ Summary docs live in `locator_tracker` (7-day TTL); failure events live in `loca
 
 ## Gotchas
 - `_FAILURE_CAPTURE_COOLDOWN_SECONDS = 15 * 60` throttles redundant artefact saves per summary id.
-- Bumping `LOCATOR_TRACKER_SCHEMA_MARKER` wipes existing diagnostics on next start.
+- Bumping `LOCATOR_TRACKER_SCHEMA_MARKER` wipes existing diagnostics on next start (tracked in the `app_metadata` table).
+- 7-day retention is not automatic — `purge_expired()` deletes stale `locator_tracker` / `locator_tracker_failures` rows at startup and before reads.
 
 ## See also
 - [[_index]]

@@ -34,6 +34,10 @@ tags: [moc, operations]
 
 - [[Test Suite]] — pytest under backend/test/
 
+## CI / automation
+
+- [[GitHub Actions CI]] — CI tests, Dependabot, CodeQL under `.github/`
+
 ## See also
 
 - [[_HOME]]

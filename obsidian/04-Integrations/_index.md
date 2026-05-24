@@ -14,7 +14,7 @@ tags: [moc, integrations]
 
 - [[Playwright]] — browser automation (Firefox bundled in sidecar)
 - [[OpenCV]] — template matching for UI state detection
-- [[MongoDB]] — primary persistence + TTL collections
+- [[SQLite]] — embedded primary persistence (stdlib `sqlite3`)
 - [[Schedule]] — cron-like scheduler
 - [[Jinja2]] — email templates
 - [[Apprise]] — multi-channel notification dispatch (SMTP)

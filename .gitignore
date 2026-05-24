@@ -31,6 +31,13 @@ opencode.json
 # Authentication session data
 authentication data/
 
+# Embedded SQLite database (created on first run; -wal/-shm sidecars included)
+data/
+
+# Python virtual environments
+.venv/
+.venv-ci/
+
 # Log files
 logs/
 backend/logs/

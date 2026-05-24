@@ -10,7 +10,7 @@ tags: [backend, automation]
 - `backend/automation/AutoLogin.py` — primary
 
 ## How it works
-1. Calls `ensure_accounts_loaded()` so `accounts.hoyo_username` / `hoyo_password` are populated from [[MongoRepository]].
+1. Calls `ensure_accounts_loaded()` so `accounts.hoyo_username` / `hoyo_password` are populated from [[DataStore]].
 2. Resolves the iframe via `page.locator("#hyv-account-frame").content_frame`.
 3. Fills `input[name="username"]` and `input[name="password"]`, then clicks the `Log In` button.
 4. Waits 5 s for the post-login redirect to settle.

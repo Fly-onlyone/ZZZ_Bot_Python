@@ -22,18 +22,18 @@ sequenceDiagram
     participant SMTP as Apprise/Gmail
     Caller->>N: send_mission_data_via_email_html(todays_data)
     N->>Store: get_screenshot_bytes("login_reward.png")
-    Store-->>N: PNG bytes (Mongo asset)
+    Store-->>N: PNG bytes (SQLite binary_assets row)
     N->>N: render Jinja with base64 image + theme
     N->>SMTP: mailto://user:app_password@gmail.com
     SMTP-->>N: status
 ```
 
-Falls back to the legacy `SCREENSHOT_FOLDER/login_reward.png` path if the Mongo asset is missing. `send_mail()` calls `ensure_accounts_loaded()` so credentials are lazily fetched.
+Falls back to the legacy `SCREENSHOT_FOLDER/login_reward.png` path if the database asset is missing. `send_mail()` calls `ensure_accounts_loaded()` so credentials are lazily fetched.
 
 ## Depends on
 
 - [[GlobalVar]] — `CONFIG["MISSION_NOTIFICATION"]`, `accounts`, `settings.theme`
-- [[Screenshot Store]] — Mongo-backed image retrieval
+- [[Screenshot Store]] — SQLite-backed image retrieval
 - [[Jinja2]] — template rendering
 - [[Apprise]] — SMTP delivery
 - [[Mission Email Template]] — the HTML template

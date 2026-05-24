@@ -21,7 +21,7 @@ tags: [moc, backend, automation]
 
 ## Telemetry
 
-- [[LocatorTracker]] — selector interaction recorder; per-selector MongoDB document
+- [[LocatorTracker]] — selector interaction recorder; per-selector SQLite row
 - [[Tracking Helpers]] — `safe_track()` wrapper; never breaks the caller
 
 ## See also

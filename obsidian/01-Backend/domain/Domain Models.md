@@ -34,7 +34,7 @@ All models are stdlib `@dataclass` with helper methods. Grouped into three famil
 ## Used by
 
 - [[MissionHandler]], [[ShoppingHandler]], [[HuntModeHandler]] — operate on dict shapes that mirror these models
-- [[MongoRepository]] — persists matching JSON
+- [[DataStore]] — persists matching JSON
 - [[Frontend Data Flow]] — REST payloads mirror these field names
 
 ## Gotchas

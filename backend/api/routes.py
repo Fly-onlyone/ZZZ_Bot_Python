@@ -17,11 +17,6 @@ from datetime import datetime
 from pathlib import Path
 from secrets import compare_digest
 
-from fastapi import APIRouter, BackgroundTasks, Query
-from starlette.requests import Request
-from starlette.responses import JSONResponse, Response, StreamingResponse
-
-import repositories.MongoRepository as MongoRepository
 from core.GlobalVar import (
     CONFIG,
     RedeemItem,
@@ -34,6 +29,10 @@ from core.GlobalVar import (
 )
 from core.ManualLogin import run
 from core.settings_contract import extract_advanced_settings
+from fastapi import APIRouter, BackgroundTasks, Query
+from repositories import DataStore
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response, StreamingResponse
 
 logger = logging.getLogger(__name__)
 
@@ -68,22 +67,12 @@ INTERNAL_ROUTE_PREFIXES = {
 }
 SHUTDOWN_RESPONSE_DELAY_SECONDS = 0.2
 SHUTDOWN_SENTRY_FLUSH_TIMEOUT_SECONDS = 2.0
-LEGACY_MIGRATION_COLLECTIONS_BY_FILE = {
-    "settings.json": "settings",
-    "account.json": "account",
-    "shopping.json": "shopping",
-    "missions.json": "missions",
-    "redeem.json": "redemptions",
-    "last_run.json": "last_run",
-}
 
 
 def _resolve_bot_runtime(*required_attrs: str):
     """Return the live backend runtime module, preferring packaged __main__."""
     main_module = sys.modules.get("__main__")
-    if main_module is not None and all(
-        hasattr(main_module, attr) for attr in required_attrs
-    ):
+    if main_module is not None and all(hasattr(main_module, attr) for attr in required_attrs):
         return main_module
     return importlib.import_module("Bot")
 
@@ -94,86 +83,25 @@ def _build_backup_export_filename(exported_at: datetime | None = None) -> str:
     return f"zzz-bot-backup-{timestamp}.json"
 
 
-def _collect_migrated_collections_from_report(
-    migration_report: dict[str, object],
-) -> set[str]:
-    """Map migrated legacy artifacts to their runtime collection names."""
-    migrated_collections: set[str] = set()
-    artifact_status = migration_report.get("artifact_status", {})
-    if not isinstance(artifact_status, dict):
-        return migrated_collections
-
-    for filename, collection_name in LEGACY_MIGRATION_COLLECTIONS_BY_FILE.items():
-        status = artifact_status.get(filename, {})
-        if not isinstance(status, dict):
-            continue
-        action = status.get("action")
-        if isinstance(action, str) and action.startswith("migrated"):
-            migrated_collections.add(collection_name)
-
-    return migrated_collections
-
-
-def _migration_report_has_warnings(migration_report: dict[str, object]) -> bool:
-    """Detect partial or invalid legacy migration results."""
-    artifact_status = migration_report.get("artifact_status", {})
-    if not isinstance(artifact_status, dict):
-        return False
-
-    for status in artifact_status.values():
-        if not isinstance(status, dict):
-            continue
-        action = status.get("action")
-        if action in {"skipped_invalid", "migrated_partial"}:
-            return True
-        parse_error = status.get("parse_error")
-        if isinstance(parse_error, str) and parse_error:
-            return True
-
-    return False
-
-
 def _refresh_runtime_state_after_restore(
     restored_collections: set[str],
 ) -> dict[str, str]:
-    """Reload shared in-memory state after restore-style operations."""
-    from repositories.connection import get_db, set_runtime_uri
-
+    """Reload shared in-memory state after a backup restore."""
     bot_runtime = _resolve_bot_runtime("schedule_hunt_tasks", "schedule_tasks")
 
     runtime_errors: dict[str, str] = {}
 
     if "settings" in restored_collections:
-        previous_mongodb_uri = getattr(settings, "mongodb_uri", "")
-        restored_settings = MongoRepository.get_settings()
+        restored_settings = DataStore.get_settings()
         if restored_settings:
             for key, value in restored_settings.items():
                 if hasattr(settings, key):
                     setattr(settings, key, value)
 
-            restored_mongodb_uri = restored_settings.get("mongodb_uri")
-            if restored_mongodb_uri != previous_mongodb_uri:
-                try:
-                    set_runtime_uri(
-                        restored_mongodb_uri
-                        if isinstance(restored_mongodb_uri, str)
-                        else ""
-                    )
-                    get_db()
-                except Exception as exc:
-                    logger.error(
-                        "Failed to reconnect MongoDB after runtime restore: %s",
-                        exc,
-                        exc_info=True,
-                    )
-                    runtime_errors[
-                        "settings_runtime"
-                    ] = f"Settings restored but MongoDB reconnect failed: {exc}"
-
         bot_runtime.schedule_tasks()
 
     if "account" in restored_collections:
-        restored_account = MongoRepository.get_account()
+        restored_account = DataStore.get_account()
         if restored_account:
             for key, value in restored_account.items():
                 if hasattr(accounts, key):
@@ -254,9 +182,7 @@ def _perform_desktop_shutdown(
                 sampled=True,
             )
             transaction.set_tag("shutdown.source", str(shutdown_context["source"]))
-            transaction.set_tag(
-                "shutdown.run_event", str(shutdown_context["run_event"])
-            )
+            transaction.set_tag("shutdown.run_event", str(shutdown_context["run_event"]))
             transaction.set_tag("shutdown.reason", str(shutdown_context["reason"]))
             for key, value in shutdown_context.items():
                 transaction.set_data(key, value)
@@ -389,12 +315,10 @@ def get_locator_tracker_failures(
 @router.get("/locator-tracker/child-scan/{summary_id:path}")
 def get_locator_child_scan(summary_id: str):
     """Return child scan data for a specific locator summary entry."""
-    from repositories.connection import get_db
-
-    entry = get_db().locator_tracker.find_one({"_id": summary_id}, {"child_scan": 1})
-    if not entry:
+    result = DataStore.get_locator_child_scan(summary_id)
+    if result is None:
         return JSONResponse({"message": "Summary not found"}, status_code=404)
-    return {"child_scan": entry.get("child_scan", [])}
+    return result
 
 
 @router.post("/locator-tracker/clear")
@@ -414,7 +338,7 @@ def clear_locator_tracker():
 @router.get("/shopping")
 def get_shopping_data():
     """Retrieve current shopping data from storage."""
-    return MongoRepository.get_shopping()
+    return DataStore.get_shopping()
 
 
 @router.post("/shopping")
@@ -427,10 +351,10 @@ def update_shopping_data(selected: dict):
     Returns:
         Success message
     """
-    shopping_data = MongoRepository.get_shopping() or {}
+    shopping_data = DataStore.get_shopping() or {}
     shopping_data["Selected"] = selected.get("Selected", [])
     shopping_data["Hunt"] = selected.get("Hunt", [])
-    MongoRepository.save_shopping(shopping_data)
+    DataStore.save_shopping(shopping_data)
 
     _resolve_bot_runtime("schedule_hunt_tasks").schedule_hunt_tasks()
 
@@ -445,7 +369,7 @@ def update_shopping_data(selected: dict):
 @router.get("/redeem")
 def get_redeem_data():
     """Retrieve redemption code history."""
-    return MongoRepository.get_redemptions()
+    return DataStore.get_redemptions()
 
 
 @router.post("/redeem")
@@ -458,7 +382,7 @@ def update_redeem_data(redeem_data: list[RedeemItem]):
     Returns:
         Success message
     """
-    MongoRepository.replace_all_redemptions([item.model_dump() for item in redeem_data])
+    DataStore.replace_all_redemptions([item.model_dump() for item in redeem_data])
     return {"message": "Redeem data updated successfully"}
 
 
@@ -473,7 +397,7 @@ def get_mission_report():
     from datetime import datetime
 
     today_str = datetime.now().strftime("%d/%m/%Y")
-    todays_data = MongoRepository.get_today_mission(today_str) or {
+    todays_data = DataStore.get_today_mission(today_str) or {
         "day": today_str,
         "check_in": "Link isn't opened",
         "missions": [],
@@ -494,7 +418,7 @@ def get_hunt_info():
     hunt_enabled = settings.enable_hunt_mode
 
     # Get detailed item information
-    shopping_data = MongoRepository.get_shopping()
+    shopping_data = DataStore.get_shopping()
     items_list = shopping_data.get("Item's list", {}) if shopping_data else {}
 
     # Build hunt items with scheduled times
@@ -512,9 +436,7 @@ def get_hunt_info():
             # Parse return time format
             if "/" in availability and ":" in availability:
                 return_time = datetime.strptime(availability, "%H:%M %d/%m/%y")
-                hunt_time = return_time - timedelta(
-                    seconds=HuntMode.WAIT_BUFFER_SECONDS
-                )
+                hunt_time = return_time - timedelta(seconds=HuntMode.WAIT_BUFFER_SECONDS)
                 scheduled_hunt_time = hunt_time.strftime("%H:%M %d/%m/%y")
             else:
                 scheduled_hunt_time = "Not scheduled"
@@ -564,7 +486,7 @@ async def update_account(request: Request):
     for key, value in data.items():
         if hasattr(accounts, key):
             setattr(accounts, key, value)
-    MongoRepository.save_account(asdict(accounts))
+    DataStore.save_account(asdict(accounts))
     return JSONResponse({"message": "Account updated"})
 
 
@@ -685,9 +607,7 @@ def run_playwright_now(request: Request):
     if not _has_valid_desktop_token(request):
         return JSONResponse({"status": "rejected"}, status_code=401)
 
-    _resolve_bot_runtime("run_playwright_task_async").run_playwright_task_async(
-        manual_run=True
-    )
+    _resolve_bot_runtime("run_playwright_task_async").run_playwright_task_async(manual_run=True)
     return JSONResponse({"status": "started"})
 
 
@@ -699,53 +619,48 @@ def run_playwright_now(request: Request):
 @router.post("/maintenance/local-cleanup")
 def run_local_cleanup():
     """Run local artifact cleanup on demand from the UI."""
-    from repositories.connection import get_db, get_runtime_mode
+    import sentry_sdk
+    from repositories.connection import get_runtime_mode
     from utils.local_artifact_maintenance import cleanup_local_artifacts_once
 
-    import sentry_sdk
-
-    with sentry_sdk.start_span(
-        op="maintenance.cleanup", name="local-cleanup-artifacts"
-    ):
+    with sentry_sdk.start_span(op="maintenance.cleanup", name="local-cleanup-artifacts"):
         cleanup_report = cleanup_local_artifacts_once(
-            db=get_db(),
             config=CONFIG,
             is_exe_mode=is_exe,
             runtime_mode=get_runtime_mode(),
-            migration_report={},
             exe_base_dir=os.path.dirname(sys.executable) if is_exe else None,
         )
     return JSONResponse(cleanup_report)
 
 
-@router.post("/maintenance/legacy-migration")
-def run_legacy_migration():
-    """Import legacy local JSON and binary artifacts into Mongo on demand."""
-    from utils.migrate_json_to_mongo import migrate_if_needed
-
+@router.post("/maintenance/mongo-migration")
+async def run_mongo_migration(request: Request):
+    """Import an existing local MongoDB database into the SQLite store."""
     import sentry_sdk
+    from utils.migrate_mongo_to_sqlite import DEFAULT_MONGO_URI, migrate
+
+    try:
+        body = await request.json()
+        if not isinstance(body, dict):
+            body = {}
+    except Exception:
+        body = {}
+
+    uri = (body.get("mongo_uri") or DEFAULT_MONGO_URI).strip() or DEFAULT_MONGO_URI
+    db_name = body.get("mongo_db") or None
 
     with sentry_sdk.start_span(
-        op="maintenance.legacy_migration", name="legacy-migration"
+        op="maintenance.mongo_migration",
+        name="mongo-migration",
     ):
-        migration_report = migrate_if_needed(
-            CONFIG["OUTPUT_FOLDER"],
-            CONFIG["STORAGE_PATH"],
-            CONFIG["SCREENSHOT_FOLDER"],
-        )
+        report = migrate(uri=uri, db_name=db_name)
 
-    restored_collections = _collect_migrated_collections_from_report(migration_report)
-    runtime_errors = _refresh_runtime_state_after_restore(restored_collections)
+    if report.get("status") == "completed":
+        runtime_errors = _refresh_runtime_state_after_restore({"settings", "account", "shopping"})
+        if runtime_errors:
+            report["errors"] = runtime_errors
 
-    response_payload = dict(migration_report)
-    response_payload["status"] = (
-        "completed_with_warnings"
-        if runtime_errors or _migration_report_has_warnings(migration_report)
-        else "completed"
-    )
-    if runtime_errors:
-        response_payload["errors"] = runtime_errors
-    return JSONResponse(response_payload)
+    return JSONResponse(report)
 
 
 @router.get("/settings")
@@ -763,8 +678,6 @@ def get_advanced_settings():
 async def _update_settings_payload(request: Request) -> JSONResponse:
     """Persist settings updates to the shared settings document."""
     import sentry_sdk
-
-    from repositories.connection import get_db, set_runtime_uri
 
     bot_runtime = _resolve_bot_runtime(
         "calculate_next_run",
@@ -791,33 +704,11 @@ async def _update_settings_payload(request: Request) -> JSONResponse:
 
     with sentry_sdk.start_span(op="settings.update", name="update-settings-payload"):
         try:
-            if "mongodb_uri" in applied_updates:
-                with sentry_sdk.start_span(
-                    op="settings.mongo_uri_switch", name="mongo-uri-switch"
-                ):
-                    set_runtime_uri(settings.mongodb_uri)
-                    get_db()
-
-            MongoRepository.save_settings(asdict(settings))
+            DataStore.save_settings(asdict(settings))
         except Exception as exc:
-            with sentry_sdk.start_span(
-                op="settings.rollback", name="settings-rollback"
-            ):
+            with sentry_sdk.start_span(op="settings.rollback", name="settings-rollback"):
                 for key, value in current_settings.items():
                     setattr(settings, key, value)
-
-                if "mongodb_uri" in applied_updates:
-                    previous_uri = current_settings["mongodb_uri"]
-                    try:
-                        set_runtime_uri(
-                            previous_uri if isinstance(previous_uri, str) else ""
-                        )
-                        get_db()
-                    except Exception as restore_exc:
-                        logger.error(
-                            "Failed to restore previous MongoDB URI after update failure: %s",
-                            restore_exc,
-                        )
 
             logger.error("Failed to update settings: %s", exc)
             return JSONResponse(
@@ -856,10 +747,10 @@ async def _update_settings_payload(request: Request) -> JSONResponse:
         )
 
     if "schedule_times" in applied_updates:
-        run_data = MongoRepository.get_last_run() or {}
+        run_data = DataStore.get_last_run() or {}
         next_run = bot_runtime.calculate_next_run()
         run_data["next_run"] = next_run.strftime("%H:%M %d/%m/%y")
-        MongoRepository.save_last_run(run_data)
+        DataStore.save_last_run(run_data)
         logger.info("Updated next run to: %s", run_data["next_run"])
 
     return JSONResponse({"message": "Settings updated"})
@@ -887,7 +778,7 @@ async def update_advanced_settings(request: Request):
 @router.get("/check-run-status")
 def check_run_status():
     """Check last run status with dynamically calculated next run."""
-    data = MongoRepository.get_last_run() or {}
+    data = DataStore.get_last_run() or {}
     calculate_next_run = _resolve_bot_runtime("calculate_next_run").calculate_next_run
     return {
         "last_run": data.get("last_run"),
@@ -992,8 +883,7 @@ def get_logs(
         entries = [
             e
             for e in entries
-            if search_lower in e["message"].lower()
-            or search_lower in e["logger"].lower()
+            if search_lower in e["message"].lower() or search_lower in e["logger"].lower()
         ]
 
     # Newest-first
@@ -1055,20 +945,20 @@ async def sse_events():
 @router.get("/backup/summary")
 def get_backup_summary():
     """Return metadata summary of all collections for the backup page."""
-    return MongoRepository.get_data_summary()
+    return DataStore.get_data_summary()
 
 
 @router.get("/backup/config")
 def get_backup_config():
     """Return backup configuration (export path, etc.)."""
-    return MongoRepository.get_backup_config()
+    return DataStore.get_backup_config()
 
 
 @router.post("/backup/config")
 async def update_backup_config(request: Request):
     """Update backup configuration."""
     data = await request.json()
-    MongoRepository.save_backup_config(data)
+    DataStore.save_backup_config(data)
     return JSONResponse({"message": "Backup config updated"})
 
 
@@ -1079,7 +969,7 @@ def browse_export_folder():
     from tkinter import filedialog
 
     # Get current config to use as initial directory
-    config = MongoRepository.get_backup_config()
+    config = DataStore.get_backup_config()
     initial_dir = (config.get("export_path") or "").strip() or None
 
     root = tk.Tk()
@@ -1107,7 +997,7 @@ def export_backup():
     Returns:
         Success message with the file path written, or error
     """
-    config = MongoRepository.get_backup_config()
+    config = DataStore.get_backup_config()
     export_path = (config.get("export_path") or "").strip()
 
     if not export_path:
@@ -1123,7 +1013,7 @@ def export_backup():
             status_code=400,
         )
 
-    data = MongoRepository.export_all_data()
+    data = DataStore.export_all_data()
 
     file_name = _build_backup_export_filename()
     file_path = export_dir / file_name
@@ -1133,9 +1023,7 @@ def export_backup():
         logger.info("Backup exported to %s", file_path)
     except Exception as exc:
         logger.error("Backup export failed: %s", exc, exc_info=True)
-        return JSONResponse(
-            {"message": f"Failed to write backup: {exc}"}, status_code=500
-        )
+        return JSONResponse({"message": f"Failed to write backup: {exc}"}, status_code=500)
 
     return {"message": "Backup exported", "file": str(file_path)}
 
@@ -1158,11 +1046,9 @@ async def import_backup(request: Request):
         return JSONResponse({"message": "Invalid backup data"}, status_code=400)
 
     if not collections or not isinstance(collections, list):
-        return JSONResponse(
-            {"message": "No collections selected for import"}, status_code=400
-        )
+        return JSONResponse({"message": "No collections selected for import"}, status_code=400)
 
-    report = MongoRepository.import_data(backup_data, collections)
+    report = DataStore.import_data(backup_data, collections)
     runtime_errors = _refresh_runtime_state_after_restore(set(report.get("restored", [])))
     if runtime_errors:
         report.setdefault("errors", {}).update(runtime_errors)

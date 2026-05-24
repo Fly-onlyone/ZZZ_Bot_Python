@@ -16,13 +16,13 @@ image_processor_module = import_module("automation.ImageProcessor")
 redeem_autofill_module = import_module("automation.RedeemAutofill")
 routes_module = import_module("api.routes")
 bot_module = import_module("Bot")
-mongo_module = import_module("repositories.MongoRepository")
+data_store_module = import_module("repositories.DataStore")
 global_var_module = import_module("core.GlobalVar")
 from automation import EventNavigator
-from handlers import DrawHandler, HuntModeHandler, MissionHandler, ShoppingHandler
 from core.frontend_env import resolve_frontend_sentry_dsn
 from core.mission_email import schedule_mission_email_delivery
 from core.settings_contract import ADVANCED_SETTINGS_KEYS, extract_advanced_settings
+from handlers import DrawHandler, HuntModeHandler, MissionHandler, ShoppingHandler
 from repositories.DataRepository import SettingsRepository
 from utils.Logger import StreamToLogger
 
@@ -114,8 +114,7 @@ def test_doing_mission_attempts_unfinished_missions(monkeypatch):
     monkeypatch.setattr(
         MissionHandler.Mission,
         "perform_mission",
-        lambda self, mission_button, max_retries=5: calls.append(mission_button)
-        or True,
+        lambda self, mission_button, max_retries=5: calls.append(mission_button) or True,
     )
 
     todays_data = {}
@@ -126,9 +125,7 @@ def test_doing_mission_attempts_unfinished_missions(monkeypatch):
 
 
 def test_handle_pop_up_marks_missing_popup_outcome_as_failed(monkeypatch):
-    monkeypatch.setattr(
-        MissionHandler, "handle_check_in", lambda page, todays_data: None
-    )
+    monkeypatch.setattr(MissionHandler, "handle_check_in", lambda page, todays_data: None)
 
     closed = {"value": False}
 
@@ -230,9 +227,7 @@ def test_close_open_panel_returns_false_when_back_button_click_races():
                 return _FakeLocator(
                     count=1,
                     visible=True,
-                    click_action=lambda: (_ for _ in ()).throw(
-                        RuntimeError("detached")
-                    ),
+                    click_action=lambda: (_ for _ in ()).throw(RuntimeError("detached")),
                     page=self,
                 )
             return _FakeLocator(count=0, visible=False, page=self)
@@ -343,14 +338,10 @@ def test_execute_shopping_with_existing_data_forces_reopen(monkeypatch):
     monkeypatch.setattr(
         ShoppingHandler,
         "open_shopping_screen",
-        lambda page, force_reopen=False: force_reopen_calls.append(force_reopen)
-        or False,
+        lambda page, force_reopen=False: force_reopen_calls.append(force_reopen) or False,
     )
 
-    assert (
-        ShoppingHandler.execute_shopping_with_existing_data(cast(Any, object()))
-        is False
-    )
+    assert ShoppingHandler.execute_shopping_with_existing_data(cast(Any, object())) is False
     assert force_reopen_calls == [True]
 
 
@@ -381,9 +372,7 @@ def test_select_zzz_avatar_retries_after_detached_click(monkeypatch):
         find_attempt["value"] += 1
         return locator
 
-    monkeypatch.setattr(
-        ShoppingHandler, "find_correct_avatar", fake_find_correct_avatar
-    )
+    monkeypatch.setattr(ShoppingHandler, "find_correct_avatar", fake_find_correct_avatar)
     monkeypatch.setattr(
         ShoppingHandler,
         "open_shopping_screen",
@@ -578,9 +567,7 @@ def test_open_event_page_captures_diagnostics_after_final_failure(monkeypatch, c
         lambda *_args, **_kwargs: screenshots.append("saved") or "screenshot:event",
     )
     monkeypatch.setattr("sentry_sdk.isolation_scope", lambda: _NullScope())
-    monkeypatch.setattr(
-        "sentry_sdk.set_tag", lambda key, value: sentry_tags.append((key, value))
-    )
+    monkeypatch.setattr("sentry_sdk.set_tag", lambda key, value: sentry_tags.append((key, value)))
     monkeypatch.setattr(
         "sentry_sdk.set_context",
         lambda key, value: sentry_contexts.append((key, value)),
@@ -617,6 +604,192 @@ def test_open_event_page_captures_diagnostics_after_final_failure(monkeypatch, c
         "Failed to open HoYoLab event page after 2 attempts" in record.message
         for record in caplog.records
     )
+
+
+def test_wait_for_authenticated_event_home_returns_ready_without_login_prompt(
+    monkeypatch,
+):
+    class FakePage:
+        url = "https://example.invalid/event"
+
+        def __init__(self):
+            self.waits: list[int] = []
+
+        def get_by_role(self, role, name=None):
+            if role == "link" and name == "Log In":
+                return _FakeLocator(visible=False, page=self)
+            if role == "button" and name == "Log In":
+                return _FakeLocator(visible=False, page=self)
+            if role == "img":
+                return _FakeLocator(count=2, page=self)
+            raise AssertionError(f"unexpected role lookup: {(role, name)}")
+
+        def get_by_text(self, text, exact=False):
+            assert "Carry out missions to earn" in text
+            return _FakeLocator(visible=True, page=self)
+
+        def locator(self, selector):
+            if selector == "#hyv-account-frame":
+                return _FakeLocator(visible=False, page=self)
+            raise AssertionError(f"unexpected selector lookup: {selector}")
+
+        def wait_for_timeout(self, timeout):
+            self.waits.append(timeout)
+
+    monkeypatch.setattr(
+        "automation.EventNavigator.save_page_screenshot",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("screenshot should not be captured when page is ready")
+        ),
+    )
+
+    result = EventNavigator.wait_for_authenticated_event_home(
+        cast(Any, FakePage()),
+        context="starting automation",
+        timeout_ms=1000,
+        poll_interval_ms=200,
+    )
+
+    assert result == EventNavigator.EventPageAuthResult(
+        ready=True,
+        auth_required=False,
+        reason="event_home_ready",
+        screenshot_asset_id=None,
+    )
+
+
+def test_wait_for_authenticated_event_home_reports_manual_login(monkeypatch):
+    class _NullScope:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakePage:
+        url = "https://example.invalid/event"
+
+        def get_by_role(self, role, name=None):
+            if role == "link" and name == "Log In":
+                return _FakeLocator(visible=True, page=self)
+            if role == "button" and name == "Log In":
+                return _FakeLocator(visible=False, page=self)
+            if role == "img":
+                return _FakeLocator(count=2, page=self)
+            raise AssertionError(f"unexpected role lookup: {(role, name)}")
+
+        def get_by_text(self, text, exact=False):
+            assert "Carry out missions to earn" in text
+            return _FakeLocator(visible=True, page=self)
+
+        def locator(self, selector):
+            if selector == "#hyv-account-frame":
+                return _FakeLocator(visible=False, page=self)
+            raise AssertionError(f"unexpected selector lookup: {selector}")
+
+        def wait_for_timeout(self, _timeout):
+            raise AssertionError("auth failure should not poll once login is visible")
+
+    sentry_tags: list[tuple[str, str]] = []
+    sentry_contexts: list[tuple[str, dict[str, object]]] = []
+    sentry_messages: list[tuple[str, str | None]] = []
+    monkeypatch.setattr(
+        "automation.EventNavigator.save_page_screenshot",
+        lambda *_args, **_kwargs: "screenshot:event_auth",
+    )
+    monkeypatch.setattr("sentry_sdk.isolation_scope", lambda: _NullScope())
+    monkeypatch.setattr("sentry_sdk.set_tag", lambda key, value: sentry_tags.append((key, value)))
+    monkeypatch.setattr(
+        "sentry_sdk.set_context",
+        lambda key, value: sentry_contexts.append((key, value)),
+    )
+    monkeypatch.setattr(
+        "sentry_sdk.capture_message",
+        lambda message, level=None: sentry_messages.append((message, level)),
+    )
+
+    result = EventNavigator.wait_for_authenticated_event_home(
+        cast(Any, FakePage()),
+        context="starting automation",
+        timeout_ms=1000,
+        poll_interval_ms=200,
+    )
+
+    assert result == EventNavigator.EventPageAuthResult(
+        ready=False,
+        auth_required=True,
+        reason="login_prompt_visible",
+        screenshot_asset_id="screenshot:event_auth",
+    )
+    assert ("event_page.issue", "manual_login_required") in sentry_tags
+    assert ("event_page.auth_required", "true") in sentry_tags
+    assert ("event_page.reason", "login_prompt_visible") in sentry_tags
+    assert sentry_contexts[0][0] == "event_page_auth"
+    assert sentry_contexts[0][1]["screenshot_asset_id"] == "screenshot:event_auth"
+    assert sentry_messages == [("Event page requires manual login", "warning")]
+
+
+def test_wait_for_authenticated_event_home_times_out_when_home_never_stabilizes(
+    monkeypatch,
+):
+    class _NullScope:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakePage:
+        url = "https://example.invalid/event"
+
+        def __init__(self):
+            self.waits: list[int] = []
+
+        def get_by_role(self, role, name=None):
+            if role == "link" and name == "Log In":
+                return _FakeLocator(visible=False, page=self)
+            if role == "button" and name == "Log In":
+                return _FakeLocator(visible=False, page=self)
+            if role == "img":
+                return _FakeLocator(count=0, page=self)
+            raise AssertionError(f"unexpected role lookup: {(role, name)}")
+
+        def get_by_text(self, text, exact=False):
+            assert "Carry out missions to earn" in text
+            return _FakeLocator(visible=False, page=self)
+
+        def locator(self, selector):
+            if selector == "#hyv-account-frame":
+                return _FakeLocator(visible=False, page=self)
+            raise AssertionError(f"unexpected selector lookup: {selector}")
+
+        def wait_for_timeout(self, timeout):
+            self.waits.append(timeout)
+
+    monkeypatch.setattr(
+        "automation.EventNavigator.save_page_screenshot",
+        lambda *_args, **_kwargs: "screenshot:event_timeout",
+    )
+    monkeypatch.setattr("sentry_sdk.isolation_scope", lambda: _NullScope())
+    monkeypatch.setattr("sentry_sdk.set_tag", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("sentry_sdk.set_context", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("sentry_sdk.capture_message", lambda *_args, **_kwargs: None)
+
+    page = FakePage()
+    result = EventNavigator.wait_for_authenticated_event_home(
+        cast(Any, page),
+        context="starting automation",
+        timeout_ms=600,
+        poll_interval_ms=200,
+    )
+
+    assert result == EventNavigator.EventPageAuthResult(
+        ready=False,
+        auth_required=True,
+        reason="event_home_not_ready",
+        screenshot_asset_id="screenshot:event_timeout",
+    )
+    assert page.waits == [200, 200, 200]
 
 
 def test_playwright_task_uses_shared_event_navigation(monkeypatch):
@@ -665,40 +838,38 @@ def test_playwright_task_uses_shared_event_navigation(monkeypatch):
     monkeypatch.setattr(bot_module.settings, "draw_item", False)
     monkeypatch.setattr(bot_module.settings, "exit_after_run", False)
     monkeypatch.setattr(bot_module, "is_exe", True)
-    monkeypatch.setattr(
-        bot_module, "prepare_mission_data", lambda *_args, **_kwargs: ({}, {})
-    )
+    monkeypatch.setattr(bot_module, "prepare_mission_data", lambda *_args, **_kwargs: ({}, {}))
     monkeypatch.setattr(bot_module, "sync_playwright", lambda: FakePlaywrightContext())
     monkeypatch.setattr(
         bot_module.EventNavigator,
         "open_event_page",
         lambda page: event_pages.append(page),
     )
-    monkeypatch.setattr(bot_module, "load_storage_state", lambda _path: {"ok": True})
-    monkeypatch.setattr(bot_module.os.path, "exists", lambda _path: True)
+    monkeypatch.setattr(
+        bot_module.EventNavigator,
+        "wait_for_authenticated_event_home",
+        lambda *_args, **_kwargs: EventNavigator.EventPageAuthResult(
+            ready=True,
+            auth_required=False,
+            reason="event_home_ready",
+        ),
+    )
     monkeypatch.setattr(
         bot_module.Mission,
         "run",
-        lambda output_file, page, previous_data, todays_data: mission_calls.append(
-            (output_file, page, previous_data, todays_data)
-        )
-        or False,
+        lambda output_file, page, previous_data, todays_data: (
+            mission_calls.append((output_file, page, previous_data, todays_data)) or False
+        ),
     )
     monkeypatch.setattr(bot_module, "save_last_run", lambda: None)
-    monkeypatch.setattr(
-        bot_module, "save_context_storage_state", lambda *_args, **_kwargs: None
-    )
+    monkeypatch.setattr(bot_module, "save_context_storage_state", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         bot_module.NotificationModule,
         "notify",
         lambda **kwargs: notifications.append(kwargs),
     )
-    monkeypatch.setattr(
-        bot_module, "schedule_mission_email_delivery", lambda *args, **kwargs: None
-    )
-    monkeypatch.setattr(
-        "sentry_sdk.start_transaction", lambda *args, **kwargs: _NullSpan()
-    )
+    monkeypatch.setattr(bot_module, "schedule_mission_email_delivery", lambda *args, **kwargs: None)
+    monkeypatch.setattr("sentry_sdk.start_transaction", lambda *args, **kwargs: _NullSpan())
     monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
 
     bot_module.playwright_task()
@@ -707,6 +878,98 @@ def test_playwright_task_uses_shared_event_navigation(monkeypatch):
     assert len(mission_calls) == 1
     assert mission_calls[0][1] is event_pages[0]
     assert notifications[-1]["message"] == "Task finished"
+
+
+def test_playwright_task_aborts_when_event_page_requires_manual_login(monkeypatch):
+    class _NullSpan:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakePage:
+        pass
+
+    class FakeContext:
+        def new_page(self):
+            return FakePage()
+
+    class FakeBrowser:
+        def new_context(self, **_kwargs):
+            return FakeContext()
+
+        def close(self):
+            return None
+
+    class FakePlaywright:
+        def __init__(self):
+            self.firefox = self
+
+        def launch(self, **_kwargs):
+            return FakeBrowser()
+
+    class FakePlaywrightContext:
+        def __enter__(self):
+            return FakePlaywright()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    notifications: list[dict[str, object]] = []
+    saved_states: list[bool] = []
+
+    monkeypatch.setattr(bot_module.settings, "run_task", True)
+    monkeypatch.setattr(bot_module.settings, "gather_shopping_data", False)
+    monkeypatch.setattr(bot_module.settings, "exchange_good", False)
+    monkeypatch.setattr(bot_module.settings, "draw_item", False)
+    monkeypatch.setattr(bot_module.settings, "exit_after_run", False)
+    monkeypatch.setattr(bot_module, "is_exe", True)
+    monkeypatch.setattr(bot_module, "prepare_mission_data", lambda *_args, **_kwargs: ({}, {}))
+    monkeypatch.setattr(bot_module, "sync_playwright", lambda: FakePlaywrightContext())
+    monkeypatch.setattr(bot_module.EventNavigator, "open_event_page", lambda _page: None)
+    monkeypatch.setattr(
+        bot_module.EventNavigator,
+        "wait_for_authenticated_event_home",
+        lambda *_args, **_kwargs: EventNavigator.EventPageAuthResult(
+            ready=False,
+            auth_required=True,
+            reason="login_prompt_visible",
+            screenshot_asset_id="screenshot:event_auth",
+        ),
+    )
+    monkeypatch.setattr(
+        bot_module.Mission,
+        "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("mission should not run when event-page auth fails")
+        ),
+    )
+    monkeypatch.setattr(bot_module, "save_last_run", lambda: None)
+    monkeypatch.setattr(
+        bot_module,
+        "save_context_storage_state",
+        lambda *_args, **_kwargs: saved_states.append(True),
+    )
+    monkeypatch.setattr(
+        bot_module.NotificationModule,
+        "notify",
+        lambda **kwargs: notifications.append(kwargs),
+    )
+    monkeypatch.setattr(bot_module, "schedule_mission_email_delivery", lambda *args, **kwargs: None)
+    monkeypatch.setattr("sentry_sdk.start_transaction", lambda *args, **kwargs: _NullSpan())
+    monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
+
+    bot_module.playwright_task()
+
+    assert notifications == [
+        {
+            "title": "ZZZ Bot",
+            "message": "Please log in manually",
+            "app_icon": bot_module.CONFIG["SAD_ICON"],
+        }
+    ]
+    assert saved_states == []
 
 
 def test_run_hunt_uses_shared_event_navigation(monkeypatch):
@@ -754,18 +1017,21 @@ def test_run_hunt_uses_shared_event_navigation(monkeypatch):
     monkeypatch.setattr(HuntModeHandler.settings, "enable_hunt_mode", True)
     monkeypatch.setattr(HuntModeHandler, "get_hunt_items", lambda: ["Polychrome ×100"])
     monkeypatch.setattr(HuntModeHandler, "get_next_hunt_time", lambda: "20:00 28/03/26")
-    monkeypatch.setattr(
-        HuntModeHandler, "sync_playwright", lambda: FakePlaywrightContext()
-    )
+    monkeypatch.setattr(HuntModeHandler, "sync_playwright", lambda: FakePlaywrightContext())
     monkeypatch.setattr(
         HuntModeHandler.EventNavigator,
         "open_event_page",
         lambda page: event_pages.append(page),
     )
     monkeypatch.setattr(
-        HuntModeHandler, "load_storage_state", lambda _path: {"ok": True}
+        HuntModeHandler.EventNavigator,
+        "wait_for_authenticated_event_home",
+        lambda *_args, **_kwargs: EventNavigator.EventPageAuthResult(
+            ready=True,
+            auth_required=False,
+            reason="event_home_ready",
+        ),
     )
-    monkeypatch.setattr(HuntModeHandler.os.path, "exists", lambda _path: True)
     monkeypatch.setattr(
         HuntModeHandler.ShoppingHandler, "open_shopping_screen", lambda _page: False
     )
@@ -776,14 +1042,102 @@ def test_run_hunt_uses_shared_event_navigation(monkeypatch):
             AssertionError("manual login notification should not fire")
         ),
     )
-    monkeypatch.setattr(
-        "sentry_sdk.start_transaction", lambda *args, **kwargs: _NullSpan()
-    )
+    monkeypatch.setattr("sentry_sdk.start_transaction", lambda *args, **kwargs: _NullSpan())
     monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
 
     HuntModeHandler.run_hunt()
 
     assert len(event_pages) == 1
+
+
+def test_run_hunt_aborts_when_event_page_requires_manual_login(monkeypatch):
+    class _NullSpan:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def set_data(self, *_args, **_kwargs):
+            return None
+
+    class FakePage:
+        pass
+
+    class FakeContext:
+        def new_page(self):
+            return FakePage()
+
+    class FakeBrowser:
+        def new_context(self, **_kwargs):
+            return FakeContext()
+
+        def close(self):
+            return None
+
+    class FakePlaywright:
+        def __init__(self):
+            self.firefox = self
+
+        def launch(self, **_kwargs):
+            return FakeBrowser()
+
+    class FakePlaywrightContext:
+        def __enter__(self):
+            return FakePlaywright()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    notifications: list[dict[str, object]] = []
+    saved_states: list[bool] = []
+
+    monkeypatch.setattr(HuntModeHandler.settings, "run_task", True)
+    monkeypatch.setattr(HuntModeHandler.settings, "enable_hunt_mode", True)
+    monkeypatch.setattr(HuntModeHandler, "get_hunt_items", lambda: ["Polychrome ×100"])
+    monkeypatch.setattr(HuntModeHandler, "get_next_hunt_time", lambda: "20:00 28/03/26")
+    monkeypatch.setattr(HuntModeHandler, "sync_playwright", lambda: FakePlaywrightContext())
+    monkeypatch.setattr(HuntModeHandler.EventNavigator, "open_event_page", lambda _page: None)
+    monkeypatch.setattr(
+        HuntModeHandler.EventNavigator,
+        "wait_for_authenticated_event_home",
+        lambda *_args, **_kwargs: EventNavigator.EventPageAuthResult(
+            ready=False,
+            auth_required=True,
+            reason="login_prompt_visible",
+            screenshot_asset_id="screenshot:event_auth",
+        ),
+    )
+    monkeypatch.setattr(
+        HuntModeHandler,
+        "save_context_storage_state",
+        lambda *_args, **_kwargs: saved_states.append(True),
+    )
+    monkeypatch.setattr(
+        HuntModeHandler.ShoppingHandler,
+        "open_shopping_screen",
+        lambda _page: (_ for _ in ()).throw(
+            AssertionError("shopping should not open when event-page auth fails")
+        ),
+    )
+    monkeypatch.setattr(
+        HuntModeHandler.NotificationHelper,
+        "notify",
+        lambda **kwargs: notifications.append(kwargs),
+    )
+    monkeypatch.setattr("sentry_sdk.start_transaction", lambda *args, **kwargs: _NullSpan())
+    monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
+
+    HuntModeHandler.run_hunt()
+
+    assert notifications == [
+        {
+            "title": "ZZZ Bot - Hunt Mode",
+            "message": "Please log in manually",
+            "app_icon": HuntModeHandler.CONFIG["SAD_ICON"],
+        }
+    ]
+    assert saved_states == []
 
 
 def test_stream_to_logger_buffers_partial_lines(caplog):
@@ -796,9 +1150,7 @@ def test_stream_to_logger_buffers_partial_lines(caplog):
     stream.write(" (most recent call last):")
     stream.flush()
 
-    messages = [
-        record.message for record in caplog.records if record.name == stream_logger.name
-    ]
+    messages = [record.message for record in caplog.records if record.name == stream_logger.name]
     assert messages == [
         "Exception in thread Thread-2",
         "Traceback (most recent call last):",
@@ -850,8 +1202,7 @@ def test_retry_until_screen_appears_keeps_diagnostics_below_error(monkeypatch, c
     assert result is False
     assert error_messages == ["Max retries (1) reached. Target screen did not appear."]
     assert any(
-        message.startswith("Screenshot saved to MongoDB asset:")
-        for message in warning_messages
+        message.startswith("Screenshot saved to MongoDB asset:") for message in warning_messages
     )
 
 
@@ -958,18 +1309,20 @@ def test_redeem_autofill_records_unconfirmed_redeem(monkeypatch):
     monkeypatch.setattr(
         redeem_autofill_module,
         "save_redeem_data",
-        lambda item_name, code, current_day, redeem_file_path, state, detail=None, status=None, record_id=None: saved_attempts.append(
-            {
-                "item_name": item_name,
-                "code": code,
-                "state": state,
-                "detail": detail,
-                "status": status,
-                "record_id": record_id,
-            }
-        )
-        or events.append(f"save:{status}")
-        or ("record-1" if record_id is None else record_id),
+        lambda item_name, code, current_day, redeem_file_path, state, detail=None, status=None, record_id=None: (
+            saved_attempts.append(
+                {
+                    "item_name": item_name,
+                    "code": code,
+                    "state": state,
+                    "detail": detail,
+                    "status": status,
+                    "record_id": record_id,
+                }
+            )
+            or events.append(f"save:{status}")
+            or ("record-1" if record_id is None else record_id)
+        ),
     )
 
     result = redeem_autofill_module.run(
@@ -1075,9 +1428,7 @@ def test_redeem_autofill_reports_manual_captcha_required(monkeypatch):
     state_saves: list[bool] = []
     page = FakePage()
 
-    monkeypatch.setattr(
-        "sentry_sdk.start_span", lambda *args, **kwargs: _TestNullSpan()
-    )
+    monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _TestNullSpan())
     monkeypatch.setattr("sentry_sdk.isolation_scope", lambda: _TestNullSpan())
     monkeypatch.setattr(
         "sentry_sdk.capture_message",
@@ -1113,17 +1464,19 @@ def test_redeem_autofill_reports_manual_captcha_required(monkeypatch):
     monkeypatch.setattr(
         redeem_autofill_module,
         "save_redeem_data",
-        lambda item_name, code, current_day, redeem_file_path, state, detail=None, status=None, record_id=None: saved_attempts.append(
-            {
-                "item_name": item_name,
-                "code": code,
-                "state": state,
-                "detail": detail,
-                "status": status,
-                "record_id": record_id,
-            }
-        )
-        or ("record-1" if record_id is None else record_id),
+        lambda item_name, code, current_day, redeem_file_path, state, detail=None, status=None, record_id=None: (
+            saved_attempts.append(
+                {
+                    "item_name": item_name,
+                    "code": code,
+                    "state": state,
+                    "detail": detail,
+                    "status": status,
+                    "record_id": record_id,
+                }
+            )
+            or ("record-1" if record_id is None else record_id)
+        ),
     )
 
     result = redeem_autofill_module.run(
@@ -1242,9 +1595,7 @@ def test_redeem_autofill_reports_manual_login_required_when_login_prompt_persist
     state_saves: list[bool] = []
     page = FakePage()
 
-    monkeypatch.setattr(
-        "sentry_sdk.start_span", lambda *args, **kwargs: _TestNullSpan()
-    )
+    monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _TestNullSpan())
     monkeypatch.setattr("sentry_sdk.isolation_scope", lambda: _TestNullSpan())
     monkeypatch.setattr(
         "sentry_sdk.capture_message",
@@ -1275,17 +1626,19 @@ def test_redeem_autofill_reports_manual_login_required_when_login_prompt_persist
     monkeypatch.setattr(
         redeem_autofill_module,
         "save_redeem_data",
-        lambda item_name, code, current_day, redeem_file_path, state, detail=None, status=None, record_id=None: saved_attempts.append(
-            {
-                "item_name": item_name,
-                "code": code,
-                "state": state,
-                "detail": detail,
-                "status": status,
-                "record_id": record_id,
-            }
-        )
-        or ("record-1" if record_id is None else record_id),
+        lambda item_name, code, current_day, redeem_file_path, state, detail=None, status=None, record_id=None: (
+            saved_attempts.append(
+                {
+                    "item_name": item_name,
+                    "code": code,
+                    "state": state,
+                    "detail": detail,
+                    "status": status,
+                    "record_id": record_id,
+                }
+            )
+            or ("record-1" if record_id is None else record_id)
+        ),
     )
 
     result = redeem_autofill_module.run(
@@ -1347,9 +1700,7 @@ def test_process_single_item_logs_unconfirmed_redeem(monkeypatch, caplog):
         def wait_for_timeout(self, *_args, **_kwargs):
             return None
 
-    monkeypatch.setattr(
-        ShoppingHandler, "handle_exchange_dialog", lambda *_args: "CODE123"
-    )
+    monkeypatch.setattr(ShoppingHandler, "handle_exchange_dialog", lambda *_args: "CODE123")
     monkeypatch.setattr(
         ShoppingHandler.RedeemAutofill,
         "run",
@@ -1361,15 +1712,12 @@ def test_process_single_item_logs_unconfirmed_redeem(monkeypatch, caplog):
     )
 
     caplog.set_level(logging.WARNING, logger="handlers.ShoppingHandler")
-    result = ShoppingHandler._process_single_item(
-        cast(Any, FakePage()), "Polychrome ×10"
-    )
+    result = ShoppingHandler._process_single_item(cast(Any, FakePage()), "Polychrome ×10")
 
     warning_messages = [
         record.message
         for record in caplog.records
-        if record.name == "handlers.ShoppingHandler"
-        and record.levelno == logging.WARNING
+        if record.name == "handlers.ShoppingHandler" and record.levelno == logging.WARNING
     ]
 
     assert result is False
@@ -1406,15 +1754,11 @@ def test_single_draw_reports_missing_result_dialog(monkeypatch):
         def wait_for_timeout(self, *_args, **_kwargs):
             return None
 
-    monkeypatch.setattr(
-        DrawHandler, "_wait_for_success_dialog", lambda page, draw_number: None
-    )
+    monkeypatch.setattr(DrawHandler, "_wait_for_success_dialog", lambda page, draw_number: None)
     monkeypatch.setattr(
         DrawHandler,
         "_capture_missing_draw_result_event",
-        lambda page, draw_number, total_draws: reported.append(
-            (draw_number, total_draws)
-        ),
+        lambda page, draw_number, total_draws: reported.append((draw_number, total_draws)),
     )
     monkeypatch.setattr(DrawHandler, "ensure_draw_ui_cleared", lambda page: True)
     monkeypatch.setattr(
@@ -1428,8 +1772,7 @@ def test_single_draw_reports_missing_result_dialog(monkeypatch):
     assert result is False
     assert reported == [(1, 4)]
     assert (
-        notifications[0]["message"]
-        == "Draw button clicked but no result - draws may be exhausted"
+        notifications[0]["message"] == "Draw button clicked but no result - draws may be exhausted"
     )
 
 
@@ -1553,9 +1896,7 @@ def test_find_reward_image_waits_for_delayed_selector_visibility():
 
     class FakeSuccessDialog:
         def locator(self, selector):
-            return FakeRewardLocator(
-                succeeds=selector == DrawHandler.REWARD_CODE_IMAGE_SELECTOR
-            )
+            return FakeRewardLocator(succeeds=selector == DrawHandler.REWARD_CODE_IMAGE_SELECTOR)
 
     result = DrawHandler._find_reward_image(cast(Any, FakeSuccessDialog()), 1)
 
@@ -1807,9 +2148,7 @@ def test_playwright_task_does_not_mark_failed_run_as_finished(monkeypatch):
         "notify",
         lambda **kwargs: notifications.append(kwargs),
     )
-    monkeypatch.setattr(
-        bot_module, "save_last_run", lambda: last_run_calls.append(True)
-    )
+    monkeypatch.setattr(bot_module, "save_last_run", lambda: last_run_calls.append(True))
 
     bot_module.playwright_task()
 
@@ -1824,16 +2163,12 @@ def test_check_missed_runs_does_not_mark_failed_replay_as_finished(monkeypatch):
         "schedule_times",
         [(datetime.now() - timedelta(minutes=1)).strftime("%H:%M")],
     )
-    monkeypatch.setattr(mongo_module, "get_last_run", lambda: None)
+    monkeypatch.setattr(data_store_module, "get_last_run", lambda: None)
 
     replay_calls = []
     last_run_calls = []
-    monkeypatch.setattr(
-        bot_module, "playwright_task", lambda: replay_calls.append("attempted")
-    )
-    monkeypatch.setattr(
-        bot_module, "save_last_run", lambda: last_run_calls.append(True)
-    )
+    monkeypatch.setattr(bot_module, "playwright_task", lambda: replay_calls.append("attempted"))
+    monkeypatch.setattr(bot_module, "save_last_run", lambda: last_run_calls.append(True))
 
     bot_module.check_missed_runs()
 
@@ -1945,13 +2280,11 @@ def test_update_settings_skips_schedule_for_window_state_only_changes(monkeypatc
     monkeypatch.setattr(routes_module.settings, "window_maximized", False)
     monkeypatch.setattr(routes_module.settings, "window_minimized", False)
     monkeypatch.setattr(
-        routes_module.MongoRepository,
+        routes_module.DataStore,
         "save_settings",
         lambda payload: saved_payloads.append(dict(payload)),
     )
-    monkeypatch.setattr(
-        bot_module, "schedule_tasks", lambda: schedule_calls.append("scheduled")
-    )
+    monkeypatch.setattr(bot_module, "schedule_tasks", lambda: schedule_calls.append("scheduled"))
 
     response = asyncio.run(
         routes_module.update_settings(
@@ -1993,17 +2326,13 @@ def test_update_settings_reschedules_for_non_window_changes(monkeypatch):
     updated_theme = "venom" if original_theme != "venom" else "glacier"
 
     monkeypatch.setattr(
-        routes_module.MongoRepository,
+        routes_module.DataStore,
         "save_settings",
         lambda payload: saved_payloads.append(dict(payload)),
     )
-    monkeypatch.setattr(
-        bot_module, "schedule_tasks", lambda: schedule_calls.append("scheduled")
-    )
+    monkeypatch.setattr(bot_module, "schedule_tasks", lambda: schedule_calls.append("scheduled"))
 
-    response = asyncio.run(
-        routes_module.update_settings(FakeRequest({"theme": updated_theme}))
-    )
+    response = asyncio.run(routes_module.update_settings(FakeRequest({"theme": updated_theme})))
 
     assert response.status_code == 200
     assert saved_payloads[-1]["theme"] == updated_theme
@@ -2033,13 +2362,11 @@ def test_update_settings_reschedules_for_mixed_window_and_non_window_changes(
     monkeypatch.setattr(routes_module.settings, "window_maximized", False)
     monkeypatch.setattr(routes_module.settings, "window_minimized", False)
     monkeypatch.setattr(
-        routes_module.MongoRepository,
+        routes_module.DataStore,
         "save_settings",
         lambda payload: saved_payloads.append(dict(payload)),
     )
-    monkeypatch.setattr(
-        bot_module, "schedule_tasks", lambda: schedule_calls.append("scheduled")
-    )
+    monkeypatch.setattr(bot_module, "schedule_tasks", lambda: schedule_calls.append("scheduled"))
 
     response = asyncio.run(
         routes_module.update_settings(
@@ -2098,230 +2425,60 @@ def test_schedule_hunt_tasks_skips_when_automatic_runs_disabled(monkeypatch):
     assert target_dates == [None]
 
 
-def test_replace_all_missions_replaces_existing_documents(monkeypatch):
-    indexed_at = datetime(2026, 3, 13, 8, 0, 0)
+def test_replace_all_missions_replaces_existing_documents(sqlite_db):
+    sqlite_db.save_mission_day({"day": "2026-03-10", "missions": []})
+    sqlite_db.save_mission_day({"day": "2026-03-11", "missions": []})
 
-    class _FakeMissionCollection:
-        def __init__(self):
-            self.docs = [
-                {"day": "2026-03-10", "indexed_at": "old"},
-                {"day": "2026-03-11", "indexed_at": "old"},
-            ]
+    sqlite_db.replace_all_missions([{"day": "2026-03-12", "missions": [{"name": "Check-in"}]}])
 
-        def count_documents(self, _query):
-            return len(self.docs)
+    assert sqlite_db.get_missions() == [{"day": "2026-03-12", "missions": [{"name": "Check-in"}]}]
 
-        def delete_many(self, _query):
-            self.docs = []
 
-        def find_one_and_replace(self, query, record, upsert=False):
-            day = query["day"]
-            self.docs = [doc for doc in self.docs if doc["day"] != day]
-            self.docs.append(record)
-
-    class _FakeDb:
-        def __init__(self):
-            self.missions = _FakeMissionCollection()
-
-    fake_db = _FakeDb()
-    monkeypatch.setattr(mongo_module, "get_db", lambda: fake_db)
-    monkeypatch.setattr(mongo_module, "_ensure_indexes", lambda: None)
-    monkeypatch.setattr(mongo_module, "_now_utc", lambda: indexed_at)
-
-    mongo_module.replace_all_missions(
-        [{"day": "2026-03-12", "missions": [{"name": "Check-in"}]}]
+def test_resolve_redemption_indexed_at_uses_redeem_day():
+    indexed_at = data_store_module._resolve_redemption_indexed_at(
+        {"code": "TESTCODE123", "day": "21:51 12/11/2025", "state": True}
     )
 
-    assert fake_db.missions.docs == [
-        {
-            "day": "2026-03-12",
-            "missions": [{"name": "Check-in"}],
-            "indexed_at": indexed_at,
-        }
-    ]
+    assert indexed_at == datetime(2025, 11, 12, 21, 51, tzinfo=timezone.utc)
 
 
-def test_save_redemption_uses_redeem_day_for_indexed_at(monkeypatch):
-    inserted_records: list[dict[str, object]] = []
-
-    class _FakeRedemptions:
-        def insert_one(self, record):
-            inserted_records.append(record)
-            return type("_InsertResult", (), {"inserted_id": "record-1"})()
-
-    class _FakeDb:
-        def __init__(self):
-            self.redemptions = _FakeRedemptions()
-
-    fake_db = _FakeDb()
+def test_resolve_redemption_indexed_at_falls_back_to_now(monkeypatch):
     fallback_now = datetime(2026, 4, 1, 8, 0, 0, tzinfo=timezone.utc)
-    monkeypatch.setattr(mongo_module, "get_db", lambda: fake_db)
-    monkeypatch.setattr(mongo_module, "_ensure_indexes", lambda: None)
-    monkeypatch.setattr(mongo_module, "_now_utc", lambda: fallback_now)
+    monkeypatch.setattr(data_store_module, "_now_utc", lambda: fallback_now)
 
-    mongo_module.save_redemption(
-        {
-            "item_name": "Polychrome ×30",
-            "code": "TESTCODE123",
-            "day": "21:51 12/11/2025",
-            "state": True,
-        }
+    indexed_at = data_store_module._resolve_redemption_indexed_at(
+        {"code": "BADDATE", "day": "not-a-date", "state": False}
     )
 
-    assert inserted_records == [
-        {
-            "item_name": "Polychrome ×30",
-            "code": "TESTCODE123",
-            "day": "21:51 12/11/2025",
-            "state": True,
-            "indexed_at": datetime(2025, 11, 12, 21, 51, tzinfo=timezone.utc),
-        }
+    assert indexed_at == fallback_now
+
+
+def test_replace_all_redemptions_round_trip(sqlite_db):
+    sqlite_db.save_redemption({"code": "OLDCODE", "day": "21:51 12/11/2025", "state": True})
+
+    sqlite_db.replace_all_redemptions(
+        [{"code": "NEWCODE", "day": "10:00 01/01/2026", "state": False}]
+    )
+
+    assert sqlite_db.get_redemptions() == [
+        {"code": "NEWCODE", "day": "10:00 01/01/2026", "state": False}
     ]
 
 
-def test_replace_all_redemptions_uses_each_redeem_day_for_indexed_at(monkeypatch):
-    inserted_records: list[list[dict[str, object]]] = []
-
-    class _FakeRedemptions:
-        def count_documents(self, _query):
-            return 2
-
-        def delete_many(self, _query):
-            return None
-
-        def insert_many(self, records):
-            inserted_records.append(records)
-
-    class _FakeDb:
-        def __init__(self):
-            self.redemptions = _FakeRedemptions()
-
-    fake_db = _FakeDb()
-    fallback_now = datetime(2026, 4, 1, 8, 0, 0, tzinfo=timezone.utc)
-    monkeypatch.setattr(mongo_module, "get_db", lambda: fake_db)
-    monkeypatch.setattr(mongo_module, "_ensure_indexes", lambda: None)
-    monkeypatch.setattr(mongo_module, "_now_utc", lambda: fallback_now)
-
-    mongo_module.replace_all_redemptions(
-        [
-            {
-                "item_name": "Polychrome ×30",
-                "code": "OLDCODE",
-                "day": "21:51 12/11/2025",
-                "state": True,
-            },
-            {
-                "item_name": "Polychrome ×10",
-                "code": "BADDATE",
-                "day": "not-a-date",
-                "state": False,
-            },
-        ]
-    )
-
-    assert inserted_records == [
-        [
-            {
-                "item_name": "Polychrome ×30",
-                "code": "OLDCODE",
-                "day": "21:51 12/11/2025",
-                "state": True,
-                "indexed_at": datetime(2025, 11, 12, 21, 51, tzinfo=timezone.utc),
-            },
-            {
-                "item_name": "Polychrome ×10",
-                "code": "BADDATE",
-                "day": "not-a-date",
-                "state": False,
-                "indexed_at": fallback_now,
-            },
-        ]
-    ]
-
-
-def test_repair_redemptions_indexed_at_once_updates_existing_records(monkeypatch):
-    replacements: list[tuple[dict[str, object], dict[str, object], bool]] = []
-    applied_markers: list[str] = []
-
-    class _FakeRedemptions:
-        def __init__(self):
-            self.docs = [
-                {
-                    "_id": "old-code",
-                    "item_name": "Polychrome ×30",
-                    "code": "RANFLJQVXYQV",
-                    "day": "21:51 12/11/2025",
-                    "state": True,
-                    "indexed_at": datetime(2026, 3, 15, 5, 53, 31, tzinfo=timezone.utc),
-                },
-                {
-                    "_id": "bad-day",
-                    "item_name": "Polychrome ×10",
-                    "code": "BADDATE",
-                    "day": "not-a-date",
-                    "state": False,
-                    "indexed_at": datetime(2026, 3, 20, 0, 0, tzinfo=timezone.utc),
-                },
-            ]
-
-        def find(self):
-            return [dict(doc) for doc in self.docs]
-
-        def find_one_and_replace(self, query, replacement, upsert=False):
-            replacements.append((query, replacement, upsert))
-            for index, doc in enumerate(self.docs):
-                if doc["_id"] == query["_id"]:
-                    self.docs[index] = replacement
-                    return replacement
-            raise AssertionError(f"unknown document: {query}")
-
-    class _FakeDb:
-        def __init__(self):
-            self.redemptions = _FakeRedemptions()
-
-    fake_db = _FakeDb()
-    monkeypatch.setattr(mongo_module, "get_db", lambda: fake_db)
-    monkeypatch.setattr(mongo_module, "_ensure_indexes", lambda: None)
-    monkeypatch.setattr(
-        mongo_module,
-        "has_app_metadata_marker",
-        lambda marker_id: False,
-    )
-    monkeypatch.setattr(
-        mongo_module,
-        "set_app_metadata_marker",
-        lambda marker_id: applied_markers.append(marker_id),
-    )
-
-    report = mongo_module.repair_redemptions_indexed_at_once()
+def test_repair_redemptions_indexed_at_once_is_a_noop(sqlite_db):
+    report = sqlite_db.repair_redemptions_indexed_at_once()
 
     assert report == {
-        "already_applied": False,
-        "scanned": 2,
-        "updated": 1,
-        "skipped": 1,
+        "already_applied": True,
+        "scanned": 0,
+        "updated": 0,
+        "skipped": 0,
     }
-    assert replacements == [
-        (
-            {"_id": "old-code"},
-            {
-                "_id": "old-code",
-                "item_name": "Polychrome ×30",
-                "code": "RANFLJQVXYQV",
-                "day": "21:51 12/11/2025",
-                "state": True,
-                "indexed_at": datetime(2025, 11, 12, 21, 51, tzinfo=timezone.utc),
-            },
-            True,
-        )
-    ]
-    assert applied_markers == [mongo_module.REDEMPTIONS_INDEXED_AT_REPAIR_MARKER]
+    assert sqlite_db.has_app_metadata_marker(sqlite_db.REDEMPTIONS_INDEXED_AT_REPAIR_MARKER)
 
 
 def test_backup_export_filename_includes_timestamp():
-    earlier = routes_module._build_backup_export_filename(
-        datetime(2026, 3, 13, 8, 0, 0)
-    )
+    earlier = routes_module._build_backup_export_filename(datetime(2026, 3, 13, 8, 0, 0))
     later = routes_module._build_backup_export_filename(datetime(2026, 3, 13, 8, 0, 1))
 
     assert earlier == "zzz-bot-backup-2026-03-13_08-00-00-000000.json"
@@ -2340,7 +2497,7 @@ def test_backup_import_reschedules_hunt_tasks_when_shopping_restored(monkeypatch
             }
 
     monkeypatch.setattr(
-        mongo_module,
+        data_store_module,
         "import_data",
         lambda data, collections: {
             "restored": ["shopping"],
@@ -2355,9 +2512,7 @@ def test_backup_import_reschedules_hunt_tasks_when_shopping_restored(monkeypatch
             AssertionError("schedule_tasks should not run for shopping-only restores")
         ),
     )
-    monkeypatch.setattr(
-        bot_module, "schedule_hunt_tasks", lambda: events.append("hunt")
-    )
+    monkeypatch.setattr(bot_module, "schedule_hunt_tasks", lambda: events.append("hunt"))
 
     response = asyncio.run(routes_module.import_backup(FakeRequest()))
 
@@ -2377,9 +2532,7 @@ def test_manual_run_route_starts_manual_override(monkeypatch):
         pass
 
     fake_main = FakeMain()
-    fake_main.run_playwright_task_async = lambda *, manual_run=False: calls.append(
-        manual_run
-    )
+    fake_main.run_playwright_task_async = lambda *, manual_run=False: calls.append(manual_run)
 
     monkeypatch.setitem(sys.modules, "__main__", fake_main)
 
@@ -2400,9 +2553,7 @@ def test_resolve_bot_runtime_prefers_main_module(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "__main__", fake_main)
 
-    resolved = routes_module._resolve_bot_runtime(
-        "schedule_tasks", "schedule_hunt_tasks"
-    )
+    resolved = routes_module._resolve_bot_runtime("schedule_tasks", "schedule_hunt_tasks")
 
     assert resolved is fake_main
 
@@ -2499,7 +2650,7 @@ def test_health_check_returns_phase_aware_startup_status(monkeypatch):
     assert routes_module.health_check() == payload
 
 
-def test_run_local_cleanup_no_longer_triggers_legacy_migration(monkeypatch):
+def test_run_local_cleanup_runs_artifact_cleanup(monkeypatch):
     class _NullSpan:
         def __enter__(self):
             return self
@@ -2510,13 +2661,6 @@ def test_run_local_cleanup_no_longer_triggers_legacy_migration(monkeypatch):
     cleanup_calls: list[dict[str, object]] = []
 
     monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
-    monkeypatch.setattr(
-        "utils.migrate_json_to_mongo.migrate_if_needed",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("legacy migration should not run during cleanup")
-        ),
-    )
-    monkeypatch.setattr("repositories.connection.get_db", lambda: object())
     monkeypatch.setattr("repositories.connection.get_runtime_mode", lambda: "dev")
     monkeypatch.setattr(
         "utils.local_artifact_maintenance.cleanup_local_artifacts_once",
@@ -2527,62 +2671,13 @@ def test_run_local_cleanup_no_longer_triggers_legacy_migration(monkeypatch):
 
     assert response.status_code == 200
     assert json.loads(response.body) == {"status": "completed"}
-    assert cleanup_calls[0]["migration_report"] == {}
+    # The SQLite migration removed the Mongo log mirror and the db= argument.
+    assert "db" not in cleanup_calls[0]
+    assert "migration_report" not in cleanup_calls[0]
+    assert cleanup_calls[0]["runtime_mode"] == "dev"
 
 
-def test_deferred_startup_tasks_sync_runtime_logs(monkeypatch):
-    ensure_indexes_calls: list[str] = []
-    redemption_repair_calls: list[str] = []
-    sync_calls: list[dict[str, object]] = []
-    original_phase = global_var_module._startup_phase
-    original_error = global_var_module._startup_error
-
-    monkeypatch.setattr(
-        "repositories.MongoRepository.ensure_indexes",
-        lambda: ensure_indexes_calls.append("ensure_indexes"),
-    )
-    monkeypatch.setattr(
-        "repositories.MongoRepository.repair_redemptions_indexed_at_once",
-        lambda: redemption_repair_calls.append("repair")
-        or {
-            "already_applied": False,
-            "scanned": 1,
-            "updated": 1,
-            "skipped": 0,
-        },
-    )
-    monkeypatch.setattr("repositories.connection.get_db", lambda: object())
-    monkeypatch.setattr("repositories.connection.get_runtime_mode", lambda: "dev")
-    monkeypatch.setattr(
-        "utils.local_artifact_maintenance.sync_logs_to_mongo_once",
-        lambda **kwargs: sync_calls.append(kwargs)
-        or {
-            "files_scanned": 1,
-            "files_migrated": 1,
-            "lines_scanned": 3,
-            "lines_upserted": 3,
-            "migrated_files": ["backend/logs/app.log"],
-            "failures": [],
-        },
-    )
-
-    try:
-        global_var_module._run_deferred_startup_tasks()
-
-        assert ensure_indexes_calls == ["ensure_indexes"]
-        assert redemption_repair_calls == ["repair"]
-        assert sync_calls[0]["config"] == global_var_module.CONFIG
-        assert sync_calls[0]["is_exe_mode"] is global_var_module.is_exe
-        assert sync_calls[0]["runtime_mode"] == "dev"
-        assert sync_calls[0]["exe_base_dir"] is None
-        assert global_var_module._startup_phase == global_var_module.STARTUP_PHASE_READY
-        assert global_var_module._startup_error is None
-    finally:
-        global_var_module._startup_phase = original_phase
-        global_var_module._startup_error = original_error
-
-
-def test_run_legacy_migration_refreshes_runtime_state(monkeypatch):
+def test_run_mongo_migration_completed_refreshes_runtime_state(monkeypatch):
     class _NullSpan:
         def __enter__(self):
             return self
@@ -2590,70 +2685,113 @@ def test_run_legacy_migration_refreshes_runtime_state(monkeypatch):
         def __exit__(self, exc_type, exc, tb):
             return False
 
-    routes_module.settings.theme = "nebula"
-    routes_module.settings.show_window_on_startup = True
-    routes_module.settings.mongodb_uri = ""
-    routes_module.accounts.username = ""
-    routes_module.accounts.app_password = ""
-    routes_module.accounts.hoyo_username = ""
-    routes_module.accounts.hoyo_password = ""
+    class FakeRequest:
+        async def json(self):
+            return {}
+
+    migrate_calls: list[dict[str, object]] = []
+    schedule_calls: list[str] = []
+
+    def _fake_migrate(**kwargs):
+        migrate_calls.append(kwargs)
+        return {
+            "status": "completed",
+            "message": "Using database: zzz_bot",
+            "summary": {"settings": 1, "missions": 3, "binary_assets": 2},
+            "db_path": "/tmp/zzz_bot.db",
+        }
+
+    monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
+    monkeypatch.setattr("utils.migrate_mongo_to_sqlite.migrate", _fake_migrate)
+    monkeypatch.setattr(data_store_module, "get_settings", lambda: None)
+    monkeypatch.setattr(data_store_module, "get_account", lambda: None)
+    monkeypatch.setattr(bot_module, "schedule_tasks", lambda: schedule_calls.append("all"))
+    monkeypatch.setattr(bot_module, "schedule_hunt_tasks", lambda: schedule_calls.append("hunt"))
+
+    response = asyncio.run(routes_module.run_mongo_migration(FakeRequest()))
+
+    assert response.status_code == 200
+    payload = json.loads(response.body)
+    assert payload["status"] == "completed"
+    assert payload["summary"] == {"settings": 1, "missions": 3, "binary_assets": 2}
+    # Default URI when the request body omits mongo_uri.
+    assert migrate_calls[0]["uri"] == "mongodb://localhost:27017"
+    assert migrate_calls[0]["db_name"] is None
+    # restored set is {"settings", "account", "shopping"} → schedule_tasks runs once;
+    # schedule_hunt_tasks does not because "settings" is in the restored set.
+    assert schedule_calls == ["all"]
+
+
+def test_run_mongo_migration_no_source_skips_runtime_refresh(monkeypatch):
+    class _NullSpan:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeRequest:
+        async def json(self):
+            return {"mongo_uri": "mongodb://nowhere:27017", "mongo_db": "zzz_bot"}
 
     schedule_calls: list[str] = []
 
     monkeypatch.setattr("sentry_sdk.start_span", lambda *args, **kwargs: _NullSpan())
     monkeypatch.setattr(
-        "utils.migrate_json_to_mongo.migrate_if_needed",
-        lambda *args, **kwargs: {
-            "migrated": ["settings", "account", "shopping"],
-            "counts_before": {},
-            "counts_after": {},
-            "artifact_status": {
-                "settings.json": {"action": "migrated"},
-                "account.json": {"action": "migrated"},
-                "shopping.json": {"action": "migrated"},
-            },
-            "storage_state_report": {"status": "skipped"},
-            "screenshot_report": {"status": "skipped", "scanned": 0, "upserted": 0},
+        "utils.migrate_mongo_to_sqlite.migrate",
+        lambda **kwargs: {
+            "status": "no_source",
+            "message": f"MongoDB not reachable at {kwargs['uri']}",
+            "summary": {},
+            "db_path": "/tmp/zzz_bot.db",
         },
     )
-    monkeypatch.setattr(
-        mongo_module,
-        "get_settings",
-        lambda: {
-            "theme": "cyber",
-            "show_window_on_startup": False,
-            "mongodb_uri": "",
-        },
-    )
-    monkeypatch.setattr(
-        mongo_module,
-        "get_account",
-        lambda: {
-            "username": "notify@example.com",
-            "app_password": "secret",
-            "hoyo_username": "hoyo@example.com",
-            "hoyo_password": "pw",
-        },
-    )
-    monkeypatch.setattr(
-        bot_module, "schedule_tasks", lambda: schedule_calls.append("all")
-    )
-    monkeypatch.setattr(
-        bot_module, "schedule_hunt_tasks", lambda: schedule_calls.append("hunt")
-    )
-    monkeypatch.setattr("repositories.connection.set_runtime_uri", lambda _uri: None)
-    monkeypatch.setattr("repositories.connection.get_db", lambda: object())
+    monkeypatch.setattr(bot_module, "schedule_tasks", lambda: schedule_calls.append("all"))
+    monkeypatch.setattr(bot_module, "schedule_hunt_tasks", lambda: schedule_calls.append("hunt"))
 
-    response = routes_module.run_legacy_migration()
-    payload = json.loads(response.body)
+    response = asyncio.run(routes_module.run_mongo_migration(FakeRequest()))
 
     assert response.status_code == 200
-    assert payload["status"] == "completed"
-    assert routes_module.settings.theme == "cyber"
-    assert routes_module.settings.show_window_on_startup is False
-    assert routes_module.accounts.username == "notify@example.com"
-    assert routes_module.accounts.hoyo_username == "hoyo@example.com"
-    assert schedule_calls == ["all"]
+    payload = json.loads(response.body)
+    assert payload["status"] == "no_source"
+    assert payload["summary"] == {}
+    assert "MongoDB not reachable at mongodb://nowhere:27017" in payload["message"]
+    assert schedule_calls == []
+
+
+def test_deferred_startup_tasks_mark_ready(monkeypatch):
+    schema_calls: list[str] = []
+    repair_calls: list[str] = []
+    original_phase = global_var_module._startup_phase
+    original_error = global_var_module._startup_error
+
+    monkeypatch.setattr(
+        "repositories.DataStore.ensure_schema",
+        lambda: schema_calls.append("schema"),
+    )
+    monkeypatch.setattr(
+        "repositories.DataStore.repair_redemptions_indexed_at_once",
+        lambda: (
+            repair_calls.append("repair")
+            or {
+                "already_applied": True,
+                "scanned": 0,
+                "updated": 0,
+                "skipped": 0,
+            }
+        ),
+    )
+
+    try:
+        global_var_module._run_deferred_startup_tasks()
+
+        assert schema_calls == ["schema"]
+        assert repair_calls == ["repair"]
+        assert global_var_module._startup_phase == global_var_module.STARTUP_PHASE_READY
+        assert global_var_module._startup_error is None
+    finally:
+        global_var_module._startup_phase = original_phase
+        global_var_module._startup_error = original_error
 
 
 def test_shutdown_rejects_invalid_desktop_token(monkeypatch):
@@ -2787,7 +2925,5 @@ def test_perform_desktop_shutdown_flushes_sentry_before_exit():
     }
     assert fake_sentry.transaction.data["tracked_pid"] == 444
     assert fake_sentry.transaction.finished is True
-    assert fake_sentry.flush_calls == [
-        routes_module.SHUTDOWN_SENTRY_FLUSH_TIMEOUT_SECONDS
-    ]
+    assert fake_sentry.flush_calls == [routes_module.SHUTDOWN_SENTRY_FLUSH_TIMEOUT_SECONDS]
     assert exit_codes == [0]

@@ -10,7 +10,6 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
-
 from utils.DataHandler import Serializable
 from utils.StringUtil import clean_leading_dots
 
@@ -92,9 +91,7 @@ def generate_config(outside_folder, exclude_keys=None):
 
     # Resolve absolute paths for outside_folder values
     outside_folder_paths = {
-        key: os.path.abspath(base_config[key])
-        for key in outside_folder
-        if key in base_config
+        key: os.path.abspath(base_config[key]) for key in outside_folder if key in base_config
     }
 
     # Apply resource_path conditionally with secure path checking
@@ -106,9 +103,7 @@ def generate_config(outside_folder, exclude_keys=None):
                 # Normalize folder_path to handle both files and folders
                 folder_path_normalized = os.path.normpath(folder_path)
                 # If folder_path is a file, use its directory
-                if not folder_path.endswith(
-                    (".json", ".ico", ".png", ".html", ".jinja")
-                ):
+                if not folder_path.endswith((".json", ".ico", ".png", ".html", ".jinja")):
                     # It's a folder
                     if (
                         os.path.commonpath([abs_path, folder_path_normalized])
@@ -167,7 +162,6 @@ class AppSettings(Serializable):
     sentry_frontend_dsn: str = ""  # Frontend DSN fallback when Vite env is unset
     sentry_send_test_event: bool = False
     sentry_traces_sample_rate: float = 1.0
-    mongodb_uri: str = ""  # Override MONGODB_URI env var if set
 
 
 @dataclass
@@ -197,14 +191,12 @@ CONFIG = generate_config(
     ],
     ["WEB_UI_URL"],
 )
-CONFIG["WEB_UI_URL"] = (
-    "http://127.0.0.1:3000/" if not is_exe else "http://127.0.0.1:8000"
-)
+CONFIG["WEB_UI_URL"] = "http://127.0.0.1:3000/" if not is_exe else "http://127.0.0.1:8000"
 # Config loaded successfully (removed print to avoid exposing paths)
 
 
 def load_runtime_env() -> None:
-    """Load local .env files before any MongoDB initialization."""
+    """Load local .env files before any storage initialization."""
     try:
         from dotenv import load_dotenv
     except ImportError:
@@ -308,7 +300,6 @@ def _init_startup_sentry_if_configured() -> None:
         import sentry_sdk
         from sentry_sdk.integrations.fastapi import FastApiIntegration
         from sentry_sdk.integrations.logging import LoggingIntegration
-        from sentry_sdk.integrations.pymongo import PyMongoIntegration
     except ImportError:
         return
 
@@ -333,7 +324,6 @@ def _init_startup_sentry_if_configured() -> None:
             integrations=[
                 FastApiIntegration(),
                 LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
-                PyMongoIntegration(),
             ],
             auto_enabling_integrations=False,
             traces_sample_rate=traces_sample_rate,
@@ -345,91 +335,43 @@ def _init_startup_sentry_if_configured() -> None:
         logger.warning("Failed to initialize startup Sentry: %s", exc)
 
 
-def _bootstrap_mongo() -> None:
-    """Ensure Mongo is reachable before loading persisted runtime state."""
+def _bootstrap_storage() -> None:
+    """Open the SQLite database and create the schema before loading state."""
     import sentry_sdk
-
-    from repositories.connection import get_connection_debug_info, get_db
+    from repositories import DataStore
+    from repositories.connection import get_connection_debug_info
 
     with sentry_sdk.start_span(
-        op="startup.mongo_bootstrap",
-        name="mongo-bootstrap",
+        op="startup.storage_bootstrap",
+        name="storage-bootstrap",
     ) as span:
-        with sentry_sdk.start_span(op="mongo.connect", name="Connect and ping"):
-            db = get_db()
-
-        span.set_data("mongo.db_name", db.name)
-        span.set_data("mongo.connection", get_connection_debug_info())
+        DataStore.ensure_schema()
+        span.set_data("storage.connection", get_connection_debug_info())
 
 
 def _load_settings() -> "AppSettings":
-    """Load settings from MongoDB only and persist defaults when missing."""
-    import sentry_sdk
-
-    from repositories import MongoRepository
-    from repositories.connection import (
-        get_effective_mongodb_uri,
-        get_connection_debug_info,
-        get_db,
-        set_runtime_uri,
-    )
+    """Load settings from the database, persisting defaults when missing."""
+    from repositories import DataStore
 
     valid = AppSettings.__annotations__.keys()
-    data = MongoRepository.get_settings()
+    data = DataStore.get_settings()
     if data:
         loaded = AppSettings(**{k: v for k, v in data.items() if k in valid})
-    else:
-        loaded = AppSettings()
+        # Re-persist when the stored document carried unknown or legacy keys.
+        if any(key not in valid for key in data):
+            DataStore.save_settings(asdict(loaded))
+        return loaded
 
-    previous_effective_uri = get_effective_mongodb_uri()
-    requested_runtime_uri = (loaded.mongodb_uri or "").strip()
-    should_switch_runtime_uri = bool(
-        requested_runtime_uri and requested_runtime_uri != previous_effective_uri
-    )
-
-    with sentry_sdk.start_span(
-        op="startup.mongo_runtime_uri_sync",
-        name="mongo-runtime-uri-sync",
-    ) as span:
-        if should_switch_runtime_uri:
-            with sentry_sdk.start_span(
-                op="mongo.connect",
-                name="Reconnect with settings.mongodb_uri",
-            ):
-                set_runtime_uri(requested_runtime_uri)
-                active_db = get_db()
-        else:
-            with sentry_sdk.start_span(
-                op="mongo.connect",
-                name="Reuse active runtime MongoDB connection",
-            ):
-                active_db = get_db()
-
-        span.set_data("mongo.db_name", active_db.name)
-        span.set_data("mongo.connection", get_connection_debug_info())
-        span.set_data("mongo.runtime_uri_switched", should_switch_runtime_uri)
-
-    # Read settings from the active database after applying runtime URI.
-    active_data = MongoRepository.get_settings()
-    source_data = active_data if active_data is not None else data
-    if source_data:
-        active_loaded = AppSettings(
-            **{k: v for k, v in source_data.items() if k in valid}
-        )
-        if active_data is None or any(key not in valid for key in source_data):
-            MongoRepository.save_settings(asdict(active_loaded))
-        return active_loaded
-
-    # Ensure settings document exists in the active database.
-    MongoRepository.save_settings(asdict(loaded))
-    return loaded
+    default_settings = AppSettings()
+    DataStore.save_settings(asdict(default_settings))
+    return default_settings
 
 
 def _load_accounts() -> "Account":
-    """Load account from MongoDB only and persist defaults when missing."""
-    from repositories import MongoRepository
+    """Load account from the database, persisting defaults when missing."""
+    from repositories import DataStore
 
-    data = MongoRepository.get_account()
+    data = DataStore.get_account()
     if data:
         # Migrate old-format documents to new hoyo_username/hoyo_password fields
         migrated = False
@@ -440,13 +382,13 @@ def _load_accounts() -> "Account":
             data["hoyo_username"] = data["username"] + "@gmail.com"
             migrated = True
         if migrated:
-            MongoRepository.save_account(data)
+            DataStore.save_account(data)
 
         valid = Account.__annotations__.keys()
         return Account(**{k: v for k, v in data.items() if k in valid})
 
     default_account = Account()
-    MongoRepository.save_account(asdict(default_account))
+    DataStore.save_account(asdict(default_account))
     return default_account
 
 
@@ -490,7 +432,7 @@ def initialize_runtime_state() -> AppSettings:
                 name="critical-bootstrap",
                 sampled=True,
             ):
-                _bootstrap_mongo()
+                _bootstrap_storage()
                 loaded_settings = _load_settings()
 
             _apply_dataclass_values(settings, loaded_settings)
@@ -526,29 +468,15 @@ def _run_deferred_startup_tasks() -> None:
     global _startup_phase, _startup_error
 
     try:
-        from repositories import MongoRepository
-        from repositories.connection import get_db, get_runtime_mode
-        from utils.local_artifact_maintenance import sync_logs_to_mongo_once
+        from repositories import DataStore
 
-        MongoRepository.ensure_indexes()
-        redemption_repair_report = (
-            MongoRepository.repair_redemptions_indexed_at_once()
-        )
-        log_sync_report = sync_logs_to_mongo_once(
-            db=get_db(),
-            config=CONFIG,
-            is_exe_mode=is_exe,
-            runtime_mode=get_runtime_mode(),
-            exe_base_dir=os.path.dirname(sys.executable) if is_exe else None,
-        )
+        DataStore.ensure_schema()
+        redemption_repair_report = DataStore.repair_redemptions_indexed_at_once()
         _startup_phase = STARTUP_PHASE_READY
         _startup_error = None
         logger.info(
-            "Deferred startup warmup completed: redemptions_updated=%s, log_files_scanned=%s, lines_upserted=%s, failures=%s",
+            "Deferred startup warmup completed: redemptions_updated=%s",
             redemption_repair_report["updated"],
-            log_sync_report["files_scanned"],
-            log_sync_report["lines_upserted"],
-            len(log_sync_report["failures"]),
         )
     except Exception as exc:
         _startup_phase = STARTUP_PHASE_READY
@@ -592,6 +520,8 @@ def get_startup_status() -> dict[str, object]:
         if _startup_error:
             payload["detail"] = _startup_error
         return payload
+
+
 app.add_middleware(
     CORSMiddleware,
     # Allow desktop/web UI origins on localhost and WebView protocols.

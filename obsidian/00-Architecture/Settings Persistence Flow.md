@@ -4,14 +4,15 @@ tags: [architecture, flow]
 
 # Settings Persistence Flow
 
-> Settings live in MongoDB (single-doc per category) and are also surfaced as
-> `output/settings.json` for legacy compatibility and easy human inspection. The
-> frontend reads via `/settings`; the Tauri shell also reads a subset directly to
-> bootstrap window state before the backend is ready.
+> Settings live in the embedded SQLite database (one row in the `documents` table,
+> `collection='settings'`) and are also surfaced as `output/settings.json` for legacy
+> compatibility and easy human inspection. The frontend reads via `/settings`; the
+> Tauri shell also reads a subset directly to bootstrap window state before the
+> backend is ready.
 
 ## Source
 
-- `backend/repositories/MongoRepository.py` — `_SINGLE_DOC_COLLECTIONS` includes settings/account/shopping
+- `backend/repositories/DataStore.py` — `_SINGLE_DOC_COLLECTIONS` includes settings/account/shopping
 - `backend/api/routes.py` — `/settings`, `/settings/advanced`
 - `frontend/src/services/DataLoader.jsx` — query/mutation per route
 - `output/settings.json` — legacy/inspection mirror
@@ -22,28 +23,29 @@ tags: [architecture, flow]
 sequenceDiagram
     participant FE as Frontend (SettingsPage)
     participant API as FastAPI
-    participant MR as MongoRepository
+    participant DS as DataStore
     participant FS as output/settings.json
 
     FE->>API: GET /settings
-    API->>MR: find_one({_id: 'default'}) in 'settings'
-    MR-->>API: doc
+    API->>DS: get_settings() — documents row, collection='settings'
+    DS-->>API: payload
     API-->>FE: payload
     FE->>FE: user edits
     FE->>API: POST /settings (mutation)
-    API->>MR: find_one_and_replace
-    MR->>FS: also writes legacy JSON mirror
-    MR-->>API: ok
+    API->>DS: save_settings() — upsert documents row
+    DS->>FS: also writes legacy JSON mirror
+    DS-->>API: ok
     API-->>FE: 200 (TanStack invalidates)
 ```
 
-The legacy JSON mirror survives even if MongoDB is unavailable — the Tauri shell
-reads `output/settings.json` directly to recover `autostart_on_login` and window
-geometry without waiting for the sidecar to start.
+The legacy JSON mirror lets the Tauri shell read `output/settings.json` directly to
+recover `autostart_on_login` and window geometry without waiting for the sidecar to
+start. SQLite is an embedded file, so there is no connection to lose and no
+runtime-reconnect step — a settings save never has to reconcile a database URI.
 
 ## Depends on
 
-- [[MongoRepository]] — primary store
+- [[DataStore]] — primary store
 - [[Settings Endpoints]] — REST layer
 - [[DataLoader]] — frontend cache
 - [[Settings Page]] — UI
@@ -57,12 +59,12 @@ geometry without waiting for the sidecar to start.
 
 ## Gotchas
 
-- Two writers: MongoDB and the Tauri shell's local `window-state.json`. See [[Window State Dual Storage]] for the merge rule.
+- Two writers: the SQLite `documents` table and the Tauri shell's local `window-state.json`. See [[Window State Dual Storage]] for the merge rule.
 - Adding a new persisted field also requires updating [[Settings Contract]] if it's an "advanced" setting.
 
 ## See also
 
 - [[_index]]
-- [[MongoRepository]]
+- [[DataStore]]
 - [[Settings Endpoints]]
 - [[Window State Dual Storage]]

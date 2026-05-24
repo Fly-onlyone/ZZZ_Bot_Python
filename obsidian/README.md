@@ -24,7 +24,7 @@ than top-down prose.
 - `01-Backend/` — Python FastAPI + Playwright + OpenCV
 - `02-Frontend/` — React 18 + MUI v6 + TanStack Query
 - `03-Desktop/` — Tauri Rust shell + PyInstaller sidecar + NSIS installer
-- `04-Integrations/` — external systems (HoYoLab, MongoDB, Sentry, etc.)
+- `04-Integrations/` — external systems and runtime libraries (HoYoLab, SQLite, Sentry, etc.)
 - `05-Patterns/` — codebase conventions
 - `06-Operations/` — build / dev / release / debug
 - `07-Glossary/` — domain terms

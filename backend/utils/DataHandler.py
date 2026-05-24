@@ -1,10 +1,9 @@
 import json
 import logging
-import os
 from dataclasses import asdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import TypeVar, Type
+from typing import Type, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +34,11 @@ class Serializable:
 
 
 def prepare_mission_data(output_folder: str, output_file: str):
-    """Load mission data from MongoDB; create today's record if missing."""
-    import repositories.MongoRepository as mongo
+    """Load mission data from the database; create today's record if missing."""
+    from repositories import DataStore
 
     today_str = datetime.now().strftime("%d/%m/%Y")
-    previous_data = mongo.get_missions()
+    previous_data = DataStore.get_missions()
 
     todays_data = next((d for d in previous_data if d["day"] == today_str), None)
     if not todays_data:
@@ -54,32 +53,32 @@ def prepare_mission_data(output_folder: str, output_file: str):
 
 
 def maintain_mission_data(previous_data: list, output_file: str, todays_data: dict):
-    """Upsert today's mission record in MongoDB. TTL index handles 5-day rotation."""
-    import repositories.MongoRepository as mongo
+    """Upsert today's mission record; records older than 5 days are swept."""
+    from repositories import DataStore
 
-    mongo.save_mission_day(todays_data)
-    logger.info("Mission data saved to MongoDB.")
+    DataStore.save_mission_day(todays_data)
+    logger.info("Mission data saved to the database.")
 
 
 def load_shopping_data(file_path):
-    """Load shopping data from MongoDB (file_path arg kept for compatibility)."""
-    import repositories.MongoRepository as mongo
+    """Load shopping data from the database (file_path arg kept for compatibility)."""
+    from repositories import DataStore
 
-    return mongo.get_shopping()
+    return DataStore.get_shopping()
 
 
 def save_shopping_data(file_path, shopping_data):
-    """Merge and save shopping data to MongoDB.
+    """Merge and save shopping data to the database.
 
     Parameters:
         file_path: Unused (kept for call-site compatibility).
         shopping_data: New shopping data to merge into existing record.
     """
-    import repositories.MongoRepository as mongo
+    from repositories import DataStore
 
-    existing = mongo.get_shopping() or {}
+    existing = DataStore.get_shopping() or {}
     existing.update(shopping_data)
-    mongo.save_shopping(existing)
+    DataStore.save_shopping(existing)
 
 
 def save_redeem_data(
@@ -92,8 +91,8 @@ def save_redeem_data(
     status=None,
     record_id=None,
 ):
-    """Append a redemption entry to MongoDB. TTL index handles 30-day cleanup."""
-    import repositories.MongoRepository as mongo
+    """Append a redemption entry; records older than 30 days are swept."""
+    from repositories import DataStore
 
     entry = {
         "item_name": item_name,
@@ -107,11 +106,11 @@ def save_redeem_data(
         entry["status"] = status
 
     if record_id is None:
-        record_id = mongo.save_redemption(entry)
+        record_id = DataStore.save_redemption(entry)
     else:
-        mongo.update_redemption(record_id, entry)
+        DataStore.update_redemption(record_id, entry)
     logger.info(
-        "Redeem data saved to MongoDB for %s with state=%s status=%s detail=%s record_id=%s",
+        "Redeem data saved to the database for %s with state=%s status=%s detail=%s record_id=%s",
         item_name,
         state,
         status,
@@ -122,7 +121,7 @@ def save_redeem_data(
 
 
 def load_redeem_data(redeem_file_path):
-    """Load all redemption records from MongoDB (file_path arg kept for compatibility)."""
-    import repositories.MongoRepository as mongo
+    """Load all redemption records from the database (file_path arg kept for compatibility)."""
+    from repositories import DataStore
 
-    return mongo.get_redemptions()
+    return DataStore.get_redemptions()

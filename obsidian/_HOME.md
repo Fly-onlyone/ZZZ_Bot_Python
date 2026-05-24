@@ -19,10 +19,10 @@ build mental scaffolding, then drill into modules or patterns as needed.
 - [[Browser Session Lifecycle]] — persistent Playwright context
 - [[Hunt Mode Lifecycle]] — three-phase timed item purchase
 - [[Image Recognition Pipeline]] — OpenCV template matching for UI state
-- [[Locator Telemetry Pipeline]] — selector tracking → MongoDB → frontend
+- [[Locator Telemetry Pipeline]] — selector tracking → SQLite → frontend
 - [[Manual Login Flow]] — SessionState machine for browser handoff
 - [[Notification Pipeline]] — Jinja2 → SMTP/Apprise → frontend SSE
-- [[Settings Persistence Flow]] — settings.json + MongoDB hybrid
+- [[Settings Persistence Flow]] — SQLite + settings.json mirror
 - [[Sidecar Lifecycle]] — Tauri spawn → ready → graceful shutdown
 - [[Frontend Data Flow]] — TanStack Query + DataLoader + SSE updates
 
@@ -34,7 +34,7 @@ build mental scaffolding, then drill into modules or patterns as needed.
 - [[01-Backend/handlers/_index|handlers]] — Mission, Shopping, Draw, Hunt
 - [[01-Backend/automation/_index|automation]] — Playwright + OpenCV + locator tracking
 - [[01-Backend/services/_index|services]] — browser session manager
-- [[01-Backend/repositories/_index|repositories]] — MongoDB + JSON persistence
+- [[01-Backend/repositories/_index|repositories]] — embedded SQLite + legacy JSON
 - [[01-Backend/domain/_index|domain]] — typed models and enums
 - [[01-Backend/api/_index|api]] — 35+ FastAPI endpoints
 - [[01-Backend/utils/_index|utils]] — data, notifications, logging, screenshots
@@ -87,7 +87,7 @@ PyInstaller-to-Tauri bridging, NSIS installer.
 [[Frontend Data Flow]] → [[Frontend Entry Point]] → [[PermanentDrawer Router]] → [[ValueAdapter]] → [[Dynamic Form ValueAdapter Pattern]] → [[ThemeContext]]
 
 **DevOps / packaging:**
-[[Sidecar Lifecycle]] → [[Sidecar Spawn]] → [[Sidecar Shutdown Escalation]] → [[PyInstaller Sidecar Build]] → [[Prepare Tauri Sidecar Script]] → [[NSIS Installer Build]] → [[Port Configuration]]
+[[Sidecar Lifecycle]] → [[Sidecar Spawn]] → [[Sidecar Shutdown Escalation]] → [[PyInstaller Sidecar Build]] → [[Prepare Tauri Sidecar Script]] → [[NSIS Installer Build]] → [[Port Configuration]] → [[GitHub Actions CI]]
 
 **Hunt-mode developer:**
 [[Hunt Mode Lifecycle]] → [[HuntModeHandler]] → [[Three-Phase Hunt Execution Pattern]] → [[ShoppingHandler]] → [[RedeemAutofill]] → [[StringUtil]]

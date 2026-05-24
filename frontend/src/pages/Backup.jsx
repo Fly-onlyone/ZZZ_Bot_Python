@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   Checkbox,
@@ -8,7 +7,6 @@ import {
   CircularProgress,
   FormControlLabel,
   InputBase,
-  Snackbar,
   Stack,
   Table,
   TableBody,
@@ -28,10 +26,10 @@ import {
   IconFolderOpen,
   IconInfoCircle,
   IconTool,
-  IconTrash,
 } from "@tabler/icons-react";
 
-import { BackupSkeleton, SectionCard } from "../components";
+import { BackupSkeleton, SectionCard, useNotification } from "../components";
+import { MAINTENANCE_TASKS } from "../config/maintenanceTasks";
 import { BACKEND_URL } from "../config";
 import { DataLoader } from "../services";
 import { logError, logInfo } from "../services/sentryLogger.js";
@@ -59,14 +57,7 @@ import { useThemeContext } from "../theme/ThemeContext";
  * }} BackupPayload
  */
 
-const ALL_COLLECTIONS = [
-  "settings",
-  "account",
-  "shopping",
-  "redemptions",
-  "missions",
-  "last_run",
-];
+const ALL_COLLECTIONS = ["settings", "account", "shopping", "redemptions", "missions", "last_run"];
 
 const cardVariants = {
   hidden: { opacity: 0, y: 20, scale: 0.95 },
@@ -91,9 +82,7 @@ function DataSummary({ summary }) {
     const info = resolvedSummary[name] || {};
     return (
       <TableRow key={name}>
-        <TableCell sx={{ textTransform: "capitalize" }}>
-          {name.replace("_", " ")}
-        </TableCell>
+        <TableCell sx={{ textTransform: "capitalize" }}>{name.replace("_", " ")}</TableCell>
         <TableCell>
           <Chip
             label={info.exists ? "Has data" : "Empty"}
@@ -158,10 +147,7 @@ function ExportSection({ showAlert }) {
       await savePath(result.path);
       logInfo("Backup export path selected", { path: result.path });
     } catch (error) {
-      showAlert(
-        "error",
-        error instanceof Error ? error.message : "Failed to open folder picker."
-      );
+      showAlert("error", error instanceof Error ? error.message : "Failed to open folder picker.");
     }
   };
 
@@ -174,10 +160,7 @@ function ExportSection({ showAlert }) {
       showAlert("success", `Backup saved to ${result?.file}`);
     } catch (error) {
       logError("Backup export failed", error);
-      showAlert(
-        "error",
-        error instanceof Error ? error.message : "Export failed."
-      );
+      showAlert("error", error instanceof Error ? error.message : "Export failed.");
     }
   };
 
@@ -193,10 +176,7 @@ function ExportSection({ showAlert }) {
       }
       logInfo("Backup export path saved", { path: trimmed });
     } catch (error) {
-      showAlert(
-        "error",
-        error instanceof Error ? error.message : "Failed to save export path."
-      );
+      showAlert("error", error instanceof Error ? error.message : "Failed to save export path.");
     }
   };
 
@@ -259,9 +239,7 @@ function ExportSection({ showAlert }) {
         >
           <IconFolder
             size={16}
-            color={
-              exportPath ? themeColors.primary.light : COMMON_COLORS.text.muted
-            }
+            color={exportPath ? themeColors.primary.light : COMMON_COLORS.text.muted}
             style={{ flexShrink: 0 }}
           />
           <InputBase
@@ -285,9 +263,7 @@ function ExportSection({ showAlert }) {
 
       <Button
         variant="contained"
-        disabled={
-          pathEmpty || exportMutation.isPending || saveConfigMutation.isPending
-        }
+        disabled={pathEmpty || exportMutation.isPending || saveConfigMutation.isPending}
         onClick={handleExport}
         startIcon={
           exportMutation.isPending ? (
@@ -352,9 +328,7 @@ function RestoreSection({ showAlert }) {
           return;
         }
         setBackupData(parsed);
-        setSelected(
-          ALL_COLLECTIONS.filter((c) => parsed.collections[c] != null)
-        );
+        setSelected(ALL_COLLECTIONS.filter((c) => parsed.collections[c] != null));
       } catch {
         showAlert("error", "Could not parse JSON file.");
         setBackupData(null);
@@ -365,9 +339,7 @@ function RestoreSection({ showAlert }) {
   };
 
   const toggleCollection = (name) => {
-    setSelected((prev) =>
-      prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name]
-    );
+    setSelected((prev) => (prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name]));
   };
 
   const handleRestore = async () => {
@@ -399,10 +371,7 @@ function RestoreSection({ showAlert }) {
       setFileName("");
       setSelected([]);
     } catch (error) {
-      showAlert(
-        "error",
-        error instanceof Error ? error.message : "Restore failed."
-      );
+      showAlert("error", error instanceof Error ? error.message : "Restore failed.");
       logError("Backup restore failed", error);
     } finally {
       setImporting(false);
@@ -431,11 +400,7 @@ function RestoreSection({ showAlert }) {
             key={name}
             disabled={!available}
             control={
-              <Checkbox
-                checked={checked}
-                onChange={() => toggleCollection(name)}
-                size="small"
-              />
+              <Checkbox checked={checked} onChange={() => toggleCollection(name)} size="small" />
             }
             label={
               <Typography variant="body2" sx={{ textTransform: "capitalize" }}>
@@ -448,9 +413,7 @@ function RestoreSection({ showAlert }) {
               py: 0.5,
               borderRadius: "8px",
               background: themeColors.alpha.card,
-              border: `1px solid ${
-                checked ? `${themeColors.primary.main}60` : "transparent"
-              }`,
+              border: `1px solid ${checked ? `${themeColors.primary.main}60` : "transparent"}`,
               transition: TRANSITIONS.cubic,
             }}
           />
@@ -498,11 +461,7 @@ function RestoreSection({ showAlert }) {
               gap: 1,
             }}
           >
-            <IconFile
-              size={16}
-              color={themeColors.primary.light}
-              style={{ flexShrink: 0 }}
-            />
+            <IconFile size={16} color={themeColors.primary.light} style={{ flexShrink: 0 }} />
             <Typography
               variant="body2"
               color="text.primary"
@@ -522,9 +481,7 @@ function RestoreSection({ showAlert }) {
         <>
           <Chip
             icon={<IconClock size={14} />}
-            label={`Exported ${new Date(
-              backupData["exported_at"]
-            ).toLocaleString()}`}
+            label={`Exported ${new Date(backupData["exported_at"]).toLocaleString()}`}
             size="small"
             variant="outlined"
             sx={{
@@ -562,9 +519,7 @@ function RestoreSection({ showAlert }) {
               },
             }}
           >
-            {importing
-              ? "Restoring..."
-              : `Restore ${selected.length} Collection(s)`}
+            {importing ? "Restoring..." : `Restore ${selected.length} Collection(s)`}
           </Button>
         </>
       ) : null}
@@ -572,87 +527,24 @@ function RestoreSection({ showAlert }) {
   );
 }
 
-function formatCleanupSummary(report) {
-  const deleted =
-    report &&
-    typeof report === "object" &&
-    typeof report["deleted"] === "object"
-      ? report["deleted"]
-      : {};
-  return (
-    `Cleanup completed. Deleted ` +
-    `${deleted["auth_storage_file"] || 0} auth file(s), ` +
-    `${deleted["log_files"] || 0} log file(s), ` +
-    `${deleted["screenshot_files"] || 0} screenshot file(s), ` +
-    `${deleted["json_files"] || 0} JSON file(s).`
-  );
-}
-
-function formatLegacyMigrationSummary(report) {
-  const migratedValue =
-    report && typeof report === "object" ? report["migrated"] : undefined;
-  const migrated = Array.isArray(migratedValue) ? migratedValue : [];
-  const completedWithWarnings =
-    report && typeof report === "object"
-      ? report.status === "completed_with_warnings"
-      : false;
-
-  if (migrated.length === 0) {
-    return completedWithWarnings
-      ? "Legacy migration completed with warnings. No legacy artifacts were imported."
-      : "Legacy migration completed. No legacy artifacts were imported.";
-  }
-
-  return completedWithWarnings
-    ? `Legacy migration completed with warnings. Imported: ${migrated.join(
-        ", "
-      )}.`
-    : `Legacy migration completed. Imported: ${migrated.join(", ")}.`;
-}
-
-const MAINTENANCE_TASKS = [
-  {
-    key: "legacy-migration",
-    icon: IconDatabaseImport,
-    title: "Legacy Migration",
-    description: "Import legacy JSON data into MongoDB",
-    route: "maintenance/legacy-migration",
-    formatSuccess: formatLegacyMigrationSummary,
-    errorMessage: "Failed to run legacy migration.",
-  },
-  {
-    key: "local-cleanup",
-    icon: IconTrash,
-    title: "Local Cleanup",
-    description: "Remove local artifacts and screenshots",
-    route: "maintenance/local-cleanup",
-    formatSuccess: formatCleanupSummary,
-    errorMessage: "Failed to run local cleanup.",
-  },
-];
-
-function MaintenanceSection({ showAlert }) {
+function MaintenanceSection() {
   const { themeColors } = useThemeContext();
   const { useActionData } = DataLoader();
-  const legacyMigrationMutation = useActionData("maintenance/legacy-migration");
+  const mongoMigrationMutation = useActionData("maintenance/mongo-migration");
   const cleanupMutation = useActionData("maintenance/local-cleanup");
 
   const mutations = {
-    "legacy-migration": legacyMigrationMutation,
+    "mongo-migration": mongoMigrationMutation,
     "local-cleanup": cleanupMutation,
   };
 
-  const handleRun = async (task) => {
-    const mutation = mutations[task.key];
-    try {
-      const result = await mutation.mutateAsync({});
-      showAlert("success", task.formatSuccess(result));
-    } catch (error) {
-      showAlert(
-        "error",
-        error instanceof Error ? error.message : task.errorMessage
-      );
-    }
+  // Toast firing is handled globally by MutationToastWatcher mounted at app
+  // root, so the notification still appears if the user navigates away from
+  // this page while the request is in flight.
+
+  const handleRun = (task) => {
+    // Fire-and-forget; MutationToastWatcher at app root surfaces the toast.
+    mutations[task.key].mutate({});
   };
 
   const warningOutlinedSx = {
@@ -699,11 +591,7 @@ function MaintenanceSection({ showAlert }) {
             <Typography variant="subtitle2" fontWeight={600}>
               {task.title}
             </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ mb: 0.5 }}
-            >
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
               {task.description}
             </Typography>
             <Box>
@@ -712,11 +600,7 @@ function MaintenanceSection({ showAlert }) {
                 variant="outlined"
                 disabled={isPending}
                 onClick={() => handleRun(task)}
-                startIcon={
-                  isPending ? (
-                    <CircularProgress size={14} color="inherit" />
-                  ) : null
-                }
+                startIcon={isPending ? <CircularProgress size={14} color="inherit" /> : null}
                 sx={warningOutlinedSx}
               >
                 {isPending ? "Running..." : "Run"}
@@ -730,30 +614,12 @@ function MaintenanceSection({ showAlert }) {
 }
 
 export default function Backup() {
-  /**
-   * @typedef {{
-   *   open: boolean,
-   *   type: import("@mui/material").AlertColor,
-   *   message: string,
-   * }} BackupAlertState
-   */
-
   const { useRouteData } = DataLoader();
-  const { data: summary, isLoading: isSummaryLoading } =
-    useRouteData("backup/summary");
+  const { data: summary, isLoading: isSummaryLoading } = useRouteData("backup/summary");
 
-  /** @type {[BackupAlertState, React.Dispatch<React.SetStateAction<BackupAlertState>>]} */
-  const [alert, setAlert] = useState({
-    open: false,
-    type: "success",
-    message: "",
-  });
-
-  const showAlert = (type, message) => setAlert({ open: true, type, message });
-  const handleAlertClose = (_, reason) => {
-    if (reason === "clickaway") return;
-    setAlert({ ...alert, open: false });
-  };
+  // App-level snackbar lives in NotificationProvider so toasts survive page
+  // navigation (e.g. a migration that completes while the user is elsewhere).
+  const { showAlert } = useNotification();
 
   if (isSummaryLoading && !summary) {
     return <BackupSkeleton />;
@@ -761,12 +627,7 @@ export default function Backup() {
 
   return (
     <div className="space-y-6">
-      <motion.div
-        custom={0}
-        variants={cardVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <motion.div custom={0} variants={cardVariants} initial="hidden" animate="visible">
         <SectionCard
           title="Data Summary"
           icon={<IconInfoCircle size={24} color="#ffffff" />}
@@ -776,12 +637,7 @@ export default function Backup() {
         </SectionCard>
       </motion.div>
 
-      <motion.div
-        custom={1}
-        variants={cardVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <motion.div custom={1} variants={cardVariants} initial="hidden" animate="visible">
         <SectionCard
           title="Export"
           icon={<IconDatabaseExport size={24} color="#ffffff" />}
@@ -791,12 +647,7 @@ export default function Backup() {
         </SectionCard>
       </motion.div>
 
-      <motion.div
-        custom={2}
-        variants={cardVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <motion.div custom={2} variants={cardVariants} initial="hidden" animate="visible">
         <SectionCard
           title="Restore"
           icon={<IconDatabaseImport size={24} color="#ffffff" />}
@@ -806,29 +657,15 @@ export default function Backup() {
         </SectionCard>
       </motion.div>
 
-      <motion.div
-        custom={3}
-        variants={cardVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <motion.div custom={3} variants={cardVariants} initial="hidden" animate="visible">
         <SectionCard
           title="Maintenance"
           icon={<IconTool size={24} color="#ffffff" />}
           colorScheme="primary"
         >
-          <MaintenanceSection showAlert={showAlert} />
+          <MaintenanceSection />
         </SectionCard>
       </motion.div>
-
-      <Snackbar
-        open={alert.open}
-        autoHideDuration={5000}
-        onClose={handleAlertClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert severity={alert.type}>{alert.message}</Alert>
-      </Snackbar>
     </div>
   );
 }

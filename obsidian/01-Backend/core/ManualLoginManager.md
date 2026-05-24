@@ -4,7 +4,7 @@ tags: [backend, core]
 
 # ManualLoginManager
 
-> Thread-safe singleton that runs a visible Playwright Firefox session so the user can sign in to HoYoLab manually; persists storage state to Mongo when the browser closes.
+> Thread-safe singleton that runs a visible Playwright Firefox session so the user can sign in to HoYoLab manually; persists storage state to the SQLite `binary_assets` table when the browser closes.
 
 ## Source
 
@@ -26,7 +26,7 @@ stateDiagram-v2
     ERROR --> IDLE: cleanup
 ```
 
-URL validation only allows `hoyolab.com`, `hoyoverse.com`, `mihoyo.com` netlocs (warning, not block). The polling loop detects manual browser close by catching `page.is_closed()` or any exception on `page.title()`. After save, the legacy local storage-state file is deleted so MongoDB becomes the single source of truth.
+URL validation only allows `hoyolab.com`, `hoyoverse.com`, `mihoyo.com` netlocs (warning, not block). The polling loop detects manual browser close by catching `page.is_closed()` or any exception on `page.title()`. After save, the legacy local storage-state file is deleted so the SQLite `binary_assets` table becomes the single source of truth.
 
 ## Depends on
 

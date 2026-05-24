@@ -1,26 +1,31 @@
+import sys
 from datetime import datetime, timezone
 from importlib import import_module
 from pathlib import Path
-import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 locator_tracker = import_module("automation.LocatorTracker")
-mongo_module = import_module("repositories.MongoRepository")
+from repositories import connection
 
 
-class _FakeLocatorTrackerCollection:
-    def __init__(self, store):
-        self.store = store
-
-    def find_one(self, query):
-        doc = self.store.get(query["_id"])
-        return dict(doc) if doc else None
-
-
-class _FakeDb:
-    def __init__(self, store):
-        self.locator_tracker = _FakeLocatorTrackerCollection(store)
+def _patch_locator_store(monkeypatch, store, upserts, failure_events):
+    """Wire LocatorTracker's DataStore calls to an in-memory dict."""
+    monkeypatch.setattr(
+        locator_tracker.DataStore,
+        "get_locator_entry",
+        lambda summary_id: dict(store[summary_id]) if summary_id in store else None,
+    )
+    monkeypatch.setattr(
+        locator_tracker.DataStore,
+        "upsert_locator_entry",
+        lambda entry: upserts.append(dict(entry)) or store.__setitem__(entry["_id"], dict(entry)),
+    )
+    monkeypatch.setattr(
+        locator_tracker.DataStore,
+        "save_locator_failure_event",
+        lambda entry: failure_events.append(dict(entry)),
+    )
 
 
 class _FakePage:
@@ -45,23 +50,7 @@ def test_track_locator_success_updates_summary_without_capturing(monkeypatch):
     upserts = []
     failure_events = []
 
-    monkeypatch.setattr(
-        locator_tracker.MongoRepository,
-        "get_db",
-        lambda: _FakeDb(store),
-    )
-    monkeypatch.setattr(
-        locator_tracker.MongoRepository,
-        "upsert_locator_entry",
-        lambda entry: upserts.append(dict(entry)) or store.__setitem__(
-            entry["_id"], dict(entry)
-        ),
-    )
-    monkeypatch.setattr(
-        locator_tracker.MongoRepository,
-        "save_locator_failure_event",
-        lambda entry: failure_events.append(dict(entry)),
-    )
+    _patch_locator_store(monkeypatch, store, upserts, failure_events)
     monkeypatch.setattr(
         locator_tracker,
         "_capture_artifacts",
@@ -94,23 +83,7 @@ def test_track_locator_failure_respects_capture_cooldown(monkeypatch):
     monkeypatch.setattr(locator_tracker.time, "time", lambda: 1000.0)
     locator_tracker._failure_capture_cache.clear()
 
-    monkeypatch.setattr(
-        locator_tracker.MongoRepository,
-        "get_db",
-        lambda: _FakeDb(store),
-    )
-    monkeypatch.setattr(
-        locator_tracker.MongoRepository,
-        "upsert_locator_entry",
-        lambda entry: upserts.append(dict(entry)) or store.__setitem__(
-            entry["_id"], dict(entry)
-        ),
-    )
-    monkeypatch.setattr(
-        locator_tracker.MongoRepository,
-        "save_locator_failure_event",
-        lambda entry: failure_events.append(dict(entry)),
-    )
+    _patch_locator_store(monkeypatch, store, upserts, failure_events)
     summary_id = locator_tracker._summary_id(
         "RetryHelper",
         "wait_for",
@@ -152,7 +125,7 @@ def test_clear_entries_resets_failure_capture_cache(monkeypatch):
     locator_tracker._failure_capture_cache["locator:test"] = 123.0
 
     monkeypatch.setattr(
-        locator_tracker.MongoRepository,
+        locator_tracker.DataStore,
         "clear_locator_entries",
         lambda: cleared.append(True),
     )
@@ -202,7 +175,7 @@ def test_track_locator_recovery_capture_preserves_previous_failure_context(
         "hit_count": 2,
         "success_count": 0,
         "failure_count": 2,
-        "first_seen": datetime(2026, 3, 31, tzinfo=timezone.utc),
+        "first_seen": datetime(2026, 3, 31, tzinfo=timezone.utc).isoformat(),
         "page_asset_id": "page-failure",
         "locator_asset_id": "locator-failure",
         "dom_snapshot_asset_id": "dom-failure",
@@ -211,20 +184,9 @@ def test_track_locator_recovery_capture_preserves_previous_failure_context(
     store = {summary_id: dict(existing_entry)}
     upserts = []
 
+    _patch_locator_store(monkeypatch, store, upserts, [])
     monkeypatch.setattr(
-        locator_tracker.MongoRepository,
-        "get_db",
-        lambda: _FakeDb(store),
-    )
-    monkeypatch.setattr(
-        locator_tracker.MongoRepository,
-        "upsert_locator_entry",
-        lambda entry: upserts.append(dict(entry)) or store.__setitem__(
-            entry["_id"], dict(entry)
-        ),
-    )
-    monkeypatch.setattr(
-        locator_tracker.MongoRepository,
+        locator_tracker.DataStore,
         "save_locator_failure_event",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("recovery success should not write failure history")
@@ -282,64 +244,21 @@ def test_recovery_capture_clears_failure_cooldown(monkeypatch):
     assert locator_tracker._failure_capture_cache == {}
 
 
-class _FakeDeleteCollection:
-    def __init__(self):
-        self.deleted_queries = []
-        self.replacements = []
-        self.marker = None
+def test_locator_tracker_schema_reset_clears_existing_diagnostics(sqlite_db):
+    # Simulate diagnostics left over from a previous schema version.
+    sqlite_db.upsert_locator_entry({"_id": "locator:test", "selector": "button.x"})
+    sqlite_db.save_locator_failure_event(
+        {"summary_id": "locator:test", "seen_at": None, "error_message": "boom"}
+    )
+    conn = connection.get_connection()
+    conn.execute(
+        "DELETE FROM app_metadata WHERE marker_id = ?",
+        (sqlite_db.LOCATOR_TRACKER_SCHEMA_MARKER,),
+    )
+    conn.commit()
 
-    def find_one(self, *_args, **_kwargs):
-        return self.marker
+    sqlite_db._ensure_locator_tracker_schema()
 
-    def delete_many(self, query):
-        self.deleted_queries.append(query)
-
-    def find_one_and_replace(self, query, replacement, upsert=False):
-        self.replacements.append((query, replacement, upsert))
-        self.marker = replacement
-
-
-class _FakeSchemaDb:
-    def __init__(self):
-        self.locator_tracker = _FakeDeleteCollection()
-        self.binary_assets = _FakeDeleteCollection()
-        self.collections = {
-            mongo_module.LOCATOR_TRACKER_FAILURES_COLLECTION: _FakeDeleteCollection(),
-            mongo_module.APP_METADATA_COLLECTION: _FakeDeleteCollection(),
-        }
-
-    def __getitem__(self, name):
-        return self.collections[name]
-
-
-def test_locator_tracker_schema_reset_clears_existing_diagnostics(monkeypatch):
-    fake_db = _FakeSchemaDb()
-    indexed_at = datetime(2026, 3, 31, tzinfo=timezone.utc)
-
-    monkeypatch.setattr(mongo_module, "_now_utc", lambda: indexed_at)
-
-    mongo_module._ensure_locator_tracker_schema(fake_db)
-
-    assert fake_db.locator_tracker.deleted_queries == [{}]
-    assert fake_db[mongo_module.LOCATOR_TRACKER_FAILURES_COLLECTION].deleted_queries == [
-        {}
-    ]
-    assert fake_db.binary_assets.deleted_queries == [
-        {
-            "$or": [
-                {"metadata.owner": mongo_module.LOCATOR_TRACKER_ASSET_OWNER},
-                {"_id": {"$regex": r"^screenshot:locator(?:_el|_dom)?_"}},
-                {"source_path": {"$regex": r"^locator(?:_el|_dom)?_"}},
-            ]
-        }
-    ]
-    assert fake_db[mongo_module.APP_METADATA_COLLECTION].replacements == [
-        (
-            {"_id": mongo_module.LOCATOR_TRACKER_SCHEMA_MARKER},
-            {
-                "_id": mongo_module.LOCATOR_TRACKER_SCHEMA_MARKER,
-                "updated_at": indexed_at,
-            },
-            True,
-        )
-    ]
+    assert sqlite_db.get_locator_entries() == []
+    assert sqlite_db.get_locator_failure_events() == []
+    assert sqlite_db.has_app_metadata_marker(sqlite_db.LOCATOR_TRACKER_SCHEMA_MARKER)
