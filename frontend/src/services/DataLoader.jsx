@@ -7,8 +7,16 @@ const STARTUP_RETRY_COUNT = 12;
 const STARTUP_RETRY_DELAY_MS = 500;
 const STARTUP_MAX_RETRY_DELAY_MS = 3000;
 const RELATED_QUERY_KEYS_BY_ROUTE = {
-  settings: [["settings"]],
-  "locator-tracker/clear": [["locator-tracker"], ["locator-tracker/failures"]],
+  shopping: [["shopping"], ["overview/hunt"]],
+  redeem: [["redeem"]],
+  settings: [["settings"], ["overview/hunt"], ["check-run-status"]],
+  "settings/advanced": [["settings"], ["overview/hunt"], ["check-run-status"]],
+  "backup/config": [["backup/config"]],
+  "locator-tracker/clear": [
+    ["locator-tracker"],
+    ["locator-tracker/failures"],
+    ["locator-tracker/child-scan"],
+  ],
   "backup/import": [
     ["account"],
     ["shopping"],
@@ -16,14 +24,28 @@ const RELATED_QUERY_KEYS_BY_ROUTE = {
     ["settings"],
     ["overview/hunt"],
     ["overview/mission"],
+    ["check-run-status"],
     ["backup/summary"],
   ],
   "maintenance/mongo-migration": [
     ["account"],
     ["shopping"],
+    ["redeem"],
     ["settings"],
     ["overview/hunt"],
+    ["overview/mission"],
+    ["check-run-status"],
     ["backup/summary"],
+    ["backup/config"],
+    ["locator-tracker"],
+    ["locator-tracker/failures"],
+    ["locator-tracker/child-scan"],
+  ],
+  "maintenance/local-cleanup": [
+    ["logs"],
+    ["locator-tracker"],
+    ["locator-tracker/failures"],
+    ["locator-tracker/child-scan"],
   ],
 };
 

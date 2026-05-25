@@ -6,7 +6,8 @@ tags: [architecture, flow]
 
 > Background polling loop that watches the HoYoLab shop for items in the user's hunt
 > list and triggers a purchase + redeem cycle the moment stock appears. Runs on its
-> own schedule, separate from the main [[Daily Task Cycle]].
+> own schedule, separate from the main [[Daily Task Cycle]], but still obeys the
+> `run_task` master automation switch.
 
 ## Source
 
@@ -50,7 +51,7 @@ parses `mm/dd` strings to compute return times.
 
 ## Gotchas
 
-- Hunt mode can run while the main schedule is paused; gating is per-handler.
+- Hunt scheduling and direct hunt execution both stop when `run_task` is false; `enable_hunt_mode` is an additional hunt-specific gate.
 - If the Tauri shell is closed, the scheduler stops — hunt polls don't survive shutdown unless autostart is on. See [[Autostart Reconciliation]].
 
 ## See also

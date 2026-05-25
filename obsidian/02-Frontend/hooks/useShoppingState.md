@@ -21,11 +21,11 @@ tags: [frontend, hooks]
 - [[Frontend Constants]] — `DEFAULT_PRIORITY_OFFSET`
 
 ## Used by
-- [[Shopping Page]] — top-level state owner
-- [[SortableSelectedItems]] — drag-drop list consumer
+- [[Shopping Page]] — top-level state owner; reuses `handleDragEnd` for the unified-grid drag-reorder
 
 ## Gotchas
 - Hunt list is a strict subset of selected; deselecting in the grid silently removes the item from hunt without confirmation.
+- `handlePriorityEdit` is exported but currently unused — drag replaced inline Priority editing in the [[Shopping Page]] redesign. Kept for future re-introduction.
 
 ## See also
 - [[_index]]

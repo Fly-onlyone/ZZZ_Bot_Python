@@ -61,6 +61,11 @@ const scheduleBoxVariants = {
   },
 };
 
+const isPendingOrUnavailableSchedule = (scheduledTime) =>
+  scheduledTime === "Not scheduled" ||
+  scheduledTime === "Invalid time" ||
+  scheduledTime === "Pending sync";
+
 export default function Hunt() {
   const { useRouteData } = DataLoader();
   const { themeColors } = useThemeContext();
@@ -269,98 +274,96 @@ export default function Hunt() {
             </Box>
           </Box>
           <Box component="tbody">
-            {hunt_items.map((item, index) => (
-              <Box
-                component={motion.tr}
-                key={index}
-                custom={index}
-                variants={tableRowVariants}
-                initial="hidden"
-                animate="visible"
-                sx={{
-                  background: themeColors.alpha.card,
-                  transition: "all 0.2s ease-in-out",
-                  "&:hover": {
-                    background: themeColors.alpha.hover,
-                    boxShadow: `inset 3px 0 10px ${themeColors.glow}15`,
-                  },
-                  borderBottom:
-                    index !== hunt_items.length - 1
-                      ? `1px solid ${themeColors.alpha.card}`
-                      : "none",
-                }}
-              >
+            {hunt_items.map((item, index) => {
+              const isNeutralSchedule = isPendingOrUnavailableSchedule(item.scheduled_time);
+
+              return (
                 <Box
-                  component="td"
+                  component={motion.tr}
+                  key={index}
+                  custom={index}
+                  variants={tableRowVariants}
+                  initial="hidden"
+                  animate="visible"
                   sx={{
-                    px: 3,
-                    py: 2,
-                    color: COMMON_COLORS.text.muted,
-                    fontWeight: 600,
+                    background: themeColors.alpha.card,
+                    transition: "all 0.2s ease-in-out",
+                    "&:hover": {
+                      background: themeColors.alpha.hover,
+                      boxShadow: `inset 3px 0 10px ${themeColors.glow}15`,
+                    },
+                    borderBottom:
+                      index !== hunt_items.length - 1
+                        ? `1px solid ${themeColors.alpha.card}`
+                        : "none",
                   }}
                 >
-                  {index + 1}
-                </Box>
-                <Box
-                  component="td"
-                  sx={{
-                    px: 3,
-                    py: 2,
-                    color: COMMON_COLORS.text.tertiary,
-                    fontWeight: 500,
-                  }}
-                >
-                  {item.name}
-                </Box>
-                <Box
-                  component="td"
-                  sx={{
-                    px: 3,
-                    py: 2,
-                  }}
-                >
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                    style={{ display: "inline-block" }}
+                  <Box
+                    component="td"
+                    sx={{
+                      px: 3,
+                      py: 2,
+                      color: COMMON_COLORS.text.muted,
+                      fontWeight: 600,
+                    }}
                   >
-                    <Chip
-                      label={item.scheduled_time}
-                      size="small"
-                      icon={
-                        item.scheduled_time !== "Not scheduled" &&
-                        item.scheduled_time !== "Invalid time" ? (
-                          <AccessTimeIcon
-                            sx={{
-                              color: `${themeColors.primary.main} !important`,
-                            }}
-                          />
-                        ) : null
-                      }
-                      sx={{
-                        background:
-                          item.scheduled_time === "Not scheduled" ||
-                          item.scheduled_time === "Invalid time"
+                    {index + 1}
+                  </Box>
+                  <Box
+                    component="td"
+                    sx={{
+                      px: 3,
+                      py: 2,
+                      color: COMMON_COLORS.text.tertiary,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {item.name}
+                  </Box>
+                  <Box
+                    component="td"
+                    sx={{
+                      px: 3,
+                      py: 2,
+                    }}
+                  >
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                      style={{ display: "inline-block" }}
+                    >
+                      <Chip
+                        label={item.scheduled_time}
+                        size="small"
+                        icon={
+                          isNeutralSchedule ? null : (
+                            <AccessTimeIcon
+                              sx={{
+                                color: `${themeColors.primary.main} !important`,
+                              }}
+                            />
+                          )
+                        }
+                        sx={{
+                          background: isNeutralSchedule
                             ? "rgba(107, 114, 128, 0.2)"
                             : `${themeColors.primary.main}33`,
-                        color:
-                          item.scheduled_time === "Not scheduled" ||
-                          item.scheduled_time === "Invalid time"
+                          color: isNeutralSchedule
                             ? COMMON_COLORS.text.muted
                             : themeColors.primary.light,
-                        fontWeight: 600,
-                        border: `1px solid ${
-                          item.scheduled_time === "Not scheduled" ||
-                          item.scheduled_time === "Invalid time"
-                            ? "rgba(107, 114, 128, 0.3)"
-                            : `${themeColors.primary.main}4D`
-                        }`,
-                      }}
-                    />
-                  </motion.div>
+                          fontWeight: 600,
+                          border: `1px solid ${
+                            isNeutralSchedule
+                              ? "rgba(107, 114, 128, 0.3)"
+                              : `${themeColors.primary.main}4D`
+                          }`,
+                        }}
+                      />
+                    </motion.div>
+                  </Box>
                 </Box>
-              </Box>
-            ))}
+              );
+            })}
           </Box>
         </Box>
       </Box>

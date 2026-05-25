@@ -11,7 +11,7 @@ tags: [moc, frontend, components, common]
 - [[SaveStatus]] — inline auto-save status pill (saving/saved/error + retry)
 - [[ErrorFallback]] — Sentry error boundary fallback
 - [[DataTable]] — MUI DataGrid wrapper with theme styling
-- [[SortableSelectedItems]] — @dnd-kit/sortable item list for priority ordering
+- [[ShoppingItemsTable]] — Shopping page sortable table with dnd-kit drag-to-reorder
 - [[AuroraBackground]] — themed gradient background element
 - [[Skeleton Set]] — Suspense fallbacks per page (Mission, Hunt, Shopping, etc.)
 

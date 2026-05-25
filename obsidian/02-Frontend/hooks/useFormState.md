@@ -13,7 +13,7 @@ tags: [frontend, hooks]
 ## How it works
 1. Derives the route key from `useLocation().pathname` (or an explicit `routeOverride`).
 2. Calls `useRouteData(route)` from [[DataLoader]] for the current value and `useAutoSave(route)` for the persistence side.
-3. `handleChange(key, newValue)` writes optimistically into the TanStack Query cache via `queryClient.setQueryData([route], …)` — no local React state for the form body.
+3. `handleChange(key, newValue)` writes optimistically into the TanStack Query cache via `queryClient.setQueryData([route], …)` — no local React state for the form body. Settings changes to `run_task` or `enable_hunt_mode` also mirror the derived gate into `overview/hunt` so the Hunt tab reflects the master switch immediately.
 4. `commit()` reads the latest cache snapshot via `queryClient.getQueryData([route])` and hands it to `useAutoSave.commit`, which debounces and persists it. There is no submit button or handler; callers invoke `commit` from per-field blur/change events.
 5. Returns `{ value, error, handleChange, commit, autoSave, route }` — `autoSave` carries the `status` / `error` / `retry` surface that [[ValueAdapter]] forwards to [[SaveStatus]].
 

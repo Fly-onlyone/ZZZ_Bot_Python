@@ -2435,6 +2435,25 @@ def test_schedule_hunt_tasks_skips_when_automatic_runs_disabled(monkeypatch):
     assert target_dates == [None]
 
 
+def test_get_hunt_info_uses_automatic_run_master_switch(monkeypatch):
+    monkeypatch.setattr(routes_module.settings, "run_task", False)
+    monkeypatch.setattr(routes_module.settings, "enable_hunt_mode", True)
+    monkeypatch.setattr(HuntModeHandler, "get_hunt_items", lambda: [])
+    monkeypatch.setattr(
+        HuntModeHandler,
+        "get_next_hunt_time",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("Disabled hunt overview should not read next hunt time")
+        ),
+    )
+    monkeypatch.setattr(data_store_module, "get_shopping", lambda: {"Item's list": {}})
+
+    result = routes_module.get_hunt_info()
+
+    assert result["enabled"] is False
+    assert result["next_hunt_time"] is None
+
+
 def test_replace_all_missions_replaces_existing_documents(sqlite_db):
     sqlite_db.save_mission_day({"day": "2026-03-10", "missions": []})
     sqlite_db.save_mission_day({"day": "2026-03-11", "missions": []})

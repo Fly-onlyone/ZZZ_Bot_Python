@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
 import { DEFAULT_PRIORITY_OFFSET } from "../config";
 
@@ -21,6 +21,14 @@ import { DEFAULT_PRIORITY_OFFSET } from "../config";
 export function useShoppingState(shopping, onChange, skipHydration = false) {
   const [selectedRows, setSelectedRows] = useState([]);
   const [huntItems, setHuntItems] = useState([]);
+
+  // Refs mirror committed state so cross-handler notify() calls always read the
+  // freshest values — closure-captured selectedRows/huntItems become stale when
+  // a different handler updates them between this handler's renders.
+  const selectedRowsRef = useRef(selectedRows);
+  const huntItemsRef = useRef(huntItems);
+  selectedRowsRef.current = selectedRows;
+  huntItemsRef.current = huntItems;
 
   // Initialize state when shopping data is loaded. Gated by skipHydration so a
   // server refetch arriving mid-debounce doesn't clobber the user's pending edit.
@@ -54,42 +62,45 @@ export function useShoppingState(shopping, onChange, skipHydration = false) {
    * state — a closure-based read would lose toggles when two clicks fire before
    * React commits the first render. `notify` inside the updater is safe because
    * `commit` downstream is debounced, so StrictMode's double-invocation
-   * collapses into a single save.
+   * collapses into a single save. Pairs the toggle with the latest selected
+   * list via `selectedRowsRef` so a recent selection change isn't reverted by
+   * an optimistic-cache write computed from a stale Selected array.
    */
   const handleHuntToggle = (itemName) => {
     setHuntItems((prev) => {
       const next = prev.includes(itemName)
         ? prev.filter((name) => name !== itemName)
         : [...prev, itemName];
-      notify(selectedRows, next);
+      notify(selectedRowsRef.current, next);
       return next;
     });
   };
 
   /**
-   * Handle row selection changes from DataGrid
-   * Automatically removes hunt items that are no longer selected
+   * Handle row selection changes.
+   *
+   * Computes the next state synchronously from refs (mirroring committed
+   * state) so `notify` can fire in the same tick — capturing it via the
+   * setState updater closures wouldn't work because React 18 defers updater
+   * invocation to the next render, leaving the captured locals null when the
+   * post-setState code runs. Side effect: hunt items whose row got deselected
+   * are silently pruned.
    */
   const handleRowSelectionChange = (newSelection) => {
-    let computedSelected = null;
-    let computedHunt = null;
-    setSelectedRows((prev) => {
-      computedSelected = newSelection.map((name, index) => {
-        const existing = prev.find((row) => row.Name === name);
-        return {
-          Name: name,
-          Priority: existing ? existing.Priority : index + DEFAULT_PRIORITY_OFFSET,
-        };
-      });
-      return computedSelected;
+    const newSelectionSet = new Set(newSelection);
+    const prevSelected = selectedRowsRef.current;
+    const nextSelected = newSelection.map((name, index) => {
+      const existing = prevSelected.find((row) => row.Name === name);
+      return {
+        Name: name,
+        Priority: existing ? existing.Priority : index + DEFAULT_PRIORITY_OFFSET,
+      };
     });
-    setHuntItems((prev) => {
-      computedHunt = prev.filter((huntItem) => newSelection.includes(huntItem));
-      return computedHunt;
-    });
-    if (computedSelected !== null && computedHunt !== null) {
-      notify(computedSelected, computedHunt);
-    }
+    const nextHunt = huntItemsRef.current.filter((huntItem) => newSelectionSet.has(huntItem));
+
+    setSelectedRows(nextSelected);
+    setHuntItems(nextHunt);
+    notify(nextSelected, nextHunt);
   };
 
   /**
@@ -109,7 +120,7 @@ export function useShoppingState(shopping, onChange, skipHydration = false) {
         ...row,
         Priority: index + DEFAULT_PRIORITY_OFFSET,
       }));
-      notify(reordered, huntItems);
+      notify(reordered, huntItemsRef.current);
       return reordered;
     });
   };
@@ -131,7 +142,7 @@ export function useShoppingState(shopping, onChange, skipHydration = false) {
         ...row,
         Priority: index + DEFAULT_PRIORITY_OFFSET,
       }));
-      notify(reordered, huntItems);
+      notify(reordered, huntItemsRef.current);
       return reordered;
     });
   };

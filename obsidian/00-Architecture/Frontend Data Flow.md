@@ -39,12 +39,16 @@ sequenceDiagram
 ```
 
 `useSaveData(route)` mutations call `POST /api/{route}` and auto-invalidate related
-keys (e.g., `backup/import` invalidates `settings`, `account`, `shopping`,
-`overview/mission`). Edit-style pages wrap `useSaveData` in [[useAutoSave]], which
-exposes a debounced `commit(value)` and a `status` string driving the [[SaveStatus]]
-pill — there is no manual save button on any form. `useBackendHealth()` polls `/health`
-with startup-aware retries (12 attempts at 500ms backoff) so the UI doesn't show errors
-during sidecar warmup.
+keys (e.g., `shopping` invalidates `overview/hunt`; `settings` invalidates
+`check-run-status`; `backup/import` invalidates restored route caches). Edit-style pages
+wrap `useSaveData` in [[useAutoSave]], which exposes a debounced `commit(value)` and a
+`status` string driving the [[SaveStatus]] pill — there is no manual save button on any
+form. Some edit flows also write optimistic cache data before the POST; Shopping mirrors
+pending `Hunt` changes into `overview/hunt`, and Settings mirrors `run_task` /
+`enable_hunt_mode` gate changes into `overview/hunt`, so the Hunt tab updates immediately.
+The post-save invalidation refetches authoritative schedule times. `useBackendHealth()` polls
+`/health` with startup-aware retries (12 attempts at 500ms backoff) so the UI doesn't show
+errors during sidecar warmup.
 
 ## Depends on
 

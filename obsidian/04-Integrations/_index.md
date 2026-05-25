@@ -35,7 +35,7 @@ tags: [moc, integrations]
 - [[TanStack Query]] — server state cache
 - [[Framer Motion]] — animation
 - [[React Router]] — client-side routing
-- [[DnD Kit]] — drag-and-drop primitives
+- [[DnD Kit]] — drag-and-drop primitives (Shopping page priority reorder)
 - [[Day.js]] — date formatting (MUI X adapter)
 
 ## Build tooling

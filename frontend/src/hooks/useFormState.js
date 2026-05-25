@@ -4,6 +4,23 @@ import { useQueryClient } from "@tanstack/react-query";
 import { DataLoader } from "../services";
 import { useAutoSave } from "./useAutoSave";
 
+const HUNT_GATE_SETTING_KEYS = new Set(["run_task", "enable_hunt_mode"]);
+
+function buildOptimisticHuntGate(previousHuntInfo, settings) {
+  const enabled = settings.run_task !== false && settings.enable_hunt_mode === true;
+
+  if (!previousHuntInfo && enabled) {
+    return previousHuntInfo;
+  }
+
+  return {
+    ...(previousHuntInfo || {}),
+    enabled,
+    hunt_items: previousHuntInfo?.hunt_items || [],
+    next_hunt_time: enabled ? previousHuntInfo?.next_hunt_time || null : null,
+  };
+}
+
 /**
  * useFormState Hook
  *
@@ -31,10 +48,19 @@ export function useFormState(routeOverride) {
   const autoSave = useAutoSave(route);
 
   const handleChange = (key, newValue) => {
-    queryClient.setQueryData([route], (prev) => ({
-      ...prev,
+    const currentValue = queryClient.getQueryData([route]) || value || {};
+    const nextValue = {
+      ...currentValue,
       [key]: newValue,
-    }));
+    };
+
+    queryClient.setQueryData([route], nextValue);
+
+    if (route === "settings" && HUNT_GATE_SETTING_KEYS.has(key)) {
+      queryClient.setQueryData(["overview/hunt"], (previousHuntInfo) =>
+        buildOptimisticHuntGate(previousHuntInfo, nextValue),
+      );
+    }
   };
 
   const autoSaveCommit = autoSave.commit;

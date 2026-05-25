@@ -34,7 +34,7 @@ const tabs = [
 
 const PREFETCH_ROUTES_BY_PATH = {
   "/": ["check-run-status", "overview/hunt", "overview/mission"],
-  "/shopping": ["shopping"],
+  "/shopping": ["shopping", "settings", "overview/hunt"],
   "/account": ["account"],
   "/settings": ["settings"],
   "/tools": ["backup/summary"],

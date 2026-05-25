@@ -9,7 +9,7 @@
 export { default as EmptyState } from "./common/EmptyState.jsx";
 export { default as SaveStatus } from "./common/SaveStatus.jsx";
 export { default as SectionCard } from "./common/SectionCard.jsx";
-export { default as SortableSelectedItems } from "./common/SortableSelectedItems.jsx";
+export { default as ShoppingItemsTable } from "./common/ShoppingItemsTable.jsx";
 export { default as DataTable } from "./common/DataTable.jsx";
 export { default as NotificationProvider } from "./common/NotificationProvider.jsx";
 export { default as MutationToastWatcher } from "./common/MutationToastWatcher.jsx";

@@ -413,9 +413,9 @@ def get_hunt_info():
     from handlers import HuntModeHandler as HuntMode
     from utils.StringUtil import calculate_return_time
 
+    hunt_enabled = bool(settings.run_task and settings.enable_hunt_mode)
     hunt_items = HuntMode.get_hunt_items()
-    next_hunt_time = HuntMode.get_next_hunt_time()
-    hunt_enabled = settings.enable_hunt_mode
+    next_hunt_time = HuntMode.get_next_hunt_time() if hunt_enabled else None
 
     # Get detailed item information
     shopping_data = DataStore.get_shopping()

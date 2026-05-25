@@ -14,7 +14,7 @@ tags: [frontend, services]
 
 - `useRouteData(route, opts)` — `useQuery` against `${BACKEND_URL}/${route}`. `staleTime` looks up `STALE_TIMES[route]` or falls back to `DEFAULT_STALE_TIME`. Retries `API_RETRY_COUNT` (2) times, no refetch on window focus.
 - `useBackendHealth()` — probes `/health` with 12 startup retries and exponential backoff capped at 3s; 5s stale time.
-- `useSaveData(route)` — POST `useMutation`. On success, invalidates keys from `RELATED_QUERY_KEYS_BY_ROUTE` (e.g. `backup/import` invalidates account, shopping, redeem, settings, hunt, mission, summary).
+- `useSaveData(route)` — POST `useMutation`. On success, invalidates keys from `RELATED_QUERY_KEYS_BY_ROUTE` so derived surfaces refresh after writes. Examples: `shopping` invalidates `shopping` + `overview/hunt`; `settings` invalidates `settings`, `overview/hunt`, and `check-run-status`; `backup/import` refreshes restored app data plus overview/status summaries.
 - `useActionData(route)` — POST `useMutation` for action endpoints; parses JSON error bodies.
 - `prefetchRoutes(routes)` — `Promise.allSettled` over `queryClient.prefetchQuery`.
 
