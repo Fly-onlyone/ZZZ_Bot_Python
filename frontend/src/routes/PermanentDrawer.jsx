@@ -108,6 +108,7 @@ function StartupStatus({ isLoading, error }) {
   return (
     <Box
       sx={{
+        flex: 1,
         minHeight: "50vh",
         display: "flex",
         flexDirection: "column",
@@ -136,6 +137,7 @@ function RouteFallback() {
   return (
     <Box
       sx={{
+        flex: 1,
         minHeight: "50vh",
         display: "flex",
         flexDirection: "column",
@@ -192,7 +194,7 @@ function AnimatedRoutes() {
         <Route
           path="/shopping"
           element={
-            <DeferredRoute direction={direction}>
+            <DeferredRoute direction={direction} fillHeight>
               <LazyShoppingPage />
             </DeferredRoute>
           }

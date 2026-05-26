@@ -35,11 +35,12 @@ export default function Redeem() {
     });
   }, [autoSaveIsPending, redeemList]);
 
+  // Depend on length, not the array identity — TanStack Query returns a fresh
+  // reference on every background refetch even when contents are unchanged.
+  const redeemCount = redeemList.length;
   useEffect(() => {
-    logInfo("Redeem page data ready", {
-      itemCount: redeemList.length,
-    });
-  }, [redeemList]);
+    logInfo("Redeem page data ready", { itemCount: redeemCount });
+  }, [redeemCount]);
 
   useEffect(() => {
     if (!error) {
@@ -86,9 +87,9 @@ export default function Redeem() {
         headerName: "State",
         flex: 0.5,
         renderCell: (params) => (
-          <div style={{ display: "flex", alignItems: "center", marginTop: "13px" }}>
+          <Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
             {params.value ? <DoneIcon /> : <CloseIcon />}
-          </div>
+          </Box>
         ),
       },
       {
@@ -96,7 +97,18 @@ export default function Redeem() {
         headerName: "Action",
         flex: 0.8,
         renderCell: (params) =>
-          !params.row.state ? (
+          params.row.state ? (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                height: "100%",
+                color: "text.disabled",
+              }}
+            >
+              —
+            </Box>
+          ) : (
             <Button
               variant="contained"
               startIcon={<CheckCircleIcon />}
@@ -105,7 +117,7 @@ export default function Redeem() {
             >
               DONE
             </Button>
-          ) : null,
+          ),
       },
     ],
     [handleSwitchState],
@@ -122,29 +134,78 @@ export default function Redeem() {
 
   if (redeemList.length === 0) {
     return (
-      <EmptyState
-        icon={<RedeemIcon />}
-        title="No Redemption Codes"
-        subtitle="No codes available yet. Codes will appear here after shopping exchanges."
-      />
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <EmptyState
+          icon={<RedeemIcon />}
+          title="No Redemption Codes"
+          subtitle="No codes available yet. Codes will appear here after shopping exchanges."
+        />
+      </Box>
     );
   }
 
   return (
-    <div style={{ minWidth: 320, width: "100%" }}>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", px: 1, py: 1, minHeight: 28 }}>
+    <Box
+      sx={{
+        flex: 1,
+        minWidth: 320,
+        minHeight: 0,
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <Box
+        sx={{
+          flexShrink: 0,
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+          px: 1,
+          py: 1,
+          minHeight: 28,
+          // Pin to single line — multi-line content would steal grid height.
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+        }}
+      >
         <SaveStatus status={autoSave.status} error={autoSave.error} onRetry={autoSave.retry} />
       </Box>
-      <div style={{ height: 420, width: "100%" }}>
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          width: "100%",
+          position: "relative",
+          // Theme applies 16px borderRadius to MuiDataGrid-root; clip inner
+          // backgrounds (header backdrop, scrollbar) to the rounded corners.
+          overflow: "hidden",
+          borderRadius: "16px",
+        }}
+      >
         <DataGrid
           rows={rows}
           columns={columns}
-          hideFooterSelectedRowCount
+          // Show pagination footer if rows exceed the MIT pageSize cap so older
+          // codes stay reachable; otherwise hide it for the scroll-only layout.
+          hideFooter={rows.length <= 100}
           rowBufferPx={60}
           columnBufferPx={60}
-          sx={{ height: "100%", width: "100%" }}
+          initialState={{ pagination: { paginationModel: { pageSize: 100 } } }}
+          sx={{
+            position: "absolute",
+            inset: 0,
+          }}
         />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

@@ -82,8 +82,11 @@
   }
 }
 
-/* Smooth scrolling */
-* {
+/* Smooth scrolling for anchor-link navigation only. Applied to html (not *)
+   so wheel/trackpad scrolling on every scrollable container stays direct —
+   `* { scroll-behavior: smooth }` made wheel scrolls animate over ~300ms,
+   producing visible scrollbar lag on the main page and any internal scroller. */
+html {
   scroll-behavior: smooth;
 }
 
@@ -101,7 +104,9 @@
 ::-webkit-scrollbar-thumb {
   background: #334155;
   border-radius: 4px;
-  transition: all 0.3s ease;
+  /* Only transition background — `all` would animate any property change
+     including thumb redraws mid-scroll. */
+  transition: background 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {

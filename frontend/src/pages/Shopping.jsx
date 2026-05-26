@@ -223,7 +223,7 @@ function ShoppingItems() {
   }
 
   return (
-    <Box sx={{ p: 4 }}>
+    <Box sx={{ flex: 1, minHeight: 0, p: 4 }}>
       <Grid2 container justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Typography variant="h6">Point: {shopping.Point}</Typography>
         <SaveStatus status={autoSave.status} error={autoSave.error} onRetry={autoSave.retry} />
@@ -259,7 +259,14 @@ export default function Shopping() {
   };
 
   return (
-    <Box>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        height: "100%",
+      }}
+    >
       <Tabs
         value={activeTab}
         onChange={handleTabChange}
@@ -280,6 +287,12 @@ export default function Shopping() {
           initial="initial"
           animate="animate"
           exit="exit"
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
         >
           <React.Suspense fallback={<TabFallback />}>
             {activeTab === 0 && <ShoppingItems />}

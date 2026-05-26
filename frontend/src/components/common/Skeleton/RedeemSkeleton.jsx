@@ -19,12 +19,18 @@ export default function RedeemSkeleton() {
   const { themeColors } = useThemeContext();
 
   return (
-    <motion.div initial="hidden" animate="visible" variants={containerVariants}>
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", width: "100%" }}
+    >
       <Box
         component={motion.div}
         variants={itemVariants}
         sx={{
-          height: 420,
+          flex: 1,
+          minHeight: 0,
           width: "100%",
           borderRadius: "12px",
           overflow: "hidden",

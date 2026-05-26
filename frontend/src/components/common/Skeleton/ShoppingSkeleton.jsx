@@ -19,8 +19,13 @@ export default function ShoppingSkeleton() {
   const { themeColors } = useThemeContext();
 
   return (
-    <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-      <Box sx={{ p: 4 }}>
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", width: "100%" }}
+    >
+      <Box sx={{ flex: 1, minHeight: 0, p: 4 }}>
         {/* Header row */}
         <Box
           component={motion.div}
