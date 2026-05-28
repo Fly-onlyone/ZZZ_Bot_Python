@@ -14,9 +14,9 @@ tags: [integration]
 - NSIS installer packaging (see [[NSIS Installer Config]])
 
 ## Configuration
-- Version `tauri = "2.10.0"` with `features = ["tray-icon"]` (`src-tauri/Cargo.toml`)
+- Version `tauri = "2.11.2"` with `features = ["tray-icon"]` (`src-tauri/Cargo.toml`)
 - Build: `tauri-build = "2.5.4"`
-- Plugins: `tauri-plugin-shell = "2"`, `tauri-plugin-autostart = "2"`, `tauri-plugin-log = "2"`
+- Plugins: `tauri-plugin-single-instance = "2"`, `tauri-plugin-shell = "2"`, `tauri-plugin-autostart = "2"`, `tauri-plugin-log = "2"`
 - Bundle target: `nsis`, install mode `currentUser`, install dir `%LOCALAPPDATA%\Programs\ZZZ Bot`
 - CSP locks `connect-src` to localhost 8000-8001 + Sentry ingest
 

@@ -11,10 +11,11 @@ tags: [desktop]
 - `src-tauri/src/lib.rs` — `run()` builder, plugin registration, setup hooks
 
 ## How it works
-`main.rs` only suppresses the Windows console (release builds) and calls `zzz_bot_lib::run()`. The library crate builds the `tauri::Builder`, registers the `shell`, `autostart`, and `log` plugins, manages `AppRuntime` / `WindowStateCache` state, spawns the backend sidecar, builds the tray, reconciles autostart and startup window visibility, and wires window-event + run-event handlers (geometry caching, debounced persistence, graceful shutdown on `ExitRequested` / `Exit`).
+`main.rs` only suppresses the Windows console (release builds) and calls `zzz_bot_lib::run()`. The library crate builds the `tauri::Builder`, registers the `single-instance`, `shell`, `autostart`, and `log` plugins (single-instance first — see [[Single Instance Guard]]), manages `AppRuntime` / `WindowStateCache` state, spawns the backend sidecar, builds the tray, reconciles autostart and startup window visibility, and wires window-event + run-event handlers (geometry caching, debounced persistence, graceful shutdown on `ExitRequested` / `Exit`).
 
 ## Depends on
-- [[Tauri]] — Rust shell framework (`2.10.0`, tray-icon feature)
+- [[Tauri]] — Rust shell framework (`2.11.2`, tray-icon feature)
+- [[Single Instance Guard]] — first plugin registered; routes second launches to the existing window
 - [[Sidecar Spawn]] — backend lifecycle started during `setup`
 - [[Tray Menu]] — tray built during `setup`
 - [[Autostart Reconciliation]] — kicked off in `setup`

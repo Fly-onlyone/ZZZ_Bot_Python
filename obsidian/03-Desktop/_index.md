@@ -24,6 +24,7 @@ tags: [moc, desktop]
 ## OS integration
 
 - [[Autostart Reconciliation]] — syncs `autostart_on_login` with OS registry (20 retries)
+- [[Single Instance Guard]] — second launches focus the running window instead of spawning a duplicate shell + sidecar
 
 ## Build pipeline
 
