@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.26](https://github.com/Fly-onlyone/ZZZ_Bot_Python/compare/zzz-bot-v0.1.25...zzz-bot-v0.1.26) (2026-06-01)
+
+
+### Features
+
+* **desktop:** focus existing window on second launch ([27f56ab](https://github.com/Fly-onlyone/ZZZ_Bot_Python/commit/27f56ab8500f7ed0060cce6edbf581cf531f728f))
+* **maintenance:** add database compaction and screenshot TTL ([ac2d538](https://github.com/Fly-onlyone/ZZZ_Bot_Python/commit/ac2d5386e6e66f97131f9c1b2072b65d95cb26fb))
+* **server:** fall back to a free port when the default is taken ([4bd1ee8](https://github.com/Fly-onlyone/ZZZ_Bot_Python/commit/4bd1ee852005499af6b93a0502da250734d4f9e8))
+
+
+### Bug Fixes
+
+* **auth:** trust session cookies in event-page login gate ([f565d8b](https://github.com/Fly-onlyone/ZZZ_Bot_Python/commit/f565d8bd48cc6637e7e403a3eebdf8b3cda9b540))
+
 ## [0.1.25](https://github.com/Fly-onlyone/ZZZ_Bot_Python/compare/zzz-bot-v0.1.24...zzz-bot-v0.1.25) (2026-05-26)
 
 
