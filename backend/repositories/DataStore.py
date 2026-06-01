@@ -14,10 +14,13 @@ thread); every public function serializes through ``connection.get_lock()``.
 
 import json
 import logging
+import os
 import time
+from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
+from repositories import connection
 from repositories.connection import get_connection, get_lock
 
 logger = logging.getLogger(__name__)
@@ -28,6 +31,11 @@ LOCATOR_TRACKER_ASSET_OWNER = "locator_tracker"
 LOCATOR_TRACKER_TTL_SECONDS = 7 * 24 * 60 * 60
 _MISSIONS_TTL_SECONDS = 5 * 24 * 60 * 60
 _REDEMPTIONS_TTL_SECONDS = 30 * 24 * 60 * 60
+# Diagnostic screenshots accumulate fast on failures; expire them so they never
+# bloat the database the way 4k+ untracked captures did. Storage-state assets are
+# deliberately excluded (they hold the login session and must never be purged).
+_SCREENSHOT_ASSET_CATEGORY = "screenshot"
+_SCREENSHOT_TTL_SECONDS = 7 * 24 * 60 * 60
 # Bump the schema marker when ephemeral locator diagnostics need a one-time reset.
 LOCATOR_TRACKER_SCHEMA_MARKER = "locator_tracker_schema_v3"
 REDEMPTIONS_INDEXED_AT_REPAIR_MARKER = "redemptions_indexed_at_repair_v1"
@@ -282,6 +290,42 @@ def _maybe_purge() -> None:
         purge_expired()
     except Exception:
         logger.debug("purge_expired failed", exc_info=True)
+
+
+def compact_database() -> Dict[str, int]:
+    """Purge expired rows then VACUUM to reclaim disk; return size before/after.
+
+    ``purge_expired()`` only deletes rows — SQLite keeps the freed pages inside the
+    file, so a heavily-churned database (e.g. thousands of failure screenshots) never
+    shrinks until a VACUUM rewrites it. VACUUM must run outside a transaction.
+    """
+    _require_schema()
+    purge_expired()
+
+    db_path = connection.get_db_path()
+    size_before = os.path.getsize(db_path) if os.path.exists(db_path) else 0
+    with get_lock():
+        conn = get_connection()
+        conn.commit()  # ensure no implicit transaction is open before VACUUM
+        conn.execute("VACUUM")
+        with suppress(Exception):
+            # Flush the WAL back into the main file so the on-disk size reflects the
+            # reclaimed space immediately.
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    size_after = os.path.getsize(db_path) if os.path.exists(db_path) else 0
+
+    reclaimed = max(0, size_before - size_after)
+    logger.info(
+        "compact_database: %d -> %d bytes (reclaimed %d)",
+        size_before,
+        size_after,
+        reclaimed,
+    )
+    return {
+        "size_before": size_before,
+        "size_after": size_after,
+        "reclaimed_bytes": reclaimed,
+    }
 
 
 # ============================================================================
@@ -749,8 +793,11 @@ def upsert_binary_asset(
     """
     _require_schema()
     meta = metadata or {}
-    if expires_at is None and meta.get("owner") == LOCATOR_TRACKER_ASSET_OWNER:
-        expires_at = _expires_iso(LOCATOR_TRACKER_TTL_SECONDS)
+    if expires_at is None:
+        if meta.get("owner") == LOCATOR_TRACKER_ASSET_OWNER:
+            expires_at = _expires_iso(LOCATOR_TRACKER_TTL_SECONDS)
+        elif category == _SCREENSHOT_ASSET_CATEGORY:
+            expires_at = _expires_iso(_SCREENSHOT_TTL_SECONDS)
 
     with get_lock():
         conn = get_connection()

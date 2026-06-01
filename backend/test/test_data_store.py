@@ -107,6 +107,59 @@ def test_locator_owned_binary_asset_gets_expiry(sqlite_db):
     assert expiries["storage_state:hoyo.json"] is None
 
 
+def test_screenshot_asset_gets_default_expiry_without_owner(sqlite_db):
+    # Untracked screenshots (e.g. event-page auth captures) must still expire so they
+    # cannot bloat the database; storage-state assets must never expire.
+    sqlite_db.upsert_binary_asset(
+        "screenshot:event_page_auth_required_x.png",
+        category="screenshot",
+        source_path="event_page_auth_required_x.png",
+        content_type="image/png",
+        size_bytes=1,
+        payload=b"x",
+        metadata={},
+    )
+    sqlite_db.upsert_binary_asset(
+        "storage_state:hoyo.json",
+        category="storage_state",
+        source_path="hoyo.json",
+        content_type="application/json",
+        size_bytes=1,
+        payload=b"y",
+        metadata={},
+    )
+
+    conn = connection.get_connection()
+    expiries = dict(conn.execute("SELECT asset_id, expires_at FROM binary_assets").fetchall())
+
+    assert expiries["screenshot:event_page_auth_required_x.png"] is not None
+    assert expiries["storage_state:hoyo.json"] is None
+
+
+def test_compact_database_purges_and_returns_report(sqlite_db):
+    sqlite_db.upsert_binary_asset(
+        "screenshot:stale.png",
+        category="screenshot",
+        source_path="stale.png",
+        content_type="image/png",
+        size_bytes=3,
+        payload=b"abc",
+        metadata={},
+    )
+    conn = connection.get_connection()
+    conn.execute(
+        "UPDATE binary_assets SET expires_at = ? WHERE asset_id = ?",
+        ("2000-01-01T00:00:00.000000+00:00", "screenshot:stale.png"),
+    )
+    conn.commit()
+
+    report = sqlite_db.compact_database()
+
+    assert set(report) == {"size_before", "size_after", "reclaimed_bytes"}
+    assert report["reclaimed_bytes"] >= 0
+    assert sqlite_db.get_binary_asset("screenshot:stale.png") is None
+
+
 def test_get_latest_binary_asset_filters_by_category(sqlite_db):
     sqlite_db.upsert_binary_asset(
         "storage_state:hoyo.json",

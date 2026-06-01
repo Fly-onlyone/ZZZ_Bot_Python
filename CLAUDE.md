@@ -53,6 +53,7 @@ HoYoLab event website including check-ins, shopping, redemptions, and prize draw
 - `/overview/mission` - Mission reports with date filtering
 - `/overview/hunt` - Hunt mode status and next scheduled hunt time
 - `/locator-tracker` - Locator interaction telemetry (GET list, POST clear)
+- `/maintenance/*` - On-demand maintenance: `local-cleanup`, `mongo-migration`, `compact-db` (purge expired rows + VACUUM to reclaim disk)
 - `/routes` - Dynamic route listing
 
 ## Path Resolution Strategy
@@ -239,7 +240,10 @@ updates).
   one `RLock` serializes access — the backend is multi-threaded).
 - **TTL:** MongoDB TTL indexes are gone; rows carry an `expires_at` column and
   `purge_expired()` sweeps them at startup and (throttled) before TTL-collection reads —
-  missions 5 days, redemptions 30 days, locator telemetry 7 days.
+  missions 5 days, redemptions 30 days, locator telemetry 7 days, screenshots 7 days
+  (`storage_state` is never expired). Deletes leave reclaimable free pages behind, so
+  `DataStore.compact_database()` (via `POST /maintenance/compact-db`, or the **Backup →
+  Maintenance → Compact Database** button) purges then runs `VACUUM` to shrink the file.
 - **Migration:** the one-time Mongo → SQLite copy is exposed two ways, both calling the
   same `migrate()` function in `backend/utils/migrate_mongo_to_sqlite.py`:
   - **In-app** — **Backup → Maintenance → Migrate from MongoDB** (POST `/maintenance/mongo-migration`).

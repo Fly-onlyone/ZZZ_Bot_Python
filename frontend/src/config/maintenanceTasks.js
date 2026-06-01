@@ -4,7 +4,7 @@
  * finishes while the user is on a different page).
  */
 
-import { IconDatabaseImport, IconTrash } from "@tabler/icons-react";
+import { IconDatabase, IconDatabaseImport, IconTrash } from "@tabler/icons-react";
 
 export function formatCleanupSummary(report) {
   const deleted =
@@ -49,6 +49,17 @@ export function formatMongoMigrationSummary(report) {
   return `${head}${archiveSuffix}`;
 }
 
+export function formatCompactDbSummary(report) {
+  if (!report || typeof report !== "object") {
+    return "Database compacted.";
+  }
+  const mb = (value) => (Number(value || 0) / (1024 * 1024)).toFixed(1);
+  return (
+    `Database compacted. Reclaimed ${mb(report.reclaimed_bytes)} MB ` +
+    `(${mb(report.size_before)} MB → ${mb(report.size_after)} MB).`
+  );
+}
+
 export const MAINTENANCE_TASKS = [
   {
     key: "mongo-migration",
@@ -67,5 +78,14 @@ export const MAINTENANCE_TASKS = [
     route: "maintenance/local-cleanup",
     formatSuccess: formatCleanupSummary,
     errorMessage: "Failed to run local cleanup.",
+  },
+  {
+    key: "compact-db",
+    icon: IconDatabase,
+    title: "Compact Database",
+    description: "Purge expired rows and VACUUM to reclaim disk space",
+    route: "maintenance/compact-db",
+    formatSuccess: formatCompactDbSummary,
+    errorMessage: "Failed to compact the database.",
   },
 ];

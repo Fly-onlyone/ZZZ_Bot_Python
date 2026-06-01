@@ -38,11 +38,16 @@ export default function MutationToastWatcher() {
     filters: { mutationKey: ["maintenance/local-cleanup"] },
     select: selectMutationState,
   });
+  const compactDbStates = useMutationState({
+    filters: { mutationKey: ["maintenance/compact-db"] },
+    select: selectMutationState,
+  });
 
   useEffect(() => {
     const statesByRoute = {
       "maintenance/mongo-migration": mongoStates,
       "maintenance/local-cleanup": cleanupStates,
+      "maintenance/compact-db": compactDbStates,
     };
     for (const task of MAINTENANCE_TASKS) {
       const entries = statesByRoute[task.route];
@@ -59,7 +64,7 @@ export default function MutationToastWatcher() {
         showAlert("error", error instanceof Error ? error.message : task.errorMessage);
       }
     }
-  }, [mongoStates, cleanupStates, showAlert]);
+  }, [mongoStates, cleanupStates, compactDbStates, showAlert]);
 
   return null;
 }

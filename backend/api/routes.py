@@ -633,6 +633,17 @@ def run_local_cleanup():
     return JSONResponse(cleanup_report)
 
 
+@router.post("/maintenance/compact-db")
+def run_compact_database():
+    """Purge expired rows and VACUUM the SQLite database to reclaim disk."""
+    import sentry_sdk
+    from repositories import DataStore
+
+    with sentry_sdk.start_span(op="maintenance.compact_db", name="compact-database"):
+        report = DataStore.compact_database()
+    return JSONResponse(report)
+
+
 @router.post("/maintenance/mongo-migration")
 async def run_mongo_migration(request: Request):
     """Import an existing local MongoDB database into the SQLite store."""

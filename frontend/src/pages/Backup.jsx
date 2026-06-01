@@ -532,10 +532,12 @@ function MaintenanceSection() {
   const { useActionData } = DataLoader();
   const mongoMigrationMutation = useActionData("maintenance/mongo-migration");
   const cleanupMutation = useActionData("maintenance/local-cleanup");
+  const compactDbMutation = useActionData("maintenance/compact-db");
 
   const mutations = {
     "mongo-migration": mongoMigrationMutation,
     "local-cleanup": cleanupMutation,
+    "compact-db": compactDbMutation,
   };
 
   // Toast firing is handled globally by MutationToastWatcher mounted at app
