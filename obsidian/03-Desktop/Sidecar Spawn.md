@@ -14,7 +14,7 @@ tags: [desktop]
 Skipped under `debug_assertions` (dev mode runs the backend manually). Otherwise:
 
 1. Builds a `tauri_plugin_shell::sidecar("zzz-backend")` command — Tauri resolves to the target-suffixed binary `zzz-backend-{target-triple}.exe`.
-2. Args: `--port {backend_port}`, `--no-frontend`, `--hosted-by-tauri`.
+2. Args: `--port {runtime.backend_port}`, `--no-frontend`, `--hosted-by-tauri`. Reads the port stored in `AppRuntime` (resolved once in `setup()`, possibly a free-port fallback — see [[Backend Port Resolution]]) rather than re-deriving it, so `--port` and `backend_url` can't diverge.
 3. Env: `ZZZ_DESKTOP_TOKEN` (always), `SENTRY_DSN` (if resolved from `SENTRY_DSN` env or build-time `ZZZ_SENTRY_DSN`).
 4. Stores the `CommandChild` in `AppRuntime.backend_child` (mutex) so shutdown can kill it.
 5. Async task drains `CommandEvent` stream; `Terminated` flips `backend_terminated = true`.

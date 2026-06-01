@@ -11,7 +11,9 @@ tags: [desktop]
 - `src-tauri/src/lib.rs` — `run()` builder, plugin registration, setup hooks
 
 ## How it works
-`main.rs` only suppresses the Windows console (release builds) and calls `zzz_bot_lib::run()`. The library crate builds the `tauri::Builder`, registers the `single-instance`, `shell`, `autostart`, and `log` plugins (single-instance first — see [[Single Instance Guard]]), manages `AppRuntime` / `WindowStateCache` state, spawns the backend sidecar, builds the tray, reconciles autostart and startup window visibility, and wires window-event + run-event handlers (geometry caching, debounced persistence, graceful shutdown on `ExitRequested` / `Exit`).
+`main.rs` only suppresses the Windows console (release builds) and calls `zzz_bot_lib::run()`. The library crate builds the `tauri::Builder`, registers the `single-instance`, `shell`, `autostart`, and `log` plugins (single-instance first — see [[Single Instance Guard]]), resolves the backend port, **builds the `"main"` WebView window in Rust** (with an `initialization_script` that injects `window.__ZZZ_BACKEND_URL__` — see [[Backend Port Resolution]]), manages `AppRuntime` / `WindowStateCache` state, spawns the backend sidecar, builds the tray, reconciles autostart and startup window visibility, and wires window-event + run-event handlers (geometry caching, debounced persistence, graceful shutdown on `ExitRequested` / `Exit`).
+
+The window is built in `setup()` (not `tauri.conf.json`) because `initialization_script` can only be attached at window-build time. Label stays `"main"` so all `get_webview_window("main")` call sites (geometry restore, tray, single-instance, show-on-run) and the `capabilities/default.json` window scope are unaffected.
 
 ## Depends on
 - [[Tauri]] — Rust shell framework (`2.11.2`, tray-icon feature)

@@ -32,6 +32,7 @@ from utils.DataHandler import (
     prepare_mission_data,
 )
 from utils.Logger import NoImportFilter, StreamToLogger
+from utils.network import find_free_port
 from utils.NotificationHelper import NotificationModule
 from utils.screenshot_store import save_page_screenshot
 from utils.storage_state_store import (
@@ -854,6 +855,22 @@ if __name__ == "__main__":
     # the logging system so they appear in the log file and reach _SentryWarningHandler.
     logging.captureWarnings(True)
 
+    # === 1.25. Resolve backend port (free-port fallback) ===
+    # When launched by Tauri (sidecar or `tauri dev`), the host already chose the
+    # port and the frontend/Rust expect that exact value — bind it as-is. When run
+    # standalone, fall back to an OS-allocated free port if the default is taken so
+    # a second launch (or a lingering instance) doesn't crash on a bind error.
+    if hosted_by_tauri:
+        resolved_port = args.port
+    else:
+        resolved_port = find_free_port(args.port)
+        if resolved_port != args.port:
+            logger.warning(
+                "Port %s is in use; falling back to free port %s",
+                args.port,
+                resolved_port,
+            )
+
     # === 1.5. Load critical runtime state before serving requests ===
     GlobalVar.initialize_runtime_state()
 
@@ -892,7 +909,7 @@ if __name__ == "__main__":
     # === 2. Start React Dev Server (non-exe mode) ===
     if not is_exe and not args.no_frontend:
         try:
-            dev_backend_url = f"http://127.0.0.1:{args.port}"
+            dev_backend_url = f"http://127.0.0.1:{resolved_port}"
             frontend_env = os.environ.copy()
             frontend_env["VITE_BACKEND_URL"] = dev_backend_url
             frontend_sentry_dsn, frontend_sentry_dsn_source = resolve_frontend_sentry_dsn(
@@ -944,7 +961,7 @@ if __name__ == "__main__":
         config = uvicorn.Config(
             app,
             host="127.0.0.1",
-            port=args.port,
+            port=resolved_port,
             log_config=None,
             ws="wsproto",
         )

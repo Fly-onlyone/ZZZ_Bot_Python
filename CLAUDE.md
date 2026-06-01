@@ -191,17 +191,34 @@ Dev and production use **different ports** to avoid conflicts when both run simu
 | `tauri dev`                          | **8001** (start `Bot.py --no-frontend` manually; set `ZZZ_DEV_BACKEND_PORT=8001`) | 3000 (Vite, started manually)          |
 | Production exe (Tauri sidecar)       | **8000**                                                                          | Tauri WebView (serves `frontend/dist`) |
 
-**How `VITE_BACKEND_URL` resolves:**
+**Free-port fallback:** the values above are *preferred* ports, not guaranteed ones. If the
+preferred port is already bound, the launcher falls back to an OS-allocated free port instead of
+crashing, then propagates the real port to every consumer:
 
-- `bun run dev` → reads `frontend/.env.development` → `http://127.0.0.1:8001`
-- `bun run build` → `.env.development` not loaded → falls back to `http://127.0.0.1:8000` constant in `constants.js`
+- **Dev** (`uv run python backend/Bot.py`, **not** Tauri-hosted): `find_free_port()`
+  (`backend/utils/network.py`) probes 8001; on conflict it binds port 0 and uses that for both
+  uvicorn and the Vite `VITE_BACKEND_URL`. Tauri-hosted runs (`--hosted-by-tauri`) bind `--port`
+  exactly.
+- **Production exe**: Rust `resolve_backend_port()` (release only) probes 8000; on conflict it
+  allocates a free port, stores it in `AppRuntime.backend_port`, and passes the *same* value to the
+  sidecar `--port` and `backend_url`. The chosen URL reaches the WebView via the
+  `window.__ZZZ_BACKEND_URL__` global, injected by the Rust-built main window's
+  `initialization_script` (runs before any frontend script).
+
+**How `BACKEND_URL` resolves (frontend):** `window.__ZZZ_BACKEND_URL__` (Tauri injection, reflects
+the real port) → `import.meta.env.VITE_BACKEND_URL` (`.env.development` → 8001) → `http://127.0.0.1:8000`
+constant. `bun run build` drops the env, so the injected global is what production relies on.
 
 **Key files:**
 
-- `backend/Bot.py` — `--port` default is **8001**
+- `backend/Bot.py` — `--port` default **8001**; resolves a free port unless `--hosted-by-tauri`
+- `backend/utils/network.py` — `find_free_port(preferred)` socket probe (unit-tested)
 - `frontend/.env.development` — sets `VITE_BACKEND_URL=http://127.0.0.1:8001`
-- `frontend/src/config/constants.js` — fallback `BACKEND_URL` is `http://127.0.0.1:8000` (production)
-- `src-tauri/src/lib.rs` — `backend_port()` defaults to **8000**; override with `ZZZ_DEV_BACKEND_PORT`
+- `frontend/src/config/constants.js` — `BACKEND_URL` precedence (injected global → env → 8000)
+- `src-tauri/src/lib.rs` — `backend_port()` default **8000** (`ZZZ_DEV_BACKEND_PORT` override);
+  `resolve_backend_port()` free-port fallback; main window built in Rust with the URL-injecting init script
+- `src-tauri/tauri.conf.json` — no `app.windows` (window built in Rust); CSP `connect-src`/`img-src`
+  allow any loopback port (`http://127.0.0.1:*`, `http://localhost:*`)
 
 ## Logging
 

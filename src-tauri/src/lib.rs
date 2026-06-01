@@ -1,5 +1,6 @@
 use std::process::Command as ProcessCommand;
 use std::fs;
+use std::net::TcpListener;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -10,7 +11,7 @@ use tauri::{
     menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager, PhysicalPosition, PhysicalSize, Position, RunEvent, Size,
-    WindowEvent,
+    WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_shell::{process::CommandChild, process::CommandEvent, ShellExt};
 use tauri_plugin_autostart::ManagerExt as _;
@@ -48,6 +49,7 @@ enum AutostartSyncAction {
 #[derive(Debug)]
 struct AppRuntime {
     backend_url: String,
+    backend_port: u16,
     desktop_token: String,
     backend_child: Mutex<Option<CommandChild>>,
     backend_terminated: Mutex<bool>,
@@ -99,6 +101,36 @@ fn backend_port() -> u16 {
         .and_then(|v| v.parse::<u16>().ok())
         .filter(|port| *port > 0)
         .unwrap_or(8000)
+}
+
+fn port_is_available(port: u16) -> bool {
+    TcpListener::bind(("127.0.0.1", port)).is_ok()
+}
+
+fn allocate_free_port() -> Option<u16> {
+    TcpListener::bind(("127.0.0.1", 0))
+        .ok()
+        .and_then(|listener| listener.local_addr().ok())
+        .map(|addr| addr.port())
+}
+
+/// Preferred backend port if free, otherwise an OS-allocated free port.
+///
+/// Mirrors the dev fallback in `backend/Bot.py`: a lingering instance or another
+/// process on the default port must not stop the app from coming up.
+fn resolve_backend_port() -> u16 {
+    let preferred = backend_port();
+    if port_is_available(preferred) {
+        return preferred;
+    }
+
+    match allocate_free_port() {
+        Some(free) => {
+            log::warn!("Port {preferred} is in use; falling back to free port {free}");
+            free
+        }
+        None => preferred,
+    }
 }
 
 fn tray_tooltip() -> &'static str {
@@ -1207,7 +1239,7 @@ fn spawn_backend_sidecar(app: &tauri::App) {
     }
 
     let runtime = app.state::<AppRuntime>();
-    let port = backend_port().to_string();
+    let port = runtime.backend_port.to_string();
 
     let sentry_dsn = resolve_sidecar_sentry_dsn();
     if let Some((_, source)) = sentry_dsn.as_ref() {
@@ -1386,10 +1418,36 @@ pub fn run() {
         .setup(|app| {
             let desktop_token = std::env::var("ZZZ_DESKTOP_TOKEN")
                 .unwrap_or_else(|_| generate_desktop_token());
-            let backend_url = format!("http://127.0.0.1:{}", backend_port());
+            // In debug (`cargo tauri dev`) the dev runner fixes the port and starts
+            // the backend itself, so bind exactly that. In release the bundled
+            // sidecar is ours to launch, so fall back to a free port if needed.
+            let port = if cfg!(debug_assertions) {
+                backend_port()
+            } else {
+                resolve_backend_port()
+            };
+            let backend_url = format!("http://127.0.0.1:{port}");
+
+            // Build the main window in Rust (instead of tauri.conf.json) so we can
+            // attach an initialization script. It runs after the global object is
+            // created but before the page is parsed or any frontend script runs, so
+            // the WebView learns the actual backend URL even when it isn't 8000.
+            let init_script = format!(
+                "if (window.location.protocol.startsWith('tauri') || \
+                 window.location.protocol.startsWith('http')) {{ \
+                 window.__ZZZ_BACKEND_URL__ = \"{backend_url}\"; }}"
+            );
+            WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+                .title("ZZZ Bot")
+                .inner_size(1200.0, 800.0)
+                .resizable(true)
+                .visible(false)
+                .initialization_script(init_script)
+                .build()?;
 
             app.manage(AppRuntime {
                 backend_url,
+                backend_port: port,
                 desktop_token,
                 backend_child: Mutex::new(None),
                 backend_terminated: Mutex::new(false),

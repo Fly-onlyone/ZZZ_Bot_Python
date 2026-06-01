@@ -18,12 +18,12 @@ tags: [integration]
 - Build: `tauri-build = "2.5.4"`
 - Plugins: `tauri-plugin-single-instance = "2"`, `tauri-plugin-shell = "2"`, `tauri-plugin-autostart = "2"`, `tauri-plugin-log = "2"`
 - Bundle target: `nsis`, install mode `currentUser`, install dir `%LOCALAPPDATA%\Programs\ZZZ Bot`
-- CSP locks `connect-src` to localhost 8000-8001 + Sentry ingest
+- CSP `connect-src`/`img-src` allow any loopback port (`http://127.0.0.1:*`, `http://localhost:*`) + Sentry ingest — widened from the old 8000/8001 lock so a free-port fallback still works (see [[Backend Port Resolution]])
 
 ## Wire-up
 - `src-tauri/src/main.rs` — entry point stub
 - `src-tauri/src/lib.rs` — builder + setup + run-event handlers
-- `src-tauri/tauri.conf.json` — bundle, window, CSP config
+- `src-tauri/tauri.conf.json` — bundle + CSP config (no `app.windows`: the main window is built in `lib.rs` `setup()` so it can carry the URL-injecting `initialization_script`)
 
 ## Auth mode
 N/A — Tauri itself; the sidecar IPC uses the [[Desktop Token]].

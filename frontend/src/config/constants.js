@@ -11,9 +11,18 @@
 
 /**
  * Backend API base URL
- * Uses environment variable if available, falls back to localhost
+ *
+ * Precedence:
+ *   1. window.__ZZZ_BACKEND_URL__ — injected by the Tauri shell at window-build
+ *      time (production + `tauri dev`); reflects the actual bound port, which may
+ *      differ from the default when it falls back to a free port.
+ *   2. VITE_BACKEND_URL — set by Bot.py for the plain Vite dev server.
+ *   3. Hardcoded production fallback.
  */
-export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000";
+export const BACKEND_URL =
+  (typeof window !== "undefined" && window.__ZZZ_BACKEND_URL__) ||
+  import.meta.env.VITE_BACKEND_URL ||
+  "http://127.0.0.1:8000";
 
 // ============================================================================
 // CACHE/STALE TIME CONFIGURATION (milliseconds)

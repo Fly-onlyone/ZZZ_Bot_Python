@@ -10,7 +10,7 @@ tags: [frontend, config]
 - `frontend/src/config/constants.js` — primary
 
 ## How it works
-- `BACKEND_URL` — `import.meta.env.VITE_BACKEND_URL` if defined, else `http://127.0.0.1:8000`. Dev reads `frontend/.env.development` (port 8001); production builds drop the env and hit the bundled sidecar on 8000. See [[Frontend Env Resolver]] and [[Port Configuration]].
+- `BACKEND_URL` — three-tier precedence: `window.__ZZZ_BACKEND_URL__` (injected by the Tauri shell's main-window init script, reflects the *actual* bound port even after a free-port fallback) → `import.meta.env.VITE_BACKEND_URL` (dev reads `frontend/.env.development`, port 8001) → `http://127.0.0.1:8000` constant. `bun run build` drops the env, so production relies on the injected global. See [[Backend Port Resolution]], [[Frontend Env Resolver]], and [[Port Configuration]].
 - `STALE_TIMES` — per-route TanStack Query stale windows: `shopping` 15min, `redeem` 10min, `settings` 60min, `account` 30min, mission/hunt 5min, backup-summary 2min, locator-tracker 2min, etc.
 - `DEFAULT_STALE_TIME` — 1min fallback.
 - `DRAWER_WIDTH` — 240px nav drawer.
