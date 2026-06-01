@@ -30,7 +30,8 @@ Key module: `ImageProcessor.py` with `RetryHelper.py` for element polling.
 ## Key Design Decisions
 
 - **Image Recognition vs. Selectors:** Web UI selectors break frequently due to dynamic content and updates. Use OpenCV template matching with reference images (`cv2.matchTemplate`, <5% difference threshold).
-- **Session Management:** Persistent Playwright browser context stored in `authentication data/`. First-time setup via manual login UI. Avoids repeated authentication.
+- **Session Management:** Persistent Playwright storage state, saved to SQLite (`storage_state:hoyo.json`) with a local-file fallback. First-time setup via manual login UI. Avoids repeated authentication.
+- **Auth-gate (login validation):** Before automation, `EventNavigator.wait_for_authenticated_event_home()` decides if the event page is usable. The Mimo page is a canvas/sprite UI whose home content is unreliable to scrape, so the gate trusts the **session cookie pair** (`ltoken_v2`/`ltuid_v2` or `cookie_token_v2`/`account_id_v2`) as the authoritative "logged in" signal. It blocks + notifies ("Please log in manually") **only** when a login form is positively visible, or when no cookies are present; on an ambiguous render it proceeds and lets the image-recognition handlers run. This avoids false-positive manual-login spam on every scheduled run.
 - **Hunt Mode Three-Phase Execution:** See Pattern 5 in code-guide.md. Reduces session time, ensures cleanup even on partial failure.
 
 ## Module Dependencies

@@ -251,7 +251,7 @@ class ManualLoginManager:
                     logger.info("Stop button clicked, saving session...")
 
                 try:
-                    # Manual login should refresh MongoDB auth state directly.
+                    # Manual login refreshes the SQLite-backed auth state directly.
                     save_context_storage_state(
                         self._context,
                         CONFIG["STORAGE_PATH"],
@@ -263,7 +263,7 @@ class ManualLoginManager:
                             "Removed stale local storage-state fallback: %s",
                             CONFIG["STORAGE_PATH"],
                         )
-                    logger.info("✓ Session saved successfully to MongoDB storage state")
+                    logger.info("✓ Session saved successfully to SQLite storage state")
 
                     NotificationHelper.notify(
                         title="ZZZ Bot",

@@ -37,6 +37,14 @@ EVENT_PAGE_MISSION_HINT_TEXT = "Carry out missions to earn"
 EVENT_PAGE_LOGIN_FRAME_SELECTOR = "#hyv-account-frame"
 EVENT_PAGE_AUTH_SCREENSHOT_PREFIX = "event_page_auth_required_"
 
+# Domains and cookie names that prove an active HoYoLab login. The browser drops
+# expired cookies, so presence of a full pair implies an unexpired session.
+HOYOLAB_AUTH_COOKIE_DOMAINS = ("hoyolab.com", "hoyoverse.com")
+HOYOLAB_AUTH_COOKIE_PAIRS = (
+    ("ltoken_v2", "ltuid_v2"),
+    ("cookie_token_v2", "account_id_v2"),
+)
+
 LauncherCandidate = tuple[str, Callable[[], Locator]]
 
 
@@ -190,6 +198,25 @@ def ensure_event_home(
     return not has_blocking_ui(page)
 
 
+def _has_hoyolab_auth_cookies(page: Page) -> bool:
+    """Return whether the context carries a full HoYoLab login cookie pair.
+
+    The page itself is a canvas/sprite UI whose home content is unreliable to scrape,
+    so the cookies are the authoritative "logged in" signal.
+    """
+    with suppress(Exception):
+        cookies = page.context.cookies()
+        present = {
+            cookie.get("name")
+            for cookie in cookies
+            if any(domain in (cookie.get("domain") or "") for domain in HOYOLAB_AUTH_COOKIE_DOMAINS)
+        }
+        return any(
+            first in present and second in present for first, second in HOYOLAB_AUTH_COOKIE_PAIRS
+        )
+    return False
+
+
 def _collect_event_page_auth_indicators(page: Page) -> dict[str, object]:
     """Collect lightweight signals that distinguish guest vs ready event page state."""
     login_link_visible = is_locator_visible(
@@ -237,44 +264,17 @@ def _capture_event_page_auth_screenshot(page: Page) -> str | None:
         return None
 
 
-def wait_for_authenticated_event_home(
+def _build_auth_required_result(
     page: Page,
     *,
     context: str,
-    timeout_ms: int = EVENT_PAGE_AUTH_TIMEOUT_MS,
-    poll_interval_ms: int = EVENT_PAGE_AUTH_POLL_INTERVAL_MS,
+    reason: str,
+    indicators: dict[str, object],
+    timeout_ms: int,
+    poll_interval_ms: int,
 ) -> EventPageAuthResult:
-    """Verify the event page is usable before mission/shopping/draw automation starts."""
+    """Capture diagnostics and return a blocking auth-required outcome."""
     import sentry_sdk
-
-    deadline = time.monotonic() + (timeout_ms / 1000)
-    last_indicators = _collect_event_page_auth_indicators(page)
-    reason = "event_home_not_ready"
-
-    while time.monotonic() < deadline:
-        last_indicators = _collect_event_page_auth_indicators(page)
-        login_visible = any(
-            (
-                last_indicators["login_link_visible"],
-                last_indicators["login_button_visible"],
-                last_indicators["login_frame_visible"],
-            )
-        )
-        home_signal_visible = bool(last_indicators["home_signal_visible"])
-
-        if home_signal_visible and not login_visible:
-            logger.info("Event page ready while %s", context)
-            return EventPageAuthResult(
-                ready=True,
-                auth_required=False,
-                reason="event_home_ready",
-            )
-
-        if login_visible:
-            reason = "login_prompt_visible"
-            break
-
-        page.wait_for_timeout(poll_interval_ms)
 
     screenshot_asset_id = _capture_event_page_auth_screenshot(page)
     current_url = getattr(page, "url", None)
@@ -298,7 +298,7 @@ def wait_for_authenticated_event_home(
                 "poll_interval_ms": poll_interval_ms,
                 "current_url": current_url,
                 "screenshot_asset_id": screenshot_asset_id,
-                **last_indicators,
+                **indicators,
             },
         )
         sentry_sdk.capture_message("Event page requires manual login", level="warning")
@@ -308,6 +308,100 @@ def wait_for_authenticated_event_home(
         auth_required=True,
         reason=reason,
         screenshot_asset_id=screenshot_asset_id,
+    )
+
+
+def wait_for_authenticated_event_home(
+    page: Page,
+    *,
+    context: str,
+    timeout_ms: int = EVENT_PAGE_AUTH_TIMEOUT_MS,
+    poll_interval_ms: int = EVENT_PAGE_AUTH_POLL_INTERVAL_MS,
+) -> EventPageAuthResult:
+    """Verify the event page is usable before mission/shopping/draw automation starts.
+
+    The Mimo event page is a canvas/sprite UI: its home text is baked into images and
+    its icons are not ``<img>`` roles, so the DOM "home" heuristic frequently stays
+    false while the entrance animation plays. To avoid blocking every scheduled run on
+    a false positive, this gate blocks **only** when a login form is positively shown.
+    On the ambiguous case (neither home nor login detected) it trusts a valid session
+    cookie pair and proceeds, leaving the downstream image-recognition handlers — which
+    have their own retries — to surface any real failure.
+    """
+    has_auth_cookies = _has_hoyolab_auth_cookies(page)
+
+    # Give late-attaching content a brief moment to settle without forcing a long
+    # wait on pages that never reach networkidle (capped, best-effort).
+    with suppress(Exception):
+        page.wait_for_load_state("load", timeout=3000)
+
+    deadline = time.monotonic() + (timeout_ms / 1000)
+    last_indicators = _collect_event_page_auth_indicators(page)
+    reason = "event_home_not_ready"
+
+    while True:
+        last_indicators = _collect_event_page_auth_indicators(page)
+        login_visible = any(
+            (
+                last_indicators["login_link_visible"],
+                last_indicators["login_button_visible"],
+                last_indicators["login_frame_visible"],
+            )
+        )
+        home_signal_visible = bool(last_indicators["home_signal_visible"])
+
+        if login_visible:
+            reason = "login_prompt_visible"
+            break
+
+        if home_signal_visible:
+            logger.info("Event page ready while %s", context)
+            return EventPageAuthResult(
+                ready=True,
+                auth_required=False,
+                reason="event_home_ready",
+            )
+
+        if time.monotonic() >= deadline:
+            break
+
+        page.wait_for_timeout(poll_interval_ms)
+
+    # A login form was positively shown -> a real re-login is needed, even if stale
+    # cookies linger in the context.
+    if reason == "login_prompt_visible":
+        return _build_auth_required_result(
+            page,
+            context=context,
+            reason=reason,
+            indicators=last_indicators,
+            timeout_ms=timeout_ms,
+            poll_interval_ms=poll_interval_ms,
+        )
+
+    # Ambiguous: neither home nor login detected within the window. A valid session
+    # cookie pair is authoritative, so proceed instead of spamming a manual-login
+    # prompt. No failure screenshot here keeps the binary_assets table from bloating.
+    if has_auth_cookies:
+        logger.info(
+            "Event page home signals not detected while %s, but HoYoLab auth cookies "
+            "are present; proceeding (reason=auth_cookies_present)",
+            context,
+        )
+        return EventPageAuthResult(
+            ready=True,
+            auth_required=False,
+            reason="auth_cookies_present",
+        )
+
+    # No home content and no session cookies -> genuinely signed out.
+    return _build_auth_required_result(
+        page,
+        context=context,
+        reason=reason,
+        indicators=last_indicators,
+        timeout_ms=timeout_ms,
+        poll_interval_ms=poll_interval_ms,
     )
 
 
